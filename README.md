@@ -246,6 +246,12 @@ Current local behavior:
 - Qdrant support is optional and local.
 - Export remains available in the open-source core.
 
+## 💬 Community
+
+- **Questions & ideas** → [GitHub Discussions](https://github.com/marcomnit/truenex-memory/discussions)
+- **Bug reports & feature requests** → [GitHub Issues](https://github.com/marcomnit/truenex-memory/issues)
+- **Code contributions** → See [CONTRIBUTING.md](CONTRIBUTING.md)
+
 ## 🧑‍💻 Development
 
 Run tests:
