@@ -51,15 +51,16 @@ def bump_changelog(root: Path, new_version: str) -> None:
     today = date.today().isoformat()
 
     # Insert new version section below Unreleased
-    marker = "## [Unreleased]\n\n### Added\n\n## ["
+    # Find the first section header after [Unreleased]
+    pattern = r"(## \[Unreleased\]\n\n### Added\n\n)(## \[)"
     replacement = (
         f"## [Unreleased]\n\n### Added\n\n"
         f"## [{new_version}] — {today}\n\n### Added\n\n## ["
     )
-    if marker not in text:
+    if not re.search(pattern, text):
         print(f"  [ERR] {path} — unexpected format, update manually")
         sys.exit(1)
-    text = text.replace(marker, replacement, 1)
+    text = re.sub(pattern, replacement, text, count=1)
     path.write_text(text, encoding="utf-8")
     print(f"  [OK] {path}")
 
