@@ -13,15 +13,9 @@ Stop burning 50,000 tokens per session re-reading documentation your agent alrea
 
 <p align="center">
   <a href="https://memory.truenex.ai">🌐 Website</a> ·
-  <a href="#5-minute-quickstart">🚀 Quickstart</a> ·
-  <a href="#installation">📦 Install</a> ·
-  <a href="#mcp-stdio">🔌 MCP Setup</a> ·
-  <a href="#roadmap">🗺️ Roadmap</a>
-</p>
-
-<p align="center">
-  <a href="ROADMAP.md">📋 Full Roadmap</a> ·
-  <a href="CHANGELOG.md">📝 Changelog</a>
+  <a href="ROADMAP.md">📋 Roadmap</a> ·
+  <a href="CHANGELOG.md">📝 Changelog</a> ·
+  <a href="docs/installation.md">📦 Install Guide</a>
 </p>
 
 **Status: public alpha.** The open-source core is ready for technical users who
