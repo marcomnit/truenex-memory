@@ -13,10 +13,15 @@ Stop burning 50,000 tokens per session re-reading documentation your agent alrea
 
 <p align="center">
   <a href="https://memory.truenex.it">🌐 Website</a> ·
-  <a href="#quickstart">🚀 Quickstart</a> ·
+  <a href="#5-minute-quickstart">🚀 Quickstart</a> ·
   <a href="#installation">📦 Install</a> ·
   <a href="#mcp-stdio">🔌 MCP Setup</a> ·
   <a href="#roadmap">🗺️ Roadmap</a>
+</p>
+
+<p align="center">
+  <a href="ROADMAP.md">📋 Full Roadmap</a> ·
+  <a href="CHANGELOG.md">📝 Changelog</a>
 </p>
 
 **Status: public alpha.** The open-source core is ready for technical users who
@@ -266,6 +271,14 @@ Compile-check sources:
 ```bash
 python -m compileall -q src
 ```
+
+## 🗺️ Roadmap
+
+- **v0.1.0** (now) — Public alpha: local memory, MCP server, CLI, auto-memory lifecycle.
+- **v0.2.0** — Stabilization: public package build, release artifacts, expanded docs.
+- **v0.3.0** — Ecosystem: plugin system, custom embedders, multi-project merge workflows.
+
+See the full roadmap in [ROADMAP.md](ROADMAP.md).
 
 ## 📄 License
 
