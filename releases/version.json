@@ -1,0 +1,11 @@
+{
+  "manifest_version": "1",
+  "version": "0.1.0",
+  "channel": "dev",
+  "force_update": false,
+  "update_full": false,
+  "download_url": null,
+  "release_notes_url": null,
+  "requires_migration": false,
+  "min_supported_version": "0.1.0"
+}

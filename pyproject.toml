@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "truenex-memory"
+version = "0.1.0"
+description = "Local-first memory layer for coding agents"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.12"
+authors = [
+    { name = "Truenex" },
+]
+keywords = ["memory", "agents", "local-first", "coding-agents"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+qdrant = [
+    "qdrant-client>=1.12",
+]
+
+[project.scripts]
+truenex-mem = "truenex_memory.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/truenex_memory"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = ["-p", "no:cacheprovider", "-m", "not e2e and not qdrant"]
+markers = [
+    "e2e: slower end-to-end tests that may create virtual environments or subprocess sessions",
+    "qdrant: integration tests requiring qdrant-client and a reachable local Qdrant service",
+]
+norecursedirs = [".task3_work", ".task_work", ".pytest-tmp", "pytest_tmp", "task_work_*"]
