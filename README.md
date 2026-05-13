@@ -1,13 +1,30 @@
+<p align="center">
+  <a href="https://github.com/marcomnit/truenex-memory/actions/workflows/ci.yml"><img src="https://github.com/marcomnit/truenex-memory/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
+  <a href="https://memory.truenex.it"><img src="https://img.shields.io/badge/website-memory.truenex.it-7C4DFF" alt="Website"></a>
+</p>
+
 # Truenex Memory
 
-Local-first memory layer for coding agents.
+**Local-first memory layer for coding agents.**
+
+Stop burning 50,000 tokens per session re-reading documentation your agent already saw. Truenex Memory gives your AI coding agents a persistent, queryable local memory — so they remember project decisions, architecture, and context across every session.
+
+<p align="center">
+  <a href="https://memory.truenex.it">🌐 Website</a> ·
+  <a href="#quickstart">🚀 Quickstart</a> ·
+  <a href="#installation">📦 Install</a> ·
+  <a href="#mcp-stdio">🔌 MCP Setup</a> ·
+  <a href="#roadmap">🗺️ Roadmap</a>
+</p>
 
 **Status: public alpha.** The open-source core is ready for technical users who
 want a local, inspectable memory store for Codex, Claude Code, Cursor, and other
 MCP-aware coding agents. APIs and command output may still change before a
 stable 1.0 release.
 
-## Why It Exists
+## 💡 Why It Exists
 
 Coding agents lose context between sessions. Truenex Memory gives them a local
 source of truth they can query before making claims, proposing changes, or
@@ -16,15 +33,21 @@ repeating work already done.
 It stores project decisions, indexed documents, source chunks, provenance,
 retrieval logs, and generated memory candidates on your machine.
 
+<p align="center">
+  <a href="https://memory.truenex.it">
+    <b>→ See the full story, screenshots, and feature comparison at memory.truenex.it</b>
+  </a>
+</p>
+
 Core principles:
 
-- Local-first: no account is required.
-- Privacy-first: no automatic upload of code, documents, or memory.
-- Agent-first: CLI and MCP are primary surfaces.
-- Data ownership: export/import is part of the core.
-- Open core: the Apache-2.0 local core remains useful without paid services.
+- **Local-first**: no account is required.
+- **Privacy-first**: no automatic upload of code, documents, or memory.
+- **Agent-first**: CLI and MCP are primary surfaces.
+- **Data ownership**: export/import is part of the core.
+- **Open core**: the Apache-2.0 local core remains useful without paid services.
 
-## What Is Included In The Open-Source Core
+## 📦 What Is Included In The Open-Source Core
 
 - `truenex-mem` CLI.
 - Local SQLite store.
@@ -45,25 +68,38 @@ Core principles:
 Optional future Pro/Team features may add advanced UI, team workflows, sync, or
 governance. They must remain opt-in and must not lock local data.
 
-## Installation
+## 🖥️ System Requirements
 
-Development install from a checkout:
+- **Python** >= 3.12
+- **OS**: Windows, macOS, or Linux
+- **Disk**: ~50 MB + space for your indexed documents
+- **Optional**: [Qdrant](https://qdrant.tech/) for vector search (falls back to SQLite otherwise)
+
+## ⚡ Installation
+
+> ⚠️ **Alpha — install from source.** PyPI release coming in v0.2.0. See [ROADMAP.md](ROADMAP.md).
 
 ```bash
+# 1. Clone the repository
+git clone https://github.com/marcomnit/truenex-memory.git
+cd truenex-memory
+
+# 2. Create a virtual environment
 python -m venv .venv
-.venv\Scripts\python -m pip install -e ".[dev]"
+
+# 3. Install in editable mode
+# Windows:
+.venv\Scripts\pip install -e ".[dev]"
+# Linux / macOS:
+.venv/bin/pip install -e ".[dev]"
+
+# 4. Verify
 truenex-mem --help
 ```
 
-For a clean user-style install after release artifacts are published:
+For detailed install options (Qdrant, schedulers, pipx) see [docs/installation.md](docs/installation.md).
 
-```bash
-pipx install truenex-memory
-```
-
-Until public package artifacts are available, use the editable install above.
-
-## 5-Minute Quickstart
+## 🚀 5-Minute Quickstart
 
 Run these commands from a project root:
 
@@ -87,7 +123,7 @@ Expected results:
 - `index` reads the sample project.
 - `export` writes a readable JSON export.
 
-## Sample Project
+## 🧪 Sample Project
 
 The repository includes a sample project:
 
@@ -108,7 +144,7 @@ truenex-mem search "automatic upload"
 truenex-mem search "local metadata database"
 ```
 
-## MCP stdio
+## 🔌 MCP stdio
 
 Run the local MCP server from a project root:
 
@@ -140,7 +176,7 @@ Global MCP tools are read-only bootstrap helpers. They read the confirmed local
 catalog and global database; server aliases are reported as hints only and are
 never executed by the core.
 
-## Global Memory Workflow
+## 🌍 Global Memory Workflow
 
 Truenex Memory can build a confirmed global catalog from local agent and project
 sources:
@@ -163,7 +199,7 @@ truenex-mem global search "project release status" --kind all
 Generated Auto Memory remains conservative: candidates are `unverified` until a
 user approves, rejects, promotes, or prunes them.
 
-## CLI Reference
+## 🛠️ CLI Reference
 
 ```bash
 truenex-mem init
@@ -200,7 +236,7 @@ See [docs/phase-3-auto-memory-design.md](docs/phase-3-auto-memory-design.md)
 for the Auto Memory design.
 See [ROADMAP.md](ROADMAP.md) for open-core and future Pro/Team boundaries.
 
-## Privacy Notes
+## 🔒 Privacy Notes
 
 Current local behavior:
 
@@ -211,7 +247,7 @@ Current local behavior:
 - Qdrant support is optional and local.
 - Export remains available in the open-source core.
 
-## Development
+## 🧑‍💻 Development
 
 Run tests:
 
@@ -231,6 +267,6 @@ Compile-check sources:
 python -m compileall -q src
 ```
 
-## License
+## 📄 License
 
 Apache-2.0

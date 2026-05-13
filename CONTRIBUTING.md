@@ -7,7 +7,11 @@ the mechanics for pre-1.0 development.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\python -m pip install -e ".[dev]"
+
+# Windows:
+.venv\Scripts\pip install -e ".[dev]"
+# Linux / macOS:
+.venv/bin/pip install -e ".[dev]"
 ```
 
 Requires Python >= 3.12.

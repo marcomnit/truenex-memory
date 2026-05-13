@@ -32,6 +32,13 @@ qdrant = [
     "qdrant-client>=1.12",
 ]
 
+[project.urls]
+Homepage = "https://memory.truenex.it"
+Documentation = "https://github.com/marcomnit/truenex-memory#readme"
+Repository = "https://github.com/marcomnit/truenex-memory"
+Issues = "https://github.com/marcomnit/truenex-memory/issues"
+Changelog = "https://github.com/marcomnit/truenex-memory/blob/main/CHANGELOG.md"
+
 [project.scripts]
 truenex-mem = "truenex_memory.cli.main:app"
 

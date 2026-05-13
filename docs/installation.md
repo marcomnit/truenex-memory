@@ -1,37 +1,41 @@
 # Installation
 
-Truenex Memory is currently in local development.
+> ⚠️ **Public Alpha — source install only.** PyPI release is planned for v0.2.0. See [ROADMAP.md](../ROADMAP.md).
 
-## Development Install
+## Quick Install (from source)
 
 ```bash
+# 1. Clone
+git clone https://github.com/marcomnit/truenex-memory.git
+cd truenex-memory
+
+# 2. Create virtual environment
 python -m venv .venv
-.venv\Scripts\python -m pip install -e ".[dev]"
+
+# 3. Install in editable mode
+# Windows:
+.venv\Scripts\pip install -e ".[dev]"
+# Linux / macOS:
+.venv/bin/pip install -e ".[dev]"
+
+# 4. Verify
 truenex-mem --help
 ```
 
 ## Future User Install
 
-The intended public install path is:
+Once published to PyPI, the install path will be:
 
 ```bash
 pipx install truenex-memory
 ```
 
-Until packaging is finalized, use editable installs from the source checkout.
+Until then, use the editable install above.
 
 ## Repositories
 
-Planned GitHub layout:
-
-- `marcomnit/truenex-memory`: source repository for the open-core local memory layer.
-- `marcomnit/truenex-memory-releases`: public update manifest and release metadata.
-
-The CLI release manifest URL is:
-
-```text
-https://raw.githubusercontent.com/marcomnit/truenex-memory-releases/main/version.json
-```
+- [`marcomnit/truenex-memory`](https://github.com/marcomnit/truenex-memory): source repository for the open-core local memory layer.
+- [`marcomnit/truenex-memory-dev`](https://github.com/marcomnit/truenex-memory-dev): private development workspace (not public).
 
 ## Local-First Update Policy
 
@@ -191,9 +195,17 @@ Qdrant locally:
 ```bash
 python -m pip install -e ".[qdrant]"
 docker compose up -d qdrant
+
+# Windows (cmd)
 set TRUENEX_MEMORY_VECTOR_BACKEND=qdrant
 set TRUENEX_MEMORY_QDRANT_URL=http://localhost:6333
 set TRUENEX_MEMORY_QDRANT_COLLECTION=truenex_memory
+
+# Linux / macOS
+export TRUENEX_MEMORY_VECTOR_BACKEND=qdrant
+export TRUENEX_MEMORY_QDRANT_URL=http://localhost:6333
+export TRUENEX_MEMORY_QDRANT_COLLECTION=truenex_memory
+
 truenex-mem doctor --privacy
 ```
 
