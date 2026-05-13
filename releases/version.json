@@ -1,6 +1,6 @@
 {
   "manifest_version": "1",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "channel": "alpha",
   "force_update": false,
   "update_full": false,

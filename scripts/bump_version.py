@@ -25,7 +25,7 @@ def bump_init_py(root: Path, new_version: str) -> None:
     text = path.read_text(encoding="utf-8")
     text = re.sub(r'__version__ = "[^"]+"', f'__version__ = "{new_version}"', text)
     path.write_text(text, encoding="utf-8")
-    print(f"  ✓ {path}")
+    print(f"  [OK] {path}")
 
 
 def bump_pyproject_toml(root: Path, new_version: str) -> None:
@@ -33,7 +33,7 @@ def bump_pyproject_toml(root: Path, new_version: str) -> None:
     text = path.read_text(encoding="utf-8")
     text = re.sub(r'^version = "[^"]+"', f'version = "{new_version}"', text, flags=re.MULTILINE)
     path.write_text(text, encoding="utf-8")
-    print(f"  ✓ {path}")
+    print(f"  [OK] {path}")
 
 
 def bump_version_json(root: Path, new_version: str, channel: str) -> None:
@@ -42,7 +42,7 @@ def bump_version_json(root: Path, new_version: str, channel: str) -> None:
     data["version"] = new_version
     data["channel"] = channel
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    print(f"  ✓ {path}")
+    print(f"  [OK] {path}")
 
 
 def bump_changelog(root: Path, new_version: str) -> None:
@@ -57,11 +57,11 @@ def bump_changelog(root: Path, new_version: str) -> None:
         f"## [{new_version}] — {today}\n\n### Added\n\n## ["
     )
     if marker not in text:
-        print(f"  ✗ {path} — unexpected format, update manually")
+        print(f"  [ERR] {path} — unexpected format, update manually")
         sys.exit(1)
     text = text.replace(marker, replacement, 1)
     path.write_text(text, encoding="utf-8")
-    print(f"  ✓ {path}")
+    print(f"  [OK] {path}")
 
 
 def main() -> None:
