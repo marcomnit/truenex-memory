@@ -33,7 +33,7 @@ qdrant = [
 ]
 
 [project.urls]
-Homepage = "https://memory.truenex.it"
+Homepage = "https://memory.truenex.ai"
 Documentation = "https://github.com/marcomnit/truenex-memory#readme"
 Repository = "https://github.com/marcomnit/truenex-memory"
 Issues = "https://github.com/marcomnit/truenex-memory/issues"

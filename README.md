@@ -2,7 +2,7 @@
   <a href="https://github.com/marcomnit/truenex-memory/actions/workflows/ci.yml"><img src="https://github.com/marcomnit/truenex-memory/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/python-3.12%2B-blue" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
-  <a href="https://memory.truenex.it"><img src="https://img.shields.io/badge/website-memory.truenex.it-7C4DFF" alt="Website"></a>
+  <a href="https://memory.truenex.ai"><img src="https://img.shields.io/badge/website-memory.truenex.ai-7C4DFF" alt="Website"></a>
 </p>
 
 # Truenex Memory
@@ -12,7 +12,7 @@
 Stop burning 50,000 tokens per session re-reading documentation your agent already saw. Truenex Memory gives your AI coding agents a persistent, queryable local memory — so they remember project decisions, architecture, and context across every session.
 
 <p align="center">
-  <a href="https://memory.truenex.it">🌐 Website</a> ·
+  <a href="https://memory.truenex.ai">🌐 Website</a> ·
   <a href="#5-minute-quickstart">🚀 Quickstart</a> ·
   <a href="#installation">📦 Install</a> ·
   <a href="#mcp-stdio">🔌 MCP Setup</a> ·
@@ -39,8 +39,8 @@ It stores project decisions, indexed documents, source chunks, provenance,
 retrieval logs, and generated memory candidates on your machine.
 
 <p align="center">
-  <a href="https://memory.truenex.it">
-    <b>→ See the full story, screenshots, and feature comparison at memory.truenex.it</b>
+  <a href="https://memory.truenex.ai">
+    <b>→ See the full story, screenshots, and feature comparison at memory.truenex.ai</b>
   </a>
 </p>
 
