@@ -86,15 +86,22 @@ cd truenex-memory
 # 2. Create a virtual environment
 python -m venv .venv
 
-# 3. Install in editable mode
-# Windows:
-.venv\Scripts\pip install -e ".[dev]"
+# 3. Activate the virtual environment
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
+# Windows (cmd):
+.venv\Scripts\activate.bat
 # Linux / macOS:
-.venv/bin/pip install -e ".[dev]"
+source .venv/bin/activate
 
-# 4. Verify
+# 4. Install in editable mode
+pip install -e ".[dev]"
+
+# 5. Verify
 truenex-mem --help
 ```
+
+> **Windows PowerShell note:** if activation fails with an execution policy error, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` first.
 
 For detailed install options (Qdrant, schedulers, pipx) see [docs/installation.md](docs/installation.md).
 
