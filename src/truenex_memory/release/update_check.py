@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from typing import Callable
 from urllib.request import Request, urlopen
 
@@ -97,10 +98,10 @@ def compare_versions(left: str, right: str) -> int:
 
 def _version_tuple(version: str) -> tuple[int, int, int]:
     raw = version.strip().lstrip("v")
-    parts = raw.split(".")
-    if len(parts) != 3:
+    m = re.match(r"(\d+)\.(\d+)\.(\d+)", raw)
+    if not m:
         raise ValueError(f"version must use MAJOR.MINOR.PATCH: {version!r}")
     try:
-        return tuple(int(part) for part in parts)  # type: ignore[return-value]
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)))
     except ValueError as exc:
         raise ValueError(f"version must use numeric MAJOR.MINOR.PATCH: {version!r}") from exc
