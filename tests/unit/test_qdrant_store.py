@@ -78,5 +78,5 @@ def test_qdrant_store_wraps_unreachable_client() -> None:
 
     store = QdrantVectorStore(collection_name="memory", dimensions=3, client=FailingClient())
 
-    with pytest.raises(VectorStoreUnavailable, match="Qdrant is not reachable"):
+    with pytest.raises(VectorStoreUnavailable, match="Qdrant initialize failed after"):
         store.initialize()

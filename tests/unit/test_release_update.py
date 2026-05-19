@@ -8,6 +8,7 @@ from truenex_memory.cli.main import app
 from truenex_memory.release.manifest import DEFAULT_MANIFEST_URL, ReleaseManifest
 from truenex_memory.release.update_check import check_for_updates, compare_versions
 from truenex_memory.release.version import get_version_info
+import truenex_memory
 
 
 runner = CliRunner()
@@ -16,7 +17,7 @@ runner = CliRunner()
 def test_version_info_contains_distinct_versions() -> None:
     info = get_version_info()
 
-    assert info["app_version"] == "0.1.0"
+    assert info["app_version"] == truenex_memory.__version__
     assert info["db_schema_version"] == "4"
     assert info["mcp_tools_version"] == "1"
     assert info["memory_export_version"] == "1"
@@ -45,7 +46,7 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     def fetcher(url: str) -> dict[str, object]:
         assert url == DEFAULT_MANIFEST_URL
         return {
-            "version": "0.2.0",
+            "version": "0.3.0",
             "channel": "dev",
             "force_update": False,
             "update_full": True,
@@ -58,15 +59,16 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     result = check_for_updates(fetcher=fetcher)
 
     assert result.update_available is True
-    assert result.latest_version == "0.2.0"
+    assert result.latest_version == "0.3.0"
     assert result.update_full is True
     assert result.manifest_url == DEFAULT_MANIFEST_URL
 
 
 def test_update_check_supports_force_update_for_same_version() -> None:
+    current = truenex_memory.__version__.split("-")[0].split("a")[0].split("b")[0].split("rc")[0]
     result = check_for_updates(
-        current_version="0.1.0",
-        fetcher=lambda url: {"version": "0.1.0", "force_update": True},
+        current_version=current,
+        fetcher=lambda url: {"version": current, "force_update": True},
     )
 
     assert result.update_available is True
@@ -85,4 +87,4 @@ def test_cli_version_info() -> None:
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload["app_version"] == "0.1.0"
+    assert payload["app_version"] == truenex_memory.__version__
