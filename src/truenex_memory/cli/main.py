@@ -174,12 +174,32 @@ def list_command(
 
 
 @app.command()
-def index(path: Path = typer.Argument(Path("."), help="File or directory to index.")) -> None:
+def index(
+    path: Path = typer.Argument(Path("."), help="File or directory to index."),
+    chunk_size: int = typer.Option(0, "--chunk-size", help="Max chars per chunk (0 = use config default)."),
+    chunk_overlap: int = typer.Option(0, "--chunk-overlap", help="Overlap chars between chunks (0 = none)."),
+    exclude: list[str] = typer.Option([], "--exclude", help="Additional directory or filename patterns to exclude."),
+) -> None:
     """Index local files into the project memory store."""
 
     if not path.exists():
         raise typer.BadParameter(f"path does not exist: {path}")
-    count = MemoryService(".").index(path)
+    service = MemoryService(".")
+    extra_dirs = set()
+    extra_filenames = set()
+    for pat in exclude:
+        if "/" in pat or "\\" in pat:
+            # Treat as directory path component if it looks like one
+            extra_dirs.add(pat.strip("/\\"))
+        else:
+            extra_filenames.add(pat)
+    count = service.index(
+        path,
+        chunk_size=chunk_size if chunk_size > 0 else None,
+        chunk_overlap=chunk_overlap if chunk_overlap > 0 else None,
+        extra_dirs=extra_dirs or None,
+        extra_filenames=extra_filenames or None,
+    )
     typer.echo(f"Indexed {count} file(s)")
 
 

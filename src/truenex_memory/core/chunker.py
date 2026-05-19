@@ -33,7 +33,7 @@ def estimate_tokens(content: str) -> int:
     return len(re.findall(r"\S+", content))
 
 
-def chunk_text(text: str, *, max_chars: int = 1200) -> list[TextChunk]:
+def chunk_text(text: str, *, max_chars: int = 1200, overlap: int = 0) -> list[TextChunk]:
     """Split text into stable chunks without external tokenizers."""
 
     normalized = text.replace("\r\n", "\n").replace("\r", "\n").strip()
@@ -60,7 +60,19 @@ def chunk_text(text: str, *, max_chars: int = 1200) -> list[TextChunk]:
                 token_count=estimate_tokens(body),
             )
         )
-        current_lines = []
+        if overlap > 0 and current_lines:
+            # Keep tail lines that fit within overlap chars
+            kept: list[str] = []
+            kept_len = 0
+            for ln in reversed(current_lines):
+                new_len = kept_len + len(ln) + (1 if kept else 0)
+                if new_len > overlap:
+                    break
+                kept.append(ln)
+                kept_len = new_len
+            current_lines = list(reversed(kept))
+        else:
+            current_lines = []
 
     for line in normalized.split("\n"):
         heading_match = HEADING_RE.match(line)
