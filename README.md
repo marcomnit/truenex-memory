@@ -76,34 +76,35 @@ governance. They must remain opt-in and must not lock local data.
 
 ## ⚡ Installation
 
-> ⚠️ **Alpha — install from source.** PyPI release coming in v0.2.0. See [ROADMAP.md](ROADMAP.md).
+### From PyPI (pre-release)
 
 ```bash
-# 1. Clone the repository
+pip install truenex-memory
+```
+
+With optional Qdrant support:
+
+```bash
+pip install "truenex-memory[qdrant]"
+```
+
+### From source
+
+```bash
 git clone https://github.com/marcomnit/truenex-memory.git
 cd truenex-memory
-
-# 2. Create a virtual environment
 python -m venv .venv
-
-# 3. Activate the virtual environment
 # Windows (PowerShell):
 .venv\Scripts\Activate.ps1
-# Windows (cmd):
-.venv\Scripts\activate.bat
 # Linux / macOS:
 source .venv/bin/activate
-
-# 4. Install in editable mode
-pip install -e ".[dev]"
-
-# 5. Verify
+pip install -e ".[dev,qdrant]"
 truenex-mem --help
 ```
 
 > **Windows PowerShell note:** if activation fails with an execution policy error, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` first.
 
-For detailed install options (Qdrant, schedulers, pipx) see [docs/installation.md](docs/installation.md).
+For detailed install options (Qdrant, pipx, development) see [docs/installation.md](docs/installation.md).
 
 ## 🚀 5-Minute Quickstart
 
@@ -281,8 +282,8 @@ python -m compileall -q src
 
 ## 🗺️ Roadmap
 
-- **v0.1.0** (now) — Public alpha: local memory, MCP server, CLI, auto-memory lifecycle.
-- **v0.2.0** — Stabilization: public package build, release artifacts, expanded docs.
+- **v0.1.0** — Public alpha: local memory, MCP server, CLI, auto-memory lifecycle.
+- **v0.2.0** (current pre-release) — Stabilization: public package build, release artifacts, expanded docs, test coverage >80%.
 - **v0.3.0** — Ecosystem: plugin system, custom embedders, multi-project merge workflows.
 
 See the full roadmap in [ROADMAP.md](ROADMAP.md).

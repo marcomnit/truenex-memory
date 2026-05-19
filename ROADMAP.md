@@ -17,13 +17,13 @@
 
 ## 0.2.0 — Stabilization
 
-- [ ] Public test coverage for all CLI commands.
-- [ ] Public package build and clean-install validation.
-- [ ] Release artifacts with hashes.
-- [ ] Qdrant integration hardening.
-- [ ] Chunking configurability.
-- [ ] Better source exclusion presets.
-- [ ] Documentation site or expanded docs index.
+- [x] Public test coverage for all CLI commands (>80%).
+- [x] Public package build and clean-install validation.
+- [x] Release artifacts with hashes.
+- [x] Qdrant integration hardening (retry, timeout, graceful fallback).
+- [x] Chunking configurability (size, overlap, CLI + env).
+- [x] Better source exclusion presets (.gitignore-aware, unified lists).
+- [x] Documentation expanded (installation, troubleshooting, README).
 
 ## 0.3.0 — Ecosystem
 

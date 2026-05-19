@@ -4,6 +4,18 @@
 
 ### Added
 
+## [0.2.0a1] — 2026-05-19
+
+### Stabilization
+
+- Test coverage expanded to >80% for all CLI commands.
+- Package build hardened: `pip install -e .` and `pip install .` verified clean.
+- Release artifact script with SHA-256 hashes (`scripts/build_release.py`).
+- Qdrant integration hardened: configurable timeout and retries, graceful fallback to SQLite with logging.
+- Chunking configurability: `--chunk-size` and `--chunk-overlap` CLI options, plus `TRUENEX_MEMORY_CHUNK_SIZE` / `TRUENEX_MEMORY_CHUNK_OVERLAP` env vars.
+- Unified source exclusion presets (node_modules, .git, __pycache__, build/, dist/) with `.gitignore` awareness.
+- Expanded documentation: PyPI install instructions, troubleshooting guide.
+
 ## [0.1.0-alpha.1] — 2026-05-13
 
 ### Core

@@ -1,36 +1,43 @@
 # Installation
 
-> ⚠️ **Public Alpha — source install only.** PyPI release is planned for v0.2.0. See [ROADMAP.md](../ROADMAP.md).
+Truenex Memory is available as a pre-release on PyPI.
 
-## Quick Install (from source)
+## Quick Install (PyPI)
 
 ```bash
-# 1. Clone
-git clone https://github.com/marcomnit/truenex-memory.git
-cd truenex-memory
+pip install truenex-memory
+```
 
-# 2. Create virtual environment
-python -m venv .venv
+With optional Qdrant support:
 
-# 3. Install in editable mode
-# Windows:
-.venv\Scripts\pip install -e ".[dev]"
-# Linux / macOS:
-.venv/bin/pip install -e ".[dev]"
+```bash
+pip install "truenex-memory[qdrant]"
+```
 
-# 4. Verify
+Verify:
+
+```bash
 truenex-mem --help
 ```
 
-## Future User Install
+## Install from source
 
-Once published to PyPI, the install path will be:
+```bash
+git clone https://github.com/marcomnit/truenex-memory.git
+cd truenex-memory
+python -m venv .venv
+# Windows:
+.venv\Scripts\pip install -e ".[dev,qdrant]"
+# Linux / macOS:
+.venv/bin/pip install -e ".[dev,qdrant]"
+truenex-mem --help
+```
+
+## pipx (recommended for end users)
 
 ```bash
 pipx install truenex-memory
 ```
-
-Until then, use the editable install above.
 
 ## Repositories
 
