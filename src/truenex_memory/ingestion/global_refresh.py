@@ -896,11 +896,11 @@ def _process_project_docs_entry(
 
 
 def _iter_project_doc_files(source_dir: Path) -> list[Path]:
-    from truenex_memory.ingestion.parsers.text_docs import (
-        EXCLUDED_FILENAMES,
-        INDEX_EXTENSIONS,
-        _iter_candidate_files,
+    from truenex_memory.core.exclusions import (
+        DEFAULT_EXCLUDED_FILENAMES as EXCLUDED_FILENAMES,
+        DEFAULT_INDEX_EXTENSIONS as INDEX_EXTENSIONS,
     )
+    from truenex_memory.ingestion.parsers.text_docs import _iter_candidate_files
 
     resolved = source_dir.resolve()
     if resolved.is_file():

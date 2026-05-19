@@ -10,38 +10,14 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 
+from truenex_memory.core.exclusions import (
+    DEFAULT_INDEX_EXTENSIONS,
+    DEFAULT_EXCLUDED_FILENAMES,
+    load_gitignore_patterns,
+    should_exclude,
+)
 from truenex_memory.ingestion.manifest import IngestionRecord
 from truenex_memory.ingestion.parsers import register
-
-INDEX_EXTENSIONS = {
-    ".md", ".markdown", ".txt", ".py", ".toml", ".yaml", ".yml", ".json",
-    ".rst", ".cfg", ".ini",
-}
-EXCLUDED_DIRS = {
-    ".agent", ".git", ".venv", "venv", "__pycache__", ".pytest_cache",
-    ".truenex-memory", "node_modules", ".mypy_cache", ".tox",
-    ".pytest-tmp", "pytest_tmp", ".task_work", ".task3_work",
-    "site-packages", "dist-info", ".conda", "conda-meta",
-    "dist", "build", ".eggs", ".ruff_cache", ".coverage",
-}
-EXCLUDED_DIR_PREFIXES = ("task_work_", "pytest-task", "pytest-cache-files-", "venv")
-
-EXCLUDED_FILENAMES: frozenset[str] = frozenset({
-    "tokenizer.json",
-    "tokenizer_config.json",
-    "vocab.json",
-    "special_tokens_map.json",
-    "generation_config.json",
-    "merges.txt",
-    "package-lock.json",
-    "yarn.lock",
-    "pnpm-lock.yaml",
-    "composer.lock",
-    "Pipfile.lock",
-    "poetry.lock",
-    "Gemfile.lock",
-    "package.json",
-})
 
 MIN_ALPHA_RATIO = 0.35
 
@@ -58,13 +34,14 @@ def parse_project_docs(
     resolved = source_dir.resolve()
     if not resolved.exists():
         return records
-    candidates = _iter_candidate_files(resolved)
+    gitignore = load_gitignore_patterns(resolved)
+    candidates = _iter_candidate_files(resolved, gitignore=gitignore)
 
     for file_path in candidates:
         suffix = file_path.suffix.lower()
-        if suffix not in INDEX_EXTENSIONS:
+        if suffix not in DEFAULT_INDEX_EXTENSIONS:
             continue
-        if file_path.name in EXCLUDED_FILENAMES:
+        if file_path.name in DEFAULT_EXCLUDED_FILENAMES:
             continue
         try:
             text = file_path.read_text(encoding="utf-8", errors="replace")
@@ -91,38 +68,25 @@ def parse_project_docs(
     return records
 
 
-def _iter_candidate_files(resolved: Path) -> list[Path]:
+def _iter_candidate_files(resolved: Path, gitignore: list | None = None) -> list[Path]:
     """Yield files while pruning excluded directories before descent."""
     if resolved.is_file():
         return [resolved]
 
     candidates: list[Path] = []
     for root, dirnames, filenames in os.walk(resolved):
+        root_path = Path(root)
+        # Prune excluded directories
         dirnames[:] = [
             name for name in dirnames
-            if not _is_excluded_dir_name(name)
+            if not should_exclude(root_path / name, root=resolved, gitignore_patterns=gitignore)
         ]
-        root_path = Path(root)
         for filename in filenames:
-            candidates.append(root_path / filename)
+            file_path = root_path / filename
+            if should_exclude(file_path, root=resolved, gitignore_patterns=gitignore):
+                continue
+            candidates.append(file_path)
     return sorted(candidates)
-
-
-def _is_excluded_path(path: Path, *, root: Path) -> bool:
-    try:
-        parts = path.relative_to(root).parts
-    except ValueError:
-        parts = path.parts
-    for part in parts:
-        if _is_excluded_dir_name(part):
-            return True
-    return False
-
-
-def _is_excluded_dir_name(part: str) -> bool:
-    if part in EXCLUDED_DIRS:
-        return True
-    return any(part.startswith(prefix) for prefix in EXCLUDED_DIR_PREFIXES)
 
 
 def _file_mtime_iso(path: Path) -> str:

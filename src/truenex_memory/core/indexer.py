@@ -2,27 +2,41 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from truenex_memory.core.chunker import chunk_text
+from truenex_memory.core.exclusions import (
+    DEFAULT_INDEX_EXTENSIONS,
+    load_gitignore_patterns,
+    should_exclude,
+)
 from truenex_memory.store.repository import MemoryRepository
 
 
-INDEX_EXTENSIONS = {".md", ".markdown", ".txt", ".py", ".toml", ".yaml", ".yml", ".json"}
-EXCLUDED_DIRS = {".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".truenex-memory"}
-
-
-def index_path(path: Path, *, project_root: Path, repository: MemoryRepository) -> int:
+def index_path(
+    path: Path,
+    *,
+    project_root: Path,
+    repository: MemoryRepository,
+    chunk_size: int | None = None,
+    chunk_overlap: int | None = None,
+    extra_dirs: set[str] | None = None,
+    extra_filenames: set[str] | None = None,
+) -> int:
     """Index supported files under a path into the local SQLite store."""
 
     target = path.resolve()
-    files = [target] if target.is_file() else list(_iter_indexable_files(target))
+    gitignore = load_gitignore_patterns(project_root)
+    files = [target] if target.is_file() else list(_iter_indexable_files(target, root_dir=project_root, extra_dirs=extra_dirs, extra_filenames=extra_filenames, gitignore=gitignore))
     indexed = 0
+    _chunk_size = chunk_size if chunk_size is not None else 1200
+    _chunk_overlap = chunk_overlap if chunk_overlap is not None else 0
     for file_path in files:
-        if file_path.suffix.lower() not in INDEX_EXTENSIONS:
+        if file_path.suffix.lower() not in DEFAULT_INDEX_EXTENSIONS:
             continue
         text = file_path.read_text(encoding="utf-8", errors="replace")
-        chunks = chunk_text(text)
+        chunks = chunk_text(text, max_chars=_chunk_size, overlap=_chunk_overlap)
         if not chunks:
             continue
         try:
@@ -34,10 +48,25 @@ def index_path(path: Path, *, project_root: Path, repository: MemoryRepository) 
     return indexed
 
 
-def _iter_indexable_files(root: Path):
-    for path in root.rglob("*"):
-        if path.is_dir():
-            continue
-        if any(part in EXCLUDED_DIRS for part in path.parts):
-            continue
-        yield path
+def _iter_indexable_files(
+    root: Path,
+    *,
+    root_dir: Path | None = None,
+    extra_dirs: set[str] | None = None,
+    extra_filenames: set[str] | None = None,
+    gitignore: list | None = None,
+):
+    if root_dir is None:
+        root_dir = root
+    for dirpath, dirnames, filenames in os.walk(root):
+        dir_path = Path(dirpath)
+        # Prune excluded directories
+        dirnames[:] = [
+            name for name in dirnames
+            if not should_exclude(dir_path / name, root=root_dir, extra_dirs=extra_dirs, extra_filenames=extra_filenames, gitignore_patterns=gitignore)
+        ]
+        for filename in filenames:
+            file_path = dir_path / filename
+            if should_exclude(file_path, root=root_dir, extra_dirs=extra_dirs, extra_filenames=extra_filenames, gitignore_patterns=gitignore):
+                continue
+            yield file_path
