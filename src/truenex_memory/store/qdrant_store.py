@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 import math
-from typing import Any
+import time
+from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
 
 Payload = dict[str, Any]
 
@@ -98,6 +101,8 @@ class QdrantVectorStore:
         url: str | None = None,
         client: Any | None = None,
         distance: str = "Cosine",
+        timeout: float = 5.0,
+        retries: int = 2,
     ) -> None:
         if dimensions < 1:
             raise ValueError("dimensions must be greater than zero")
@@ -106,11 +111,13 @@ class QdrantVectorStore:
         self.collection_name = collection_name
         self.dimensions = dimensions
         self.distance = distance
-        self._client = client if client is not None else self._build_client(url)
+        self._timeout = timeout
+        self._retries = retries
+        self._client = client if client is not None else self._build_client(url, timeout=self._timeout)
         self._models = _load_qdrant_models()
 
     def initialize(self) -> None:
-        try:
+        def _do() -> None:
             if self._collection_exists():
                 return
             distance = getattr(self._models.Distance, self.distance.upper())
@@ -118,14 +125,11 @@ class QdrantVectorStore:
                 collection_name=self.collection_name,
                 vectors_config=self._models.VectorParams(size=self.dimensions, distance=distance),
             )
-        except VectorStoreUnavailable:
-            raise
-        except Exception as exc:  # pragma: no cover - depends on live Qdrant
-            raise VectorStoreUnavailable(f"Qdrant is not reachable: {exc}") from exc
+        self._with_retry(_do, "initialize")
 
     def upsert(self, points: list[object]) -> None:
         self.initialize()
-        try:
+        def _do() -> None:
             qdrant_points = [
                 self._models.PointStruct(
                     id=_point_id(point),
@@ -135,8 +139,7 @@ class QdrantVectorStore:
                 for point in points
             ]
             self._client.upsert(collection_name=self.collection_name, points=qdrant_points)
-        except Exception as exc:  # pragma: no cover - depends on live Qdrant
-            raise VectorStoreUnavailable(f"Qdrant upsert failed: {exc}") from exc
+        self._with_retry(_do, "upsert")
 
     def search(
         self,
@@ -148,28 +151,26 @@ class QdrantVectorStore:
         limit = _resolve_limit(limit=limit, top_k=top_k)
         InMemoryVectorStore._validate_limit(limit)
         self.initialize()
-        try:
+        def _do() -> list[VectorSearchHit]:
             rows = self._client.search(
                 collection_name=self.collection_name,
                 query_vector=vector,
                 limit=limit,
             )
-        except Exception as exc:  # pragma: no cover - depends on live Qdrant
-            raise VectorStoreUnavailable(f"Qdrant search failed: {exc}") from exc
-        return [
-            VectorSearchHit(id=str(row.id), score=float(row.score), payload=dict(row.payload or {}))
-            for row in rows
-        ]
+            return [
+                VectorSearchHit(id=str(row.id), score=float(row.score), payload=dict(row.payload or {}))
+                for row in rows
+            ]
+        return self._with_retry(_do, "search")
 
     def delete(self, ids: list[str]) -> None:
         self.initialize()
-        try:
+        def _do() -> None:
             self._client.delete(
                 collection_name=self.collection_name,
                 points_selector=self._models.PointIdsList(points=ids),
             )
-        except Exception as exc:  # pragma: no cover - depends on live Qdrant
-            raise VectorStoreUnavailable(f"Qdrant delete failed: {exc}") from exc
+        self._with_retry(_do, "delete")
 
     def _collection_exists(self) -> bool:
         try:
@@ -178,14 +179,28 @@ class QdrantVectorStore:
         except Exception:
             return False
 
+    def _with_retry(self, fn: Callable[[], Any], operation: str) -> Any:
+        last_exc: Exception | None = None
+        for attempt in range(1, self._retries + 1):
+            try:
+                return fn()
+            except VectorStoreUnavailable:
+                raise
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("Qdrant %s failed (attempt %d/%d): %s", operation, attempt, self._retries, exc)
+                if attempt < self._retries:
+                    time.sleep(0.5 * attempt)
+        raise VectorStoreUnavailable(f"Qdrant {operation} failed after {self._retries} attempts: {last_exc}") from last_exc
+
     @staticmethod
-    def _build_client(url: str | None) -> Any:
+    def _build_client(url: str | None, timeout: float = 5.0) -> Any:
         try:
             from qdrant_client import QdrantClient
         except ImportError as exc:
             raise VectorStoreUnavailable("qdrant-client is not installed") from exc
         try:
-            return QdrantClient(url=url) if url else QdrantClient(":memory:")
+            return QdrantClient(url=url, timeout=timeout) if url else QdrantClient(":memory:")
         except Exception as exc:  # pragma: no cover - depends on client version
             raise VectorStoreUnavailable(f"Qdrant client could not be created: {exc}") from exc
 

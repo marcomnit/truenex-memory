@@ -12,6 +12,10 @@ DB_FILENAME = "truenex_memory.db"
 DEFAULT_VECTOR_BACKEND = "sqlite"
 DEFAULT_QDRANT_URL = "http://localhost:6333"
 DEFAULT_QDRANT_COLLECTION = "truenex_memory"
+DEFAULT_QDRANT_TIMEOUT = 5.0
+DEFAULT_QDRANT_RETRIES = 2
+DEFAULT_CHUNK_SIZE = 1200
+DEFAULT_CHUNK_OVERLAP = 0
 
 
 @dataclass(frozen=True)
@@ -26,6 +30,10 @@ class ProjectConfig:
     vector_backend: str
     qdrant_url: str
     qdrant_collection: str
+    qdrant_timeout: float
+    qdrant_retries: int
+    chunk_size: int
+    chunk_overlap: int
 
 
 MemoryConfig = ProjectConfig
@@ -52,6 +60,10 @@ def resolve_project_config(project_root: Path | str = ".") -> ProjectConfig:
             os.getenv("TRUENEX_MEMORY_QDRANT_COLLECTION", DEFAULT_QDRANT_COLLECTION).strip()
             or DEFAULT_QDRANT_COLLECTION
         ),
+        qdrant_timeout=float(os.getenv("TRUENEX_MEMORY_QDRANT_TIMEOUT", DEFAULT_QDRANT_TIMEOUT)),
+        qdrant_retries=int(os.getenv("TRUENEX_MEMORY_QDRANT_RETRIES", DEFAULT_QDRANT_RETRIES)),
+        chunk_size=int(os.getenv("TRUENEX_MEMORY_CHUNK_SIZE", DEFAULT_CHUNK_SIZE)),
+        chunk_overlap=int(os.getenv("TRUENEX_MEMORY_CHUNK_OVERLAP", DEFAULT_CHUNK_OVERLAP)),
     )
 
 

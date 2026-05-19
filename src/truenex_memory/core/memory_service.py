@@ -33,6 +33,8 @@ class MemoryService:
                     collection_name=self.config.qdrant_collection,
                     dimensions=self.embedder.dimensions,
                     url=self.config.qdrant_url,
+                    timeout=self.config.qdrant_timeout,
+                    retries=self.config.qdrant_retries,
                 )
                 vector_store.initialize()
                 self.vector_store_status.update({"active_backend": "qdrant", "available": True})
@@ -52,9 +54,25 @@ class MemoryService:
         self.init_project()
         return self.repository.add_memory(content, memory_type=memory_type)
 
-    def index(self, path: Path | str) -> int:
+    def index(
+        self,
+        path: Path | str,
+        *,
+        chunk_size: int | None = None,
+        chunk_overlap: int | None = None,
+        extra_dirs: set[str] | None = None,
+        extra_filenames: set[str] | None = None,
+    ) -> int:
         self.init_project()
-        return index_path(Path(path), project_root=self.config.project_root, repository=self.repository)
+        return index_path(
+            Path(path),
+            project_root=self.config.project_root,
+            repository=self.repository,
+            chunk_size=chunk_size or self.config.chunk_size,
+            chunk_overlap=chunk_overlap if chunk_overlap is not None else self.config.chunk_overlap,
+            extra_dirs=extra_dirs,
+            extra_filenames=extra_filenames,
+        )
 
     def search(self, query: str, *, top_k: int = 5, include_inactive: bool = False) -> list[SearchHit]:
         self.init_project()

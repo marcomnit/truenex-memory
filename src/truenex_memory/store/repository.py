@@ -5,8 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
 import json
+import logging
 import sqlite3
 import uuid
+
+logger = logging.getLogger(__name__)
 
 from truenex_memory.core.chunker import TextChunk, content_hash
 from truenex_memory.retrieval.semantic import Embedder, VectorMatch, VectorPoint, VectorStore, chunk_point_id
@@ -370,7 +373,8 @@ class MemoryRepository:
             return []
         try:
             matches = self.vector_store.search(query_vector, top_k=top_k)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Vector store search failed, falling back to SQLite: %s", exc)
             return []
         return [_coerce_vector_match(match) for match in matches]
 
