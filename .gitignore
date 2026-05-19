@@ -49,3 +49,4 @@ nul
 truenex-mem-mcp.bat
 docs/claude_suggest.md
 localtmp_probe/
+.coverage
