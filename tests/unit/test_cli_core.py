@@ -147,3 +147,56 @@ def test_doctor_privacy_reports_no_cloud() -> None:
     assert result.exit_code == 0
     assert '"cloud_enabled": false' in result.stdout
     assert '"telemetry_enabled": false' in result.stdout
+
+
+def test_cli_index_with_options() -> None:
+    with _cwd(_workdir("cli_index_opts")):
+        (Path.cwd() / "docs").mkdir()
+        (Path.cwd() / "docs" / "readme.md").write_text("# Hello\n\nWorld!\n", encoding="utf-8")
+        (Path.cwd() / "docs" / "secret.txt").write_text("secret", encoding="utf-8")
+        (Path.cwd() / "node_modules").mkdir()
+        (Path.cwd() / "node_modules" / "bad.md").write_text("# Bad\n", encoding="utf-8")
+
+        # Exclude secret.txt explicitly; only readme.md should be indexed
+        result = runner.invoke(app, ["index", "docs", "--chunk-size", "50", "--chunk-overlap", "10", "--exclude", "secret.txt"])
+        assert result.exit_code == 0
+        assert "Indexed 1 file(s)" in result.stdout
+
+        # node_modules should be auto-excluded when indexing root
+        result = runner.invoke(app, ["index", ".", "--exclude", "secret.txt"])
+        assert result.exit_code == 0
+        assert "Indexed 1 file(s)" in result.stdout
+
+
+def test_cli_import_roundtrip() -> None:
+    with _cwd(_workdir("cli_import")):
+        result = runner.invoke(app, ["add", "Memory roundtrip test.", "--type", "note"])
+        assert result.exit_code == 0
+        memory_id = result.stdout.strip()
+
+        result = runner.invoke(app, ["export", "--output", "export.json"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["import", "export.json"])
+        assert result.exit_code == 0
+        assert "Imported" in result.stdout
+
+
+def test_cli_task_open_close() -> None:
+    with _cwd(_workdir("cli_task")):
+        result = runner.invoke(app, ["task", "open", "Fix bug", "--type", "bugfix", "--project", "AI_Agent", "--json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        task_id = payload["task_id"]
+        assert task_id.startswith("task_")
+
+        result = runner.invoke(app, ["task", "list", "--json"])
+        assert result.exit_code == 0
+        tasks = json.loads(result.stdout)
+        assert any(t["task_id"] == task_id for t in tasks)
+
+        result = runner.invoke(app, ["task", "close", task_id, "--outcome", "1", "--json"])
+        assert result.exit_code == 0
+        closed = json.loads(result.stdout)
+        assert closed["status"] == "closed"
+        assert closed["human_outcome"] == 1
