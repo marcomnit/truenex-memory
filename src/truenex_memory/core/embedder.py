@@ -106,6 +106,49 @@ def _tokens(text: str) -> list[str]:
     return [token.lower() for token in re.findall(r"\w+", text, flags=re.UNICODE)]
 
 
+class SentenceTransformerEmbedder:
+    """Semantic embedder using sentence-transformers (optional dependency).
+
+    Falls back to HashingEmbedder if sentence-transformers is not installed.
+    """
+
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError as exc:
+            raise ImportError(
+                "sentence-transformers is required for semantic embeddings. "
+                "Install with: pip install truenex-memory[semantic]"
+            ) from exc
+        self._model = SentenceTransformer(model_name)
+        dim = self._model.get_sentence_embedding_dimension() or DEFAULT_EMBEDDING_DIMENSIONS
+        self._metadata = EmbedderMetadata(
+            backend="sentence-transformers",
+            model_name=model_name,
+            dimensions=dim,
+            normalized=True,
+            requires_network=False,
+            downloads_model=True,
+        )
+
+    @property
+    def metadata(self) -> EmbedderMetadata:
+        return self._metadata
+
+    def embed(self, text: str) -> list[float]:
+        _validate_text(text)
+        return self._model.encode(text, convert_to_numpy=True).tolist()
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed(text)
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        for text in texts:
+            _validate_text(text)
+        embeddings = self._model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+        return [emb.tolist() for emb in embeddings]
+
+
 def _normalize(vector: list[float]) -> list[float]:
     norm = math.sqrt(sum(value * value for value in vector))
     if norm == 0:

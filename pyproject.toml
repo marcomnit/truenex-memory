@@ -34,6 +34,13 @@ dev = [
 qdrant = [
     "qdrant-client>=1.12",
 ]
+gui = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+]
+semantic = [
+    "sentence-transformers>=3.0",
+]
 
 [project.urls]
 Homepage = "https://memory.truenex.ai"
