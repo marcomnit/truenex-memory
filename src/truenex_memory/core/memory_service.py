@@ -78,9 +78,21 @@ class MemoryService:
         self.init_project()
         return self.repository.search(query, top_k=top_k, include_inactive=include_inactive)
 
+    def list_documents(self) -> list[dict]:
+        self.init_project()
+        return self.repository.list_documents()
+
+    def list_sources_with_documents(self) -> list[dict]:
+        self.init_project()
+        return self.repository.list_sources_with_documents()
+
     def list_memory_nodes(self, *, status: str | None = None) -> list[MemoryNode]:
         self.init_project()
         return self.repository.list_memory_nodes(status=status)
+
+    def get_memory_node(self, memory_id: str) -> MemoryNode | None:
+        self.init_project()
+        return self.repository.get_memory_node(memory_id)
 
     def set_memory_status(self, memory_id: str, status: str) -> None:
         self.init_project()

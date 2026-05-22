@@ -114,6 +114,14 @@ class MemoryRepository:
             ).fetchone()
             return _memory_node_from_row(row) if row is not None else None
 
+    def get_memory_node(self, memory_id: str) -> MemoryNode | None:
+        self.initialize()
+        with connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT * FROM memory_nodes WHERE id = ?", (memory_id,)
+            ).fetchone()
+            return _memory_node_from_row(row) if row is not None else None
+
     def upsert_document(self, path: Path, relative_path: str, chunks: list[TextChunk], *, source_type: str | None = None) -> str:
         text = path.read_text(encoding="utf-8", errors="replace")
         doc_id = "doc_" + content_hash(relative_path)[:24]
@@ -214,6 +222,14 @@ class MemoryRepository:
                 "memory_nodes": conn.execute("SELECT COUNT(*) FROM memory_nodes").fetchone()[0],
                 "retrieval_logs": conn.execute("SELECT COUNT(*) FROM retrieval_logs").fetchone()[0],
             }
+
+    def list_documents(self) -> list[dict]:
+        with connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT id, path, filename, content_hash, last_indexed_at, created_at, updated_at FROM documents ORDER BY updated_at DESC"
+            ).fetchall()
+            return [dict(row) for row in rows]
 
     def list_memory_nodes(self, *, status: str | None = None) -> list[MemoryNode]:
         if status is not None and status not in VALID_STATUSES:
@@ -377,6 +393,69 @@ class MemoryRepository:
             logger.warning("Vector store search failed, falling back to SQLite: %s", exc)
             return []
         return [_coerce_vector_match(match) for match in matches]
+
+    def list_sources_with_documents(self) -> list[dict]:
+        if not self.db_path.exists():
+            return []
+        with connect(self.db_path) as conn:
+            # Preload documents into memory for fast Python-side filtering
+            doc_rows = conn.execute(
+                "SELECT id, filename, path, content_hash, last_indexed_at FROM documents"
+            ).fetchall()
+            all_docs = [
+                {"id": dr[0], "filename": dr[1], "path": dr[2], "content_hash": dr[3], "last_indexed_at": dr[4]}
+                for dr in doc_rows
+            ]
+            docs_by_path: dict[str, dict] = {d["path"]: d for d in all_docs}
+
+            rows = conn.execute(
+                """
+                SELECT source_id, project_name, source_type, source_path_or_alias,
+                       status, last_indexed_at, chunk_count
+                FROM source_ledger
+                WHERE status = 'active'
+                """
+            ).fetchall()
+
+            result: list[dict] = []
+            for row in rows:
+                source_id = row[0]
+                project_name = row[1]
+                source_type = row[2]
+                source_path = row[3]
+                status = row[4]
+                last_indexed = row[5]
+                chunk_count = row[6]
+
+                source_name = project_name or Path(source_path).stem or "Unknown"
+
+                if source_type == "server_alias":
+                    doc_count = 0
+                    docs: list[dict] = []
+                elif source_type == "agent_session":
+                    doc = docs_by_path.get(source_path)
+                    docs = [doc] if doc else []
+                    doc_count = len(docs)
+                else:
+                    prefix = source_path.replace("\\", "/").rstrip("/") + "/"
+                    matched = [d for d in all_docs if d["path"].replace("\\", "/").startswith(prefix)]
+                    doc_count = len(matched)
+                    docs = matched[:20]
+
+                result.append({
+                    "source_id": source_id,
+                    "source_name": source_name,
+                    "source_type": source_type,
+                    "source_path_or_alias": source_path,
+                    "status": status,
+                    "last_indexed_at": last_indexed,
+                    "chunk_count": chunk_count,
+                    "document_count": doc_count,
+                    "documents": docs,
+                })
+
+            result.sort(key=lambda x: x["document_count"], reverse=True)
+            return result
 
 
 def _search_memories(

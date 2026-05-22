@@ -103,6 +103,26 @@ class ChatResponse(BaseModel):
     sources: list[dict[str, Any]]
 
 
+class DocumentInSource(BaseModel):
+    id: str
+    filename: str
+    path: str
+    content_hash: str
+    last_indexed_at: str | None = None
+
+
+class SourceOut(BaseModel):
+    source_id: str
+    source_name: str
+    source_type: str
+    source_path_or_alias: str
+    status: str
+    last_indexed_at: str | None = None
+    chunk_count: int = 0
+    document_count: int = 0
+    documents: list[DocumentInSource] = []
+
+
 # ── Health / Version / Debug ───────────────────────────────────────────────
 
 @app.get("/api/health")
@@ -249,6 +269,14 @@ def set_memory_status(memory_id: str, req: SetStatusRequest):
 def list_documents():
     svc = _get_service()
     return svc.list_documents()
+
+
+# ── Sources ────────────────────────────────────────────────────────────────
+
+@app.get("/api/sources")
+def list_sources():
+    svc = _get_service()
+    return svc.list_sources_with_documents()
 
 
 # ── Stats ──────────────────────────────────────────────────────────────────
