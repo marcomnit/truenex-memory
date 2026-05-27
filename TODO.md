@@ -21,9 +21,11 @@
 ## 🔧 Backend (Motore)
 
 ### Commit in sospeso (da fare prima del RAG)
-- [ ] **Project Graph API** — `get_project_graph()` in `repository.py` + `GET /api/project-graph` in `serve.py`
-- [ ] **File Metadata API** — `get_file_metadata()` in `repository.py` + `GET /api/file-metadata` in `serve.py`
+- [x] **File Metadata API** — `get_file_metadata()` in `repository.py` + `GET /api/file-metadata` in `serve.py` ✅ Testato su PY, MD, JSON, YAML, TOML
 - [ ] **File Analysis API** — `analyze_file_content()` esiste in `repository.py` ma **manca l'endpoint** `/api/file-analysis` in `serve.py` (il frontend lo chiama ma il backend non lo serve ancora)
+
+### Scartato
+- [ ] **Project Graph API** — `get_project_graph()` rimosso. Grafo basato su regex sui chunk troppo inaccurato (falsi positivi su import, matching euristico fragile). Da rifare con AST reale su file completi se necessario.
 
 ### Prossima milestone: RAG Ibrido
 - [ ] Implementare **3-phase retrieval** in `MemoryRepository.search()`:

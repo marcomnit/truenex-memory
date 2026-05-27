@@ -480,6 +480,130 @@ class MemoryRepository:
             return result
 
 
+    def get_file_metadata(self, document_id: str) -> dict:
+        """Extract structural metadata from a file on disk (AST, headings, keys)."""
+        if not self.db_path.exists():
+            return {"error": "db not found"}
+
+        with connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT path, filename FROM documents WHERE id = ?", (document_id,)
+            ).fetchone()
+        if not row:
+            return {"error": "document not found"}
+
+        file_path = Path(row["path"])
+        if not file_path.exists():
+            return {"error": "file not found on disk"}
+
+        try:
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
+        except Exception as exc:
+            return {"error": f"read failed: {exc}"}
+
+        ext = Path(row["filename"]).suffix.lower()
+        result: dict[str, Any] = {"file_type": ext, "file_path": str(file_path)}
+
+        if ext == ".py":
+            result.update(self._parse_python(content))
+        elif ext in (".md", ".markdown", ".mdx"):
+            result.update(self._parse_markdown(content))
+        elif ext == ".json":
+            result.update(self._parse_json(content))
+        elif ext in (".yaml", ".yml"):
+            result.update(self._parse_yaml(content))
+        elif ext == ".toml":
+            result.update(self._parse_toml(content))
+        else:
+            result["unsupported"] = True
+
+        return result
+
+    def _parse_python(self, content: str) -> dict:
+        import ast
+        try:
+            tree = ast.parse(content)
+        except SyntaxError as exc:
+            return {"parse_error": str(exc)}
+        functions = []
+        classes = []
+        imports = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                functions.append(node.name)
+            elif isinstance(node, ast.AsyncFunctionDef):
+                functions.append(node.name)
+            elif isinstance(node, ast.ClassDef):
+                classes.append(node.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.append(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                for alias in node.names:
+                    imports.append(f"{mod}.{alias.name}" if mod else alias.name)
+        return {
+            "functions": functions[:50],
+            "classes": classes[:50],
+            "imports": imports[:50],
+            "function_count": len(functions),
+            "class_count": len(classes),
+            "import_count": len(imports),
+        }
+
+    def _parse_markdown(self, content: str) -> dict:
+        import re
+        headings = []
+        for line in content.splitlines():
+            m = re.match(r'^(#{1,6})\s+(.+)$', line)
+            if m:
+                level = len(m.group(1))
+                headings.append({"level": level, "text": m.group(2).strip()})
+        return {"headings": headings[:100], "heading_count": len(headings)}
+
+    def _parse_json(self, content: str) -> dict:
+        try:
+            data = json.loads(content)
+            if isinstance(data, dict):
+                keys = list(data.keys())
+                return {"keys": keys[:100], "key_count": len(keys), "type": "object"}
+            elif isinstance(data, list):
+                return {"type": "array", "length": len(data)}
+            else:
+                return {"type": type(data).__name__}
+        except json.JSONDecodeError as exc:
+            return {"parse_error": str(exc)}
+
+    def _parse_yaml(self, content: str) -> dict:
+        try:
+            import yaml
+            data = yaml.safe_load(content)
+            if isinstance(data, dict):
+                keys = list(data.keys())
+                return {"keys": keys[:100], "key_count": len(keys), "type": "mapping"}
+            elif isinstance(data, list):
+                return {"type": "sequence", "length": len(data)}
+            else:
+                return {"type": type(data).__name__}
+        except Exception:
+            # Fallback: extract top-level keys by regex
+            import re
+            keys = re.findall(r'^(\w+):', content, re.MULTILINE)
+            return {"keys": keys[:100], "key_count": len(keys), "type": "mapping (fallback)"}
+
+    def _parse_toml(self, content: str) -> dict:
+        try:
+            import tomllib
+            data = tomllib.loads(content)
+            keys = list(data.keys())
+            return {"keys": keys[:100], "key_count": len(keys), "type": "table"}
+        except Exception:
+            # Fallback: extract [table] headers and bare keys
+            import re
+            tables = re.findall(r'^\[(\w+)\]', content, re.MULTILINE)
+            keys = re.findall(r'^(\w+)\s*=', content, re.MULTILINE)
+            return {"tables": tables[:50], "keys": keys[:100], "type": "table (fallback)"}
+
 def _search_memories(
     conn: sqlite3.Connection, tokens: set[str], include_inactive: bool
 ) -> list[SearchHit]:

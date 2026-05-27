@@ -295,6 +295,14 @@ def stats():
     }
 
 
+# ── File metadata ──────────────────────────────────────────────────────────
+
+@app.get("/api/file-metadata")
+def file_metadata(document_id: str = Query(..., description="Document ID to analyze")):
+    svc = _get_service()
+    return svc.repository.get_file_metadata(document_id)
+
+
 # ── Settings ───────────────────────────────────────────────────────────────
 
 @app.get("/api/settings")
