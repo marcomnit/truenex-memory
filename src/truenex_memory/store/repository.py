@@ -407,7 +407,7 @@ class MemoryRepository:
                 {"id": dr[0], "filename": dr[1], "path": dr[2], "content_hash": dr[3], "last_indexed_at": dr[4]}
                 for dr in doc_rows
             ]
-            docs_by_path: dict[str, dict] = {d["path"]: d for d in all_docs}
+            docs_by_path: dict[str, dict] = {d["path"].replace("\\", "/"): d for d in all_docs}
 
             rows = conn.execute(
                 """
@@ -428,20 +428,41 @@ class MemoryRepository:
                 last_indexed = row[5]
                 chunk_count = row[6]
 
-                source_name = project_name or Path(source_path).stem or "Unknown"
+                # Derive project_name from path when null
+                derived_project = project_name
+                if not derived_project:
+                    parts = source_path.replace("\\", "/").split("/")
+                    for i, part in enumerate(parts):
+                        lower = part.lower()
+                        if lower in ("sofware", "software", "projectpy", "projects", "src", "documents", "documenti", "workspace", "dev"):
+                            if i + 1 < len(parts):
+                                derived_project = parts[i + 1]
+                                break
+                    if not derived_project and len(parts) >= 2:
+                        derived_project = parts[-2]
+                source_name = derived_project or Path(source_path).stem or "Unknown"
 
                 if source_type == "server_alias":
                     doc_count = 0
                     docs: list[dict] = []
                 elif source_type == "agent_session":
-                    doc = docs_by_path.get(source_path)
+                    normalized = source_path.replace("\\", "/")
+                    doc = docs_by_path.get(normalized)
                     docs = [doc] if doc else []
                     doc_count = len(docs)
                 else:
-                    prefix = source_path.replace("\\", "/").rstrip("/") + "/"
-                    matched = [d for d in all_docs if d["path"].replace("\\", "/").startswith(prefix)]
-                    doc_count = len(matched)
-                    docs = matched[:20]
+                    normalized = source_path.replace("\\", "/")
+                    # Try exact match first (file-level source)
+                    doc = docs_by_path.get(normalized)
+                    if doc:
+                        docs = [doc]
+                        doc_count = 1
+                    else:
+                        # Fall back to directory prefix match
+                        prefix = normalized.rstrip("/") + "/"
+                        matched = [d for d in all_docs if d["path"].replace("\\", "/").startswith(prefix)]
+                        doc_count = len(matched)
+                        docs = matched[:20]
 
                 result.append({
                     "source_id": source_id,
