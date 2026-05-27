@@ -289,6 +289,7 @@ def stats():
         "projects": 1,
         "documents": s.get("documents", 0),
         "chunks": s.get("chunks", 0),
+        "total_tokens": s.get("total_tokens", 0),
         "memory_nodes": s.get("memory_nodes", 0),
         "vector_backend": svc.vector_store_status,
     }

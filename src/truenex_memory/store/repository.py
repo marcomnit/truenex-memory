@@ -221,6 +221,7 @@ class MemoryRepository:
                 "chunks": conn.execute("SELECT COUNT(*) FROM chunks").fetchone()[0],
                 "memory_nodes": conn.execute("SELECT COUNT(*) FROM memory_nodes").fetchone()[0],
                 "retrieval_logs": conn.execute("SELECT COUNT(*) FROM retrieval_logs").fetchone()[0],
+                "total_tokens": conn.execute("SELECT COALESCE(SUM(token_count), 0) FROM chunks").fetchone()[0],
             }
 
     def list_documents(self) -> list[dict]:
