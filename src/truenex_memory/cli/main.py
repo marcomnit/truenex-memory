@@ -3,6 +3,7 @@
 from dataclasses import asdict
 from pathlib import Path
 import json
+import os
 import sys
 
 import typer
@@ -89,6 +90,15 @@ from truenex_memory.ingestion.global_auto_memory import (
 from truenex_memory.retrieval.result import search_payload
 from truenex_memory.store.models import VALID_STATUSES
 from truenex_memory.cli.task_commands import task_app
+from truenex_memory.cli.orchestrate_commands import orchestrate_app
+
+def resolve_project_root() -> str:
+    """Restituisce il project root da usare: env > locale."""
+    env = os.environ.get("TRUENEX_PROJECT_ROOT", "").strip()
+    if env:
+        return env
+    return "."
+
 
 app = typer.Typer(
     name="truenex-mem",
@@ -113,6 +123,7 @@ global_app.add_typer(sources_app, name="sources")
 global_app.add_typer(auto_app, name="auto")
 app.add_typer(global_app, name="global")
 app.add_typer(task_app, name="task")
+app.add_typer(orchestrate_app, name="orchestrate")
 
 
 @app.callback()
@@ -140,7 +151,7 @@ def version_info() -> None:
 def init() -> None:
     """Initialize local project memory storage."""
 
-    service = MemoryService(".")
+    service = MemoryService(resolve_project_root())
     service.init_project()
     typer.echo(f"Initialized {service.config.data_dir}")
 
@@ -152,7 +163,7 @@ def add(
 ) -> None:
     """Add a manual memory node."""
 
-    memory_id = MemoryService(".").add(content, memory_type=memory_type)
+    memory_id = MemoryService(resolve_project_root()).add(content, memory_type=memory_type)
     typer.echo(memory_id)
 
 
@@ -165,7 +176,7 @@ def list_command(
 
     if status is not None:
         _validate_status(status)
-    memories = MemoryService(".").list_memory_nodes(status=status)
+    memories = MemoryService(resolve_project_root()).list_memory_nodes(status=status)
     if json_output:
         typer.echo(json.dumps([asdict(memory) for memory in memories], indent=2, sort_keys=True))
         return
@@ -184,7 +195,7 @@ def index(
 
     if not path.exists():
         raise typer.BadParameter(f"path does not exist: {path}")
-    service = MemoryService(".")
+    service = MemoryService(resolve_project_root())
     extra_dirs = set()
     extra_filenames = set()
     for pat in exclude:
@@ -214,7 +225,7 @@ def search(
 ) -> None:
     """Search local memory."""
 
-    service = MemoryService(".")
+    service = MemoryService(resolve_project_root())
     results = service.search(query, top_k=top_k, include_inactive=include_inactive)
     payload = search_payload(query, results, trace_id=service.last_trace_id)
     if json_output:
@@ -234,7 +245,7 @@ def logs_command(
 ) -> None:
     """List recent retrieval trace logs."""
 
-    service = MemoryService(".")
+    service = MemoryService(resolve_project_root())
     logs = service.list_retrieval_logs(limit=limit)
     if json_output:
         items = [
@@ -264,7 +275,7 @@ def trace_show(
 ) -> None:
     """Show a retrieval trace by ID with full result details."""
 
-    service = MemoryService(".")
+    service = MemoryService(resolve_project_root())
     log = service.get_retrieval_log(trace_id)
     if log is None:
         raise typer.BadParameter(f"trace not found: {trace_id!r}")
@@ -424,6 +435,31 @@ def mcp(
     run_stdio_server(project_root=project_root)
 
 
+@app.command()
+def serve(
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Bind address for the HTTP server.",
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        "-p",
+        help="Bind port for the HTTP server.",
+    ),
+    project_root: Path = typer.Option(
+        Path("."),
+        "--project-root",
+        help="Project root used for local memory storage.",
+    ),
+) -> None:
+    """Start the HTTP API server (for the Truenex Memory Desktop GUI)."""
+
+    from truenex_memory.serve import run_serve
+    run_serve(host=host, port=port, project_root=str(project_root))
+
+
 @status_app.command("set")
 def status_set(
     memory_id: str = typer.Argument(..., help="Memory node id."),
@@ -433,7 +469,7 @@ def status_set(
 
     _validate_status(status)
     try:
-        MemoryService(".").set_memory_status(memory_id, status)
+        MemoryService(resolve_project_root()).set_memory_status(memory_id, status)
     except LookupError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Updated {memory_id} -> {status}")

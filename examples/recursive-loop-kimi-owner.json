@@ -1,0 +1,22 @@
+{
+  "name": "kimi-owner-loop",
+  "phases": [
+    {
+      "name": "plan",
+      "command": "echo '[PHASE:plan] Kimi defines architecture and writes plan to memory'",
+      "role": "architect"
+    },
+    {
+      "name": "generate",
+      "command": "echo '[PHASE:generate] DeepSeek generates code from the plan'",
+      "role": "coder"
+    },
+    {
+      "name": "validate",
+      "command": "echo '[PHASE:validate] Codex reviews and validates the output'",
+      "role": "reviewer"
+    }
+  ],
+  "max_depth": 3,
+  "convergence_strategy": "hash"
+}
