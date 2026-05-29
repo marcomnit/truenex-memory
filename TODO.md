@@ -49,4 +49,17 @@
 
 ---
 
-*Ultimo aggiornamento: 2026-05-24*
+### Prossima milestone: RAG Ibrido
+- [ ] Implementare **3-phase retrieval** in `MemoryRepository.search()`:
+  1. BM25 lexical recall (top 50 candidati)
+  2. Semantic cosine re-ranking sui 50 candidati
+  3. Deduplication by source_path + adaptive threshold
+- [ ] Aggiungere colonna `embedding BLOB` alla tabella `chunks`
+- [ ] Implementare **lazy migration** — calcola embedding mancanti on-demand durante la query
+- [ ] Aggiungere CLI command `truenex-mem migrate embeddings` per batch migration
+- [ ] Store embedding in SQLite BLOB invece di dipendere solo da Qdrant
+- [ ] Test: verificare che query su termini tecnici specifici restituiscano risultati migliori
+
+---
+
+*Ultimo aggiornamento: 2026-05-27*
