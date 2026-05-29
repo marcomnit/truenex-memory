@@ -17,8 +17,9 @@ def client(tmp_path: Path):
     """TestClient backed by a temporary SQLite DB (schema v4)."""
     db_path = tmp_path / ".truenex-memory" / "truenex_memory.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with connect(db_path) as conn:
-        initialize_schema(conn)
+    conn = connect(db_path)
+    initialize_schema(conn)
+    conn.close()
 
     os.environ["TRUENEX_PROJECT_ROOT"] = str(tmp_path)
     from truenex_memory.serve import app
