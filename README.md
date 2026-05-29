@@ -225,13 +225,27 @@ truenex-mem doctor --privacy
 truenex-mem export --output memory-export.json
 truenex-mem import memory-export.json
 truenex-mem mcp --project-root .
+truenex-mem serve --host 127.0.0.1 --port 8000
+truenex-mem adapter --project-root . --agents claude,codex
+truenex-mem task open "Fix memory leak" --task-type bugfix
+truenex-mem task close <task-id> --human-outcome 1
+truenex-mem orchestrate run --config loop-config.json --project-root .
 ```
+
+### Less common commands
+
+- **`serve`** — Start the HTTP API server (used by the desktop GUI).
+- **`adapter`** — Generate `CLAUDE.md` / `AGENTS.md` adapter files for agent discovery.
+- **`task`** — Open, close, and track adaptive task records with outcome recording.
+- **`orchestrate run`** — Execute a recursive multi-agent loop from a JSON config.
 
 See [docs/ingestion.md](docs/ingestion.md) for source manifest ingestion.
 See [docs/agent-discovery-bootstrap.md](docs/agent-discovery-bootstrap.md) for
 global discovery and bootstrap design.
 See [docs/phase-3-auto-memory-design.md](docs/phase-3-auto-memory-design.md)
 for the Auto Memory design.
+See [docs/recursive-orchestrator-design.md](docs/recursive-orchestrator-design.md)
+for the orchestrator design.
 See [ROADMAP.md](ROADMAP.md) for open-core and future Pro/Team boundaries.
 
 ## 🔒 Privacy Notes
