@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 import json
 import logging
+import re
 import sqlite3
 import uuid
 
@@ -517,6 +518,47 @@ class MemoryRepository:
         else:
             result["unsupported"] = True
 
+        return result
+
+    def analyze_file_content(self, file_id: str) -> dict:
+        """Extract symbols from chunk content via regex (used by frontend file-analysis)."""
+        if not self.db_path.exists():
+            return {"error": "db not found"}
+        with connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT filename FROM documents WHERE id = ?", (file_id,)
+            ).fetchone()
+            if not row:
+                return {"error": "document not found"}
+            chunks = conn.execute(
+                "SELECT content FROM chunks WHERE document_id = ? ORDER BY chunk_index", (file_id,)
+            ).fetchall()
+        if not chunks:
+            return {"error": "no chunks found for document"}
+        content = "\n".join(c["content"] for c in chunks)
+        ext = Path(row["filename"]).suffix.lower()
+        result: dict[str, Any] = {"file_type": ext}
+        if ext == ".py":
+            result["functions"] = re.findall(r"^def\s+(\w+)", content, re.MULTILINE)[:50]
+            result["classes"] = re.findall(r"^class\s+(\w+)", content, re.MULTILINE)[:50]
+            result["imports"] = re.findall(r"^(?:from\s+(\S+)\s+import|import\s+(\S+))", content, re.MULTILINE)[:50]
+        elif ext in (".js", ".ts", ".jsx", ".tsx"):
+            result["imports"] = re.findall(r"^import\s+.*?from\s+['\"](.+?)['\"]", content, re.MULTILINE)[:50]
+        elif ext in (".md", ".markdown", ".mdx"):
+            result["headings"] = [
+                {"level": len(m.group(1)), "text": m.group(2).strip()}
+                for m in re.finditer(r"^(#{1,6})\s+(.+)$", content, re.MULTILINE)
+            ][:50]
+        elif ext == ".json":
+            try:
+                data = json.loads(content)
+                result["schema_keys"] = list(data.keys())[:50] if isinstance(data, dict) else []
+            except json.JSONDecodeError:
+                result["schema_keys"] = []
+        elif ext in (".yaml", ".yml"):
+            result["schema_keys"] = re.findall(r"^(\w+):", content, re.MULTILINE)[:50]
+        else:
+            result["unsupported"] = True
         return result
 
     def _parse_python(self, content: str) -> dict:

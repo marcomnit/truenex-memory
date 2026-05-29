@@ -156,7 +156,7 @@ def list_projects():
     db_path = str(config.db_path) if config.db_path.exists() else None
     return [
         {
-            "id": config.project_id,
+            "id": config.project_root.name,
             "name": config.project_root.name,
             "path": str(config.project_root.resolve()),
             "data_dir": str(config.data_dir),
