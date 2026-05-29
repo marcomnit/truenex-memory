@@ -76,17 +76,8 @@ governance. They must remain opt-in and must not lock local data.
 
 ## ⚡ Installation
 
-### From PyPI (pre-release)
-
-```bash
-pip install truenex-memory
-```
-
-With optional Qdrant support:
-
-```bash
-pip install "truenex-memory[qdrant]"
-```
+> **Alpha stage:** Truenex Memory is not yet published on PyPI.  
+> Install from source for now. A PyPI release will come with v0.2.0 stable.
 
 ### From source
 

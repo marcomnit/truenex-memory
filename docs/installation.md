@@ -1,24 +1,7 @@
 # Installation
 
-Truenex Memory is available as a pre-release on PyPI.
-
-## Quick Install (PyPI)
-
-```bash
-pip install truenex-memory
-```
-
-With optional Qdrant support:
-
-```bash
-pip install "truenex-memory[qdrant]"
-```
-
-Verify:
-
-```bash
-truenex-mem --help
-```
+> **Alpha stage:** Truenex Memory is not yet published on PyPI.  
+> Install from source for now. A PyPI release will come with v0.2.0 stable.
 
 ## Install from source
 

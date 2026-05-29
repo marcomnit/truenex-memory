@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -28,11 +29,21 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def read_version(pyproject_path: Path) -> str:
+    text = pyproject_path.read_text(encoding="utf-8")
+    match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    if not match:
+        raise RuntimeError("version not found in pyproject.toml")
+    return match.group(1)
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     dist_dir = root / "dist"
     if dist_dir.exists():
         shutil.rmtree(dist_dir)
+
+    version = read_version(root / "pyproject.toml")
 
     # Run tests
     run([sys.executable, "-m", "pytest", "tests/", "-x", "--ignore=tests/e2e"], cwd=root)
@@ -51,7 +62,7 @@ def main() -> int:
         print(f"  SHA-256 {artifact.name}: {hashes[artifact.name]}")
 
     release_info = {
-        "version": "0.2.0a1",
+        "version": version,
         "artifacts": hashes,
     }
     info_path = dist_dir / "release-info.json"

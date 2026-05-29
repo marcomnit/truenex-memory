@@ -6,6 +6,13 @@
 
 ## [0.2.0a1] — 2026-05-19
 
+### Fixed
+
+- README/docs: corrected installation instructions (alpha is source-only, PyPI coming with v0.2.0 stable).
+- `serve.py`: added missing `GET /api/file-analysis` endpoint.
+- `scripts/build_release.py`: version now read dynamically from `pyproject.toml`.
+- `ROADMAP.md`: rewritten as operational execution plan with priorities and criteria of done.
+
 ### Stabilization
 
 - Test coverage expanded to >80% for all CLI commands.

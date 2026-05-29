@@ -303,6 +303,12 @@ def file_metadata(document_id: str = Query(..., description="Document ID to anal
     return svc.repository.get_file_metadata(document_id)
 
 
+@app.get("/api/file-analysis")
+def file_analysis(file_id: str = Query(..., description="File (document) ID to analyze")):
+    svc = _get_service()
+    return svc.repository.analyze_file_content(file_id)
+
+
 # ── Settings ───────────────────────────────────────────────────────────────
 
 @app.get("/api/settings")
