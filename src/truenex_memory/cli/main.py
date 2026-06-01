@@ -91,6 +91,7 @@ from truenex_memory.retrieval.result import search_payload
 from truenex_memory.store.models import VALID_STATUSES
 from truenex_memory.cli.task_commands import task_app
 from truenex_memory.cli.orchestrate_commands import orchestrate_app
+from truenex_memory.cli.license_commands import license_app
 
 def resolve_project_root() -> str:
     """Restituisce il project root da usare: env > locale."""
@@ -124,6 +125,7 @@ global_app.add_typer(auto_app, name="auto")
 app.add_typer(global_app, name="global")
 app.add_typer(task_app, name="task")
 app.add_typer(orchestrate_app, name="orchestrate")
+app.add_typer(license_app, name="license")
 
 
 @app.callback()
