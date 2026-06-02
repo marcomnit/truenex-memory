@@ -1,9 +1,24 @@
 # Installation
 
-> **Alpha stage:** Truenex Memory is not yet published on PyPI.  
-> Install from source for now. A PyPI release will come with v0.2.0 stable.
+## Quick install (PyPI)
 
-## Install from source
+```bash
+pip install truenex-memory
+```
+
+Or with **pipx** (recommended, isolated environment):
+
+```bash
+pipx install truenex-memory
+```
+
+Then verify:
+
+```bash
+truenex-mem --help
+```
+
+## Install from source (developers)
 
 ```bash
 git clone https://github.com/marcomnit/truenex-memory.git
@@ -16,11 +31,23 @@ python -m venv .venv
 truenex-mem --help
 ```
 
-## pipx (recommended for end users)
+## License activation (Pro)
+
+After purchasing a **Truenex Memory Pro** license on [memory.truenex.ai](https://memory.truenex.ai), you will receive an email with your license key (`trxn-pro-XXXX`).
+
+Activate it with one command from any directory:
 
 ```bash
-pipx install truenex-memory
+truenex-mem license activate trxn-pro-XXXXXXXXXXXXXXXX
 ```
+
+Verify your active license:
+
+```bash
+truenex-mem license status
+```
+
+Each Pro license supports up to **3 activations** (e.g. work laptop, personal desktop, VM).
 
 ## Repositories
 

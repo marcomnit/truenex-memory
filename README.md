@@ -76,10 +76,19 @@ governance. They must remain opt-in and must not lock local data.
 
 ## ⚡ Installation
 
-> **Alpha stage:** Truenex Memory is not yet published on PyPI.  
-> Install from source for now. A PyPI release will come with v0.2.0 stable.
+### From PyPI (recommended for end users)
 
-### From source
+```bash
+pip install truenex-memory
+```
+
+Or with **pipx** (isolated environment):
+
+```bash
+pipx install truenex-memory
+```
+
+### From source (developers)
 
 ```bash
 git clone https://github.com/marcomnit/truenex-memory.git
@@ -95,7 +104,7 @@ truenex-mem --help
 
 > **Windows PowerShell note:** if activation fails with an execution policy error, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser` first.
 
-For detailed install options (Qdrant, pipx, development) see [docs/installation.md](docs/installation.md).
+For detailed install options (Qdrant, license activation, development) see [docs/installation.md](docs/installation.md).
 
 ## 🚀 5-Minute Quickstart
 
