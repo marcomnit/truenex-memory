@@ -4,6 +4,18 @@
 
 ### Added
 
+## [0.2.1] — 2026-06-02
+
+### Added
+
+- `truenex-mem update self` — auto-detects pipx/pip and upgrades to latest version.
+- Auto-update notice at CLI startup — checks PyPI every 24h (cache + 2s timeout) and warns if a newer version exists.
+- Upgrade instructions in README and docs/installation.md.
+
+### Fixed
+
+- Include missing `self_update.py` and `auto_update_check.py` in the package (were untracked during v0.2.0 build).
+
 ## [0.2.0] — 2026-06-02
 
 ### Added

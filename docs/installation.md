@@ -20,6 +20,22 @@ Then verify:
 truenex-mem --help
 ```
 
+## Upgrade
+
+If you already have Truenex Memory installed and want the latest version:
+
+**With pipx:**
+
+```bash
+pipx upgrade truenex-memory
+```
+
+**With pip:**
+
+```bash
+pip install --upgrade truenex-memory
+```
+
 ## Install from source (developers)
 
 ```bash

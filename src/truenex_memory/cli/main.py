@@ -16,7 +16,9 @@ from truenex_memory.diagnostics.doctor import run_doctor
 from truenex_memory.export.exporter import export_memory
 from truenex_memory.export.importer import import_memory
 from truenex_memory.mcp.server import run_stdio_server
+from truenex_memory.release.auto_update_check import check_and_notify
 from truenex_memory.release.manifest import DEFAULT_MANIFEST_URL
+from truenex_memory.release.self_update import run_self_update
 from truenex_memory.release.update_check import check_for_updates
 from truenex_memory.release.version import get_version_info
 from truenex_memory.core.config import resolve_project_config
@@ -132,11 +134,15 @@ app.add_typer(git_app, name="git")
 
 
 @app.callback()
-def callback() -> None:
+def callback(ctx: typer.Context) -> None:
     """Truenex Memory - local-first memory for coding agents."""
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+
+    # Skip auto-update check for MCP/serve to avoid stderr interference
+    if ctx.invoked_subcommand not in ("mcp", "serve"):
+        check_and_notify(__version__)
 
 
 @app.command()
@@ -497,6 +503,12 @@ def adapter_claude_md() -> None:
     """Print CLAUDE.md instructions."""
 
     typer.echo(generate_claude_md())
+
+
+@update_app.command(name="self")
+def update_self() -> None:
+    """Upgrade truenex-memory to the latest version (pipx or pip)."""
+    sys.exit(run_self_update())
 
 
 @update_app.command("check")

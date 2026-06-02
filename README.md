@@ -90,6 +90,13 @@ Or with **pip** (inside a virtual environment):
 pip install truenex-memory
 ```
 
+**Upgrade to the latest version:**
+
+```bash
+pipx upgrade truenex-memory      # if installed with pipx
+pip install --upgrade truenex-memory  # if installed with pip
+```
+
 ### From source (developers)
 
 ```bash
