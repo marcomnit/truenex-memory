@@ -4,6 +4,12 @@
 
 ### Added
 
+## [0.2.0a2] — 2026-06-02
+
+### Fixed
+
+- Added missing `httpx>=0.27` to main `project.dependencies`. `truenex-mem serve` no longer crashes with `ModuleNotFoundError: No module named 'httpx'` on a clean install.
+
 ## [0.2.0a1] — 2026-05-19
 
 ### Fixed
