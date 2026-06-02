@@ -244,14 +244,16 @@ class TestLicenseCLI:
         assert result.exit_code == 0
         assert "license" in result.stdout.lower()
 
-    def test_status_inactive(self) -> None:
-        result = runner.invoke(app, ["license", "status"])
+    def test_status_inactive(self, tmp_path: Path) -> None:
+        license_dir = tmp_path / "license_test"
+        result = runner.invoke(app, ["license", "status", "--license-dir", str(license_dir)])
         assert result.exit_code == 0
         assert "free" in result.stdout
         assert "inactive" in result.stdout
 
-    def test_status_json(self) -> None:
-        result = runner.invoke(app, ["license", "status", "--json"])
+    def test_status_json(self, tmp_path: Path) -> None:
+        license_dir = tmp_path / "license_test"
+        result = runner.invoke(app, ["license", "status", "--json", "--license-dir", str(license_dir)])
         assert result.exit_code == 0
         data = json.loads(result.stdout)
         assert data["tier"] == "free"

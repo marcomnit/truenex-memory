@@ -161,7 +161,11 @@ def init() -> None:
 @app.command()
 def add(
     content: str = typer.Argument(..., help="Memory content to store."),
-    memory_type: str = typer.Option("note", "--type", help="Memory type, e.g. note or decision."),
+    memory_type: str = typer.Option(
+        "note",
+        "--type",
+        help="Memory type: note, decision, issue, or pattern.",
+    ),
 ) -> None:
     """Add a manual memory node."""
 
