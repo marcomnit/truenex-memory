@@ -27,7 +27,10 @@ def _activate_online(key: str) -> dict:
     req = urllib.request.Request(
         _LICENSE_API_URL,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Truenex-Memory-CLI/1.0",
+        },
         method="POST",
     )
     try:
