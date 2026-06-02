@@ -92,6 +92,8 @@ from truenex_memory.store.models import VALID_STATUSES
 from truenex_memory.cli.task_commands import task_app
 from truenex_memory.cli.orchestrate_commands import orchestrate_app
 from truenex_memory.cli.license_commands import license_app
+from truenex_memory.cli.git_commands import git_app
+from truenex_memory.cli.protection import check_license
 
 def resolve_project_root() -> str:
     """Restituisce il project root da usare: env > locale."""
@@ -126,6 +128,7 @@ app.add_typer(global_app, name="global")
 app.add_typer(task_app, name="task")
 app.add_typer(orchestrate_app, name="orchestrate")
 app.add_typer(license_app, name="license")
+app.add_typer(git_app, name="git")
 
 
 @app.callback()
@@ -462,6 +465,7 @@ def serve(
 ) -> None:
     """Start the HTTP API server (for the Truenex Memory Desktop GUI)."""
 
+    check_license("pro")
     from truenex_memory.serve import run_serve
     run_serve(host=host, port=port, project_root=str(project_root))
 
@@ -1293,6 +1297,7 @@ def auto_run(
     This command mirrors 'global refresh' for Phase 3.1.  No generated memory
     nodes, watcher, persistent config, or MCP changes are active yet.
     """
+    check_license("pro")
     catalog_path = catalog if catalog is not None else default_catalog_path(home)
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
 
@@ -1385,6 +1390,7 @@ def auto_status(
     json_output: bool = typer.Option(False, "--json", help="Print report as JSON."),
 ) -> None:
     """Show read-only automatic memory status (Phase 3.2)."""
+    check_license("pro")
     catalog_path = catalog if catalog is not None else default_catalog_path(home)
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
 
@@ -1432,6 +1438,7 @@ def auto_review(
     json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
 ) -> None:
     """Review generated unverified auto memories without mutating the store."""
+    check_license("pro")
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
     report = build_auto_memory_review(
         db_path=db_path,
@@ -1461,6 +1468,7 @@ def auto_approve(
     json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
 ) -> None:
     """Promote one generated unverified auto memory to active."""
+    check_license("pro")
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
     report = approve_auto_memory(db_path, memory_id)
     if json_output:
@@ -1485,6 +1493,7 @@ def auto_reject(
     json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
 ) -> None:
     """Mark one generated unverified auto memory obsolete without deleting it."""
+    check_license("pro")
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
     report = reject_auto_memory(db_path, memory_id)
     if json_output:
@@ -1529,6 +1538,7 @@ def auto_promote(
     json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
 ) -> None:
     """Create a curated active memory from one noisy unverified auto memory."""
+    check_license("pro")
     if memory_type not in CURATED_AUTO_MEMORY_TYPES:
         expected = ", ".join(sorted(CURATED_AUTO_MEMORY_TYPES))
         raise typer.BadParameter(
@@ -1584,6 +1594,7 @@ def auto_prune(
     json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
 ) -> None:
     """Compact rejected auto memories into tombstones; dry-run by default."""
+    check_license("pro")
     db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
     report = prune_auto_memories(
         db_path,

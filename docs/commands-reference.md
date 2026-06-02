@@ -14,6 +14,7 @@
 | [Indicizzazione e ricerca](#indicizzazione-e-ricerca) | `index`, `search`, `logs`, `trace` |
 | [Import/Export](#importexport) | `export`, `import` |
 | [Integrazione agenti](#integrazione-agenti) | `adapter`, `mcp`, `serve` |
+| [Git Bridge](#git-bridge) | `git` |
 | [Global store](#global-store) | `global` |
 | [Pipeline task](#pipeline-task) | `task` |
 | [Orchestrazione](#orchestrazione) | `orchestrate` |
@@ -248,9 +249,9 @@ truenex-mem mcp
 
 ---
 
-### `truenex-mem serve`
+### `truenex-mem serve` 🔒 Pro
 **A cosa serve:** avvia un **server HTTP locale** (API REST) sulla porta di default 8000. Serve per far comunicare la **GUI Desktop** di Truenex Memory con il backend.  
-**Quando usarlo:** quando usi l'app desktop di Truenex Memory (quando sarà disponibile).
+**Quando usarlo:** quando usi l'app desktop di Truenex Memory (richiede licenza Pro).
 
 ```bash
 truenex-mem serve              # default: 127.0.0.1:8000
@@ -262,8 +263,7 @@ truenex-mem serve --port 9000  # porta personalizzata
 - `-p`, `--port` — porta (default: `8000`)
 - `--project-root` — root del progetto
 
-> ⚠️ **Bloccante:** il processo resta attivo finché non premi `Ctrl+C`.  
-> ⚠️ **Bug noto:** richiede il pacchetto `httpx` che attualmente non è incluso nelle dipendenze PyPI.
+> ⚠️ **Bloccante:** il processo resta attivo finché non premi `Ctrl+C`.
 
 ---
 
@@ -282,6 +282,7 @@ truenex-mem serve --port 9000  # porta personalizzata
 | `context` | Contesto di un progetto confermato | `truenex-mem global context nome-progetto` |
 | `search` | Cerca nel global store senza modificare log | `truenex-mem global search "query"` |
 | `sources` | Gestisce il catalogo sorgenti (review, conferma) | `truenex-mem global sources` |
+| `auto` | Manutenzione automatica memoria (Pro) | `truenex-mem global auto run` |
 
 ---
 
@@ -315,6 +316,47 @@ truenex-mem serve --port 9000  # porta personalizzata
 |---|---|---|
 | `run FILE.json` | Esegue il loop da un file di config JSON | `truenex-mem orchestrate run config.json` |
 | `converge-check A B` | Verifica se due round sono identici byte-per-byte | `truenex-mem orchestrate converge-check round1.json round2.json` |
+
+---
+
+### `truenex-mem global auto` 🔒 Pro
+**A cosa serve:** pipeline di manutenzione automatica della memoria globale. Genera, recensisce, approva e pota memorie derivate dai sorgenti indicizzati.  
+**Quando usarlo:** in cron giornaliero o CI per tenere la memoria aggiornata senza intervento manuale.
+
+**Sotto-comandi:**
+
+| Sotto-comando | Descrizione | Esempio |
+|---|---|---|
+| `run` | Refresh + generazione memorie automatiche | `truenex-mem global auto run --auto-memory` |
+| `status` | Stato della pipeline automatica | `truenex-mem global auto status` |
+| `review` | Recensisci memorie generate | `truenex-mem global auto review` |
+| `approve ID` | Approva una memoria generata | `truenex-mem global auto approve mem_xxx` |
+| `reject ID` | Rifiuta una memoria generata | `truenex-mem global auto reject mem_xxx` |
+| `promote ID` | Promuovi a memoria curata attiva | `truenex-mem global auto promote mem_xxx --title "..." --content "..."` |
+| `prune` | Compatta memorie rifiutate | `truenex-mem global auto prune --yes` |
+
+---
+
+## Git Bridge
+
+### `truenex-mem git` 🔒 Pro
+**A cosa serve:** sincronizza la memoria di progetto su più PC usando Git. Esporta il database SQLite in JSON, committa in un repo git separato (`.truenex-memory/sync/`) e pusha su un remote condiviso (es. repo privata su GitHub).  
+**Quando usarlo:** quando lavori su più macchine e vuoi che la memoria del progetto viaggi con te.
+
+**Sotto-comandi:**
+
+| Sotto-comando | Descrizione | Esempio |
+|---|---|---|
+| `init` | Inizializza il repo sync | `truenex-mem git init --url git@github.com:user/project-memory.git` |
+| `push` | Esporta e pusha sul remote | `truenex-mem git push` |
+| `pull` | Pulla e importa nel DB locale | `truenex-mem git pull` |
+| `status` | Stato del sync | `truenex-mem git status --short` |
+| `remote add NAME URL` | Aggiungi un remote | `truenex-mem git remote add origin <url>` |
+| `remote remove NAME` | Rimuovi un remote | `truenex-mem git remote remove origin` |
+| `remote list` | Elenca i remote | `truenex-mem git remote list` |
+| `remote show NAME` | Dettagli di un remote | `truenex-mem git remote show origin` |
+
+Tutti i comandi `git` supportano `--json` per output machine-readable e `--dry-run` (ove applicabile).
 
 ---
 
