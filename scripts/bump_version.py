@@ -82,9 +82,10 @@ def main() -> None:
     print(f"\nDone. Next steps:")
     print(f"  git add -A")
     print(f'  git commit -m "release: v{args.version}"')
-    print(f"  git tag v{args.version}")
-    print(f"  git push origin main --tags")
-    print(f"\nThen open https://github.com/marcomnit/truenex-memory/releases to publish.")
+    print(f"  git push origin main")
+    print(f"\nThen run:")
+    print(f"  python scripts/build_release.py")
+    print(f"\nThis will build, tag, push the tag, and create the GitHub Release automatically.")
 
 
 if __name__ == "__main__":
