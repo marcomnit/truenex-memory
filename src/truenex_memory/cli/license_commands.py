@@ -77,7 +77,7 @@ def license_status(
 @license_app.command("activate")
 def license_activate(
     key: str = typer.Argument(..., help="License key to activate."),
-    online: bool = typer.Option(False, "--online", help="Activate via online API."),
+    offline: bool = typer.Option(False, "--offline", help="Activate locally without contacting the server."),
     tier: str = typer.Option("pro", "--tier", "-t", help="License tier: free, pro, or team."),
     expires_at: str | None = typer.Option(
         None,
@@ -97,7 +97,7 @@ def license_activate(
     ),
 ) -> None:
     """Activate a Truenex Memory Pro license."""
-    if online:
+    if not offline:
         data = _activate_online(key)
         expiry_dt: datetime | None = None
         if data.get("expires_at"):

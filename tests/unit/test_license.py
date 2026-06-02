@@ -261,6 +261,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         result = runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--tier", "pro",
             "--license-dir", str(license_dir),
         ])
@@ -279,6 +280,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         result = runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--expires-at", "2026-12-31",
             "--license-dir", str(license_dir),
             "--json",
@@ -290,6 +292,7 @@ class TestLicenseCLI:
     def test_activate_bad_expiry(self) -> None:
         result = runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--expires-at", "not-a-date",
         ])
         assert result.exit_code != 0
@@ -306,6 +309,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--license-dir", str(license_dir),
         ])
         result = runner.invoke(app, [
@@ -319,6 +323,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--tier", "pro",
             "--license-dir", str(license_dir),
         ])
@@ -332,6 +337,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--tier", "pro",
             "--license-dir", str(license_dir),
         ])
@@ -345,6 +351,7 @@ class TestLicenseCLI:
         license_dir = tmp_path / "license_test"
         result = runner.invoke(app, [
             "license", "activate", "my-key",
+            "--offline",
             "--feature", "rag",
             "--feature", "multi-agent",
             "--license-dir", str(license_dir),
@@ -370,7 +377,6 @@ class TestLicenseCLI:
             mock_resp.read.return_value = json.dumps(fake_response).encode()
             result = runner.invoke(app, [
                 "license", "activate", "trxn-pro-ONLINE-1234",
-                "--online",
                 "--license-dir", str(license_dir),
             ])
             assert result.exit_code == 0
@@ -412,7 +418,6 @@ class TestLicenseCLI:
             mock_activate.side_effect = FakeHTTPError()
             result = runner.invoke(app, [
                 "license", "activate", "INVALID-KEY",
-                "--online",
                 "--license-dir", str(license_dir),
             ])
             assert result.exit_code != 0
@@ -430,7 +435,6 @@ class TestLicenseCLI:
             mock_activate.side_effect = FakeHTTPError()
             result = runner.invoke(app, [
                 "license", "activate", "EXPIRED-KEY",
-                "--online",
                 "--license-dir", str(license_dir),
             ])
             assert result.exit_code != 0
