@@ -29,13 +29,15 @@ Invece di perdere il contesto a ogni nuova sessione, i tuoi agenti possono inter
 Apri un terminale (PowerShell su Windows, Terminal su macOS/Linux) e scrivi:
 
 ```bash
-pip install truenex-memory
+pipx install truenex-memory
 ```
 
-Se preferisci un ambiente isolato (consigliato), usa **pipx**:
+**pipx** è il metodo consigliato: crea un ambiente isolato e pulito, senza sporcare le dipendenze di sistema.
+
+Se preferisci usare **pip** (dentro un virtualenv):
 
 ```bash
-pipx install truenex-memory
+pip install truenex-memory
 ```
 
 ### Verifica
@@ -150,7 +152,8 @@ Nessun problema. L'ordine non conta:
 1. **Compra** su [memory.truenex.ai](https://memory.truenex.ai) — ricevi la chiave via email
 2. **Installa** quando vuoi:
    ```bash
-   pip install truenex-memory
+   pipx install truenex-memory
+   # oppure: pip install truenex-memory
    ```
 3. **Attiva** la chiave:
    ```bash

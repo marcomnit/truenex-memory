@@ -282,7 +282,6 @@ truenex-mem serve --port 9000  # porta personalizzata
 | `context` | Contesto di un progetto confermato | `truenex-mem global context nome-progetto` |
 | `search` | Cerca nel global store senza modificare log | `truenex-mem global search "query"` |
 | `sources` | Gestisce il catalogo sorgenti (review, conferma) | `truenex-mem global sources` |
-| `auto` | Manutenzione automatica memoria (Phase 3) | `truenex-mem global auto` |
 
 ---
 
