@@ -78,14 +78,16 @@ governance. They must remain opt-in and must not lock local data.
 
 ### From PyPI (recommended for end users)
 
-```bash
-pip install truenex-memory
-```
-
-Or with **pipx** (isolated environment):
+**With pipx** (isolated & clean — recommended):
 
 ```bash
 pipx install truenex-memory
+```
+
+Or with **pip** (inside a virtual environment):
+
+```bash
+pip install truenex-memory
 ```
 
 ### From source (developers)

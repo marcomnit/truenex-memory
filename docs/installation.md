@@ -2,14 +2,16 @@
 
 ## Quick install (PyPI)
 
-```bash
-pip install truenex-memory
-```
-
-Or with **pipx** (recommended, isolated environment):
+**With pipx** (isolated & clean — recommended):
 
 ```bash
 pipx install truenex-memory
+```
+
+Or with **pip** (inside a virtual environment):
+
+```bash
+pip install truenex-memory
 ```
 
 Then verify:
