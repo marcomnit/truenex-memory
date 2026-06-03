@@ -24,17 +24,11 @@ truenex-mem --help
 
 If you already have Truenex Memory installed and want the latest version:
 
-**With pipx:**
-
 ```bash
-pipx upgrade truenex-memory
+truenex-mem update self
 ```
 
-**With pip:**
-
-```bash
-pip install --upgrade truenex-memory
-```
+This works regardless of how you originally installed (pipx or pip).
 
 ## Install from source (developers)
 

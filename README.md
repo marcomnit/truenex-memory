@@ -93,8 +93,7 @@ pip install truenex-memory
 **Upgrade to the latest version:**
 
 ```bash
-pipx upgrade truenex-memory      # if installed with pipx
-pip install --upgrade truenex-memory  # if installed with pip
+truenex-mem update self           # works regardless of how you installed
 ```
 
 ### From source (developers)
