@@ -332,26 +332,24 @@ class TestOrchestrateCLI:
         assert result.exit_code == 1
         assert "left ID not found" in result.output
 
-    def test_run_command_invalid_config(self) -> None:
+    def test_run_command_invalid_config(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        with runner.isolated_filesystem() as td:
-            config_path = Path(td) / "bad.json"
-            config_path.write_text("not json")
-            result = runner.invoke(orchestrate_app, ["run", str(config_path)])
+        config_path = tmp_path / "bad.json"
+        config_path.write_text("not json")
+        result = runner.invoke(orchestrate_app, ["run", str(config_path)])
         assert result.exit_code == 1
         assert "invalid config file" in result.output
 
-    def test_run_command_invalid_config_semantic(self) -> None:
+    def test_run_command_invalid_config_semantic(self, tmp_path: Path) -> None:
         runner = CliRunner()
         config = {
             "name": "",
             "phases": [{"name": "echo", "command": "echo hello"}],
             "max_depth": 1,
         }
-        with runner.isolated_filesystem() as td:
-            config_path = Path(td) / "loop.json"
-            config_path.write_text(json.dumps(config))
-            result = runner.invoke(orchestrate_app, ["run", str(config_path)])
+        config_path = tmp_path / "loop.json"
+        config_path.write_text(json.dumps(config))
+        result = runner.invoke(orchestrate_app, ["run", str(config_path)])
         assert result.exit_code == 1
         assert "invalid config file" in result.output
 
@@ -375,34 +373,33 @@ class TestOrchestrateCLI:
         assert report.error is None
         assert len(report.round_ids) == 1
 
-    def test_run_command_success(self) -> None:
+    def test_run_command_success(self, tmp_path: Path) -> None:
         runner = CliRunner()
         config = {
             "name": "cli-test",
             "phases": [{"name": "echo", "command": "echo hello"}],
             "max_depth": 1,
         }
-        with runner.isolated_filesystem() as td:
-            config_path = Path(td) / "loop.json"
-            config_path.write_text(json.dumps(config))
-            with patch("truenex_memory.cli.orchestrate_commands._memory_service") as mock_mem:
-                svc = MagicMock()
-                svc.config.db_path = Path(td) / "test.db"
-                svc.config.project_name = "test"
-                mock_mem.return_value = svc
-                report = RecursiveLoopReport(
-                    loop_name="cli-test",
-                    task_id=None,
-                    iterations_run=1,
-                    max_depth=1,
-                    converged=False,
-                    convergence_iteration=None,
-                    round_ids=["mem_1"],
-                )
-                with patch("truenex_memory.cli.orchestrate_commands.RecursiveLoop") as mock_loop_cls:
-                    mock_loop = MagicMock()
-                    mock_loop.run.return_value = report
-                    mock_loop_cls.return_value = mock_loop
-                    result = runner.invoke(orchestrate_app, ["run", str(config_path)])
+        config_path = tmp_path / "loop.json"
+        config_path.write_text(json.dumps(config))
+        with patch("truenex_memory.cli.orchestrate_commands._memory_service") as mock_mem:
+            svc = MagicMock()
+            svc.config.db_path = tmp_path / "test.db"
+            svc.config.project_name = "test"
+            mock_mem.return_value = svc
+            report = RecursiveLoopReport(
+                loop_name="cli-test",
+                task_id=None,
+                iterations_run=1,
+                max_depth=1,
+                converged=False,
+                convergence_iteration=None,
+                round_ids=["mem_1"],
+            )
+            with patch("truenex_memory.cli.orchestrate_commands.RecursiveLoop") as mock_loop_cls:
+                mock_loop = MagicMock()
+                mock_loop.run.return_value = report
+                mock_loop_cls.return_value = mock_loop
+                result = runner.invoke(orchestrate_app, ["run", str(config_path)])
         assert result.exit_code == 3  # no convergence with max_depth=1
         assert "cli-test" in result.output
