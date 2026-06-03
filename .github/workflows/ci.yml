@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        run: python -m pip install -e ".[dev,qdrant]"
+        run: python -m pip install -e ".[dev,qdrant,gui]"
       - name: Test
         run: python -m pytest --cov=src/truenex_memory --cov-report=term --cov-fail-under=80
       - name: Compile
@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install
-        run: python -m pip install -e ".[dev,qdrant]"
+        run: python -m pip install -e ".[dev,qdrant,gui]"
       - name: End-to-end tests
         run: python -m pytest -m e2e
 
