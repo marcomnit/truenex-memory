@@ -84,7 +84,7 @@ governance. They must remain opt-in and must not lock local data.
 pipx install truenex-memory
 ```
 
-Or with **pip** (inside a virtual environment):
+Or with **pip** (advanced users only — on Windows you may need to close all terminals during upgrade):
 
 ```bash
 pip install truenex-memory

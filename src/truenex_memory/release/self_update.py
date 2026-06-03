@@ -48,4 +48,13 @@ def run_self_update() -> int:
     print(f"Upgrading truenex-memory via {method}...")
     print(f"$ {' '.join(cmd)}")
     sys.stdout.flush()
-    return subprocess.call(cmd)
+    code = subprocess.call(cmd)
+    if code != 0 and sys.platform == "win32":
+        print(
+            "\n❌  Upgrade failed. On Windows this often happens because "
+            "truenex-mem.exe is in use. Close all terminals/IDEs and try again, "
+            "or switch to pipx (recommended):\n"
+            "   pipx install truenex-memory",
+            file=sys.stderr,
+        )
+    return code
