@@ -28,8 +28,13 @@ from truenex_memory.core.migration import migration_status
 from truenex_memory.core.migration import restore_backup
 from truenex_memory.discovery.agent_discovery import (
     DEFAULT_DISPLAY_LIMIT,
+    add_agent_to_manifest,
     discover_from_agents,
     format_report,
+    get_effective_agent_roots,
+    heuristic_discovery,
+    load_agent_manifest,
+    remove_agent_from_manifest,
 )
 from truenex_memory.discovery.source_catalog import (
     CatalogEntry,
@@ -118,6 +123,7 @@ trace_app = typer.Typer(help="Inspect retrieval trace logs.")
 global_app = typer.Typer(help="Global store operations (discovery, refresh, status).")
 sources_app = typer.Typer(help="Review, confirm, and add source catalog entries.")
 auto_app = typer.Typer(help="Automatic memory maintenance (Phase 3).")
+agent_app = typer.Typer(help="Manage agent discovery manifest.")
 app.add_typer(adapter_app, name="adapter")
 app.add_typer(update_app, name="update")
 app.add_typer(migrate_app, name="migrate")
@@ -127,6 +133,7 @@ app.add_typer(trace_app, name="trace")
 global_app.add_typer(sources_app, name="sources")
 global_app.add_typer(auto_app, name="auto")
 app.add_typer(global_app, name="global")
+app.add_typer(agent_app, name="agent")
 app.add_typer(task_app, name="task")
 app.add_typer(orchestrate_app, name="orchestrate")
 app.add_typer(license_app, name="license")
@@ -602,8 +609,9 @@ def global_discover(
 ) -> None:
     """Discover projects, docs, and servers from local agent clients.
 
-    Scans Codex (.codex/sessions, .codex/memories) and Claude
-    (.claude/projects, .claude/commands) directories to find:
+    Scans configured agent roots (Codex, Claude, Kimi, Cursor, OpenClaw,
+    Aider, Antigravity, Gemini, plus any user-discovered or custom roots)
+    to find:
     - Candidate project paths
     - Document references
     - SSH/server aliases
@@ -644,6 +652,137 @@ def global_discover(
     else:
         display_limit = limit if limit is not None else DEFAULT_DISPLAY_LIMIT
         typer.echo(format_report(report, limit=display_limit))
+
+
+@global_app.command("scan-agents")
+def global_scan_agents(
+    home: Path = typer.Option(
+        Path.home(),
+        "--home",
+        help="User home directory to scan for agent roots.",
+    ),
+    interactive: bool = typer.Option(
+        False,
+        "--interactive",
+        "-i",
+        help="Interactively ask which discovered agents to include.",
+    ),
+    include_all: bool = typer.Option(
+        False,
+        "--include-all",
+        "-a",
+        help="Automatically include all discovered agents.",
+    ),
+    reset: bool = typer.Option(
+        False,
+        "--reset",
+        help="Reset discovery preferences (remove all heuristic inclusions).",
+    ),
+) -> None:
+    """Scan for new agent directories and optionally add them to discovery."""
+    from truenex_memory.discovery.agent_discovery import (
+        _load_discovery_prefs,
+        _save_discovery_prefs,
+    )
+
+    if reset:
+        prefs = _load_discovery_prefs()
+        prefs["included_heuristic"] = []
+        _save_discovery_prefs(prefs)
+        typer.echo("✅  Discovery preferences reset.")
+        raise typer.Exit(code=0)
+
+    current = get_effective_agent_roots()
+    typer.echo("─── Currently configured agents ───")
+    for label, rel, sub in current:
+        path = home / rel / sub
+        status = "✅ found" if path.exists() else "⚠️  not found"
+        typer.echo(f"  {label:<30} {status}")
+
+    discovered = heuristic_discovery(home)
+    known = {(rel, sub) for _, rel, sub in current}
+    new = [d for d in discovered if (d[1], d[2]) not in known]
+
+    if not new:
+        typer.echo("\n✅  No new agent directories discovered.")
+        raise typer.Exit(code=0)
+
+    typer.echo(f"\n─── Discovered {len(new)} new agent directories ───")
+    for label, rel, sub in new:
+        typer.echo(f"  {label:<30} (~/{rel}/{sub})")
+
+    if include_all:
+        prefs = _load_discovery_prefs()
+        for label, rel, sub in new:
+            prefs["included_heuristic"].append({
+                "label": label,
+                "root": rel,
+                "subdir": sub,
+            })
+        _save_discovery_prefs(prefs)
+        typer.echo(f"\n✅  Included all {len(new)} discovered agents.")
+        raise typer.Exit(code=0)
+
+    if interactive:
+        prefs = _load_discovery_prefs()
+        included = 0
+        for label, rel, sub in new:
+            if typer.confirm(f"Include {label} (~/{rel}/{sub})?"):
+                prefs["included_heuristic"].append({
+                    "label": label,
+                    "root": rel,
+                    "subdir": sub,
+                })
+                included += 1
+        _save_discovery_prefs(prefs)
+        typer.echo(f"\n✅  Included {included} new agents.")
+        raise typer.Exit(code=0)
+
+    typer.echo(
+        "\nTip: use --interactive (-i) to choose which to include, "
+        "or --include-all (-a) to add all."
+    )
+
+
+@agent_app.command("list")
+def agent_list() -> None:
+    """List all agents in the discovery manifest."""
+    manifest = load_agent_manifest()
+    agents = manifest.get("agents", [])
+    if not agents:
+        typer.echo("No agents configured in manifest.")
+        raise typer.Exit(code=0)
+    typer.echo("─── Agent discovery manifest ───")
+    for agent in agents:
+        name = agent.get("name", "unknown")
+        rel_dir = agent.get("dir", "")
+        roots = agent.get("roots", [])
+        typer.echo(f"  {name}")
+        for root in roots:
+            label = root.get("label", "")
+            subdir = root.get("subdir", "")
+            typer.echo(f"    {label}: ~/{rel_dir}/{subdir}")
+
+
+@agent_app.command("add")
+def agent_add(
+    name: str = typer.Argument(..., help="Agent name (e.g. windsurf)."),
+    dir: str = typer.Option(..., "--dir", "-d", help="Hidden directory name (e.g. .windsurf)."),
+    subdir: str = typer.Option(..., "--subdir", "-s", help="Subdirectory to scan (e.g. sessions)."),
+    label: str | None = typer.Option(None, "--label", "-l", help="Root label (defaults to subdir)."),
+) -> None:
+    """Add a new agent to the discovery manifest."""
+    add_agent_to_manifest(name, dir, subdir, label=label)
+    typer.echo(f"✅  Added agent '{name}' -> ~/{dir}/{subdir}")
+
+
+@agent_app.command("remove")
+def agent_remove(
+    name: str = typer.Argument(..., help="Agent name to remove."),
+) -> None:
+    """Remove an agent from the discovery manifest."""
+    remove_agent_from_manifest(name)
+    typer.echo(f"✅  Removed agent '{name}'.")
 
 
 @sources_app.command("review")

@@ -117,15 +117,271 @@ class DiscoveryReport:
 
 # ── agent root layout ─────────────────────────────────────────────────
 
-AGENT_ROOTS = [
-    ("codex-sessions", ".codex", "sessions"),
-    ("codex-history", ".codex", "history.jsonl"),
-    ("codex-memories", ".codex", "memories"),
-    ("claude-projects", ".claude", "projects"),
-    ("claude-commands", ".claude", "commands"),
-    ("claude-history", ".claude", "history.jsonl"),
-    ("claude-skills", ".claude", "skills"),
-]
+DEFAULT_AGENT_MANIFEST: dict[str, object] = {
+    "version": 1,
+    "agents": [
+        {
+            "name": "codex",
+            "dir": ".codex",
+            "roots": [
+                {"label": "sessions", "subdir": "sessions"},
+                {"label": "history", "subdir": "history.jsonl"},
+                {"label": "memories", "subdir": "memories"},
+            ],
+        },
+        {
+            "name": "claude",
+            "dir": ".claude",
+            "roots": [
+                {"label": "projects", "subdir": "projects"},
+                {"label": "commands", "subdir": "commands"},
+                {"label": "history", "subdir": "history.jsonl"},
+                {"label": "skills", "subdir": "skills"},
+            ],
+        },
+        {
+            "name": "kimi",
+            "dir": ".kimi",
+            "roots": [
+                {"label": "sessions", "subdir": "sessions"},
+                {"label": "plans", "subdir": "plans"},
+                {"label": "skills", "subdir": "skills"},
+            ],
+        },
+        {
+            "name": "cursor",
+            "dir": ".cursor",
+            "roots": [
+                {"label": "projects", "subdir": "projects"},
+            ],
+        },
+        {
+            "name": "openclaw",
+            "dir": ".kimi_openclaw",
+            "roots": [
+                {"label": "workspace", "subdir": "workspace"},
+                {"label": "agents", "subdir": "agents"},
+            ],
+        },
+        {
+            "name": "aider",
+            "dir": ".aider",
+            "roots": [
+                {"label": "caches", "subdir": "caches"},
+            ],
+        },
+        {
+            "name": "antigravity",
+            "dir": ".antigravity",
+            "roots": [
+                {"label": "extensions", "subdir": "extensions"},
+            ],
+        },
+        {
+            "name": "gemini",
+            "dir": ".gemini",
+            "roots": [
+                {"label": "antigravity", "subdir": "antigravity"},
+            ],
+        },
+    ],
+}
+
+
+def _agent_manifest_path() -> Path:
+    """Return the path to the agent manifest file."""
+    return Path.home() / ".truenex-memory" / "agent_manifest.json"
+
+
+def load_agent_manifest() -> dict[str, object]:
+    """Load the agent manifest from disk, creating it with defaults if missing."""
+    path = _agent_manifest_path()
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(DEFAULT_AGENT_MANIFEST, indent=2), encoding="utf-8")
+    return dict(DEFAULT_AGENT_MANIFEST)
+
+
+def save_agent_manifest(manifest: dict[str, object]) -> None:
+    """Save the agent manifest to disk."""
+    path = _agent_manifest_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+
+def add_agent_to_manifest(
+    name: str, relative_dir: str, subdir: str, *, label: str | None = None
+) -> None:
+    """Add a new agent to the manifest."""
+    manifest = load_agent_manifest()
+    agents: list[dict[str, object]] = manifest.setdefault("agents", [])
+    agents = [a for a in agents if a.get("name") != name]
+    agents.append(
+        {
+            "name": name,
+            "dir": relative_dir,
+            "roots": [{"label": label or subdir, "subdir": subdir}],
+        }
+    )
+    manifest["agents"] = agents
+    save_agent_manifest(manifest)
+
+
+def remove_agent_from_manifest(name: str) -> None:
+    """Remove an agent from the manifest by name."""
+    manifest = load_agent_manifest()
+    agents: list[dict[str, object]] = manifest.setdefault("agents", [])
+    manifest["agents"] = [a for a in agents if a.get("name") != name]
+    save_agent_manifest(manifest)
+
+# Subdirectories that are NEVER useful for memory extraction and should be
+# skipped during heuristic discovery.
+EXCLUDED_SUBDIRS = frozenset({
+    "logs", "telemetry", "credentials", "cache", "caches", "sandbox",
+    "bin", "debug", "daemon", "tmp", "temp", ".tmp", "runtimes",
+    "ai-tracking", "snapshots", "installs", "analytics", "config-backups",
+    "cron", "plugins", "backups", "exports", "node_modules", "__pycache__",
+    ".venv", "venv", "env", ".git", ".svn", ".hg", ".tox", "dist", "build",
+    "target", ".idea", ".vscode", "coverage", "htmlcov",
+})
+
+# Subdirectory names that indicate a directory likely belongs to an agent.
+_AGENT_SUBDIR_SIGNALS = frozenset({
+    "sessions", "projects", "skills", "plans", "commands", "workspace",
+    "agents", "memories", "history.jsonl", "input-history", "extensions",
+})
+
+
+def _discovery_prefs_path() -> Path:
+    """Return the path to the discovery preferences file."""
+    return Path.home() / ".truenex-memory" / "discovery_prefs.json"
+
+
+def _load_discovery_prefs() -> dict:
+    """Load discovery preferences from disk."""
+    path = _discovery_prefs_path()
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {
+        "included_heuristic": [],
+        "custom_roots": [],
+        "excluded_defaults": [],
+    }
+
+
+def _save_discovery_prefs(prefs: dict) -> None:
+    """Save discovery preferences to disk."""
+    path = _discovery_prefs_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(prefs, indent=2), encoding="utf-8")
+
+
+def get_effective_agent_roots() -> list[tuple[str, str, str]]:
+    """Return the full list of agent roots to scan.
+
+    Combines manifest roots, user-discovered roots, and custom roots,
+    minus any the user explicitly excluded.
+    """
+    prefs = _load_discovery_prefs()
+    manifest = load_agent_manifest()
+
+    roots: list[tuple[str, str, str]] = []
+    for agent in manifest.get("agents", []):
+        rel_dir = agent.get("dir", "")
+        for root in agent.get("roots", []):
+            label = f"{agent['name']}-{root['label']}"
+            roots.append((label, rel_dir, root["subdir"]))
+
+    # Add heuristic roots the user has approved
+    for item in prefs.get("included_heuristic", []):
+        label = item.get("label", "")
+        root = item.get("root", "")
+        subdir = item.get("subdir", "")
+        if label and root and subdir:
+            roots.append((label, root, subdir))
+
+    # Add custom roots
+    for item in prefs.get("custom_roots", []):
+        label = item.get("label", "")
+        root = item.get("root", "")
+        subdir = item.get("subdir", "")
+        if label and root and subdir:
+            roots.append((label, root, subdir))
+
+    # Remove excluded defaults
+    excluded = {tuple(e) for e in prefs.get("excluded_defaults", [])}
+    roots = [r for r in roots if r not in excluded]
+
+    return roots
+
+
+def heuristic_discovery(home: Path) -> list[tuple[str, str, str]]:
+    """Scan *home* for hidden directories that look like agent roots.
+
+    Returns a list of (label, relative_dir, sub_dir) tuples for directories
+    that contain agent-like subdirectories but are NOT already in the manifest.
+    """
+    manifest = load_agent_manifest()
+    known: set[tuple[str, str]] = set()
+    for agent in manifest.get("agents", []):
+        rel_dir = agent.get("dir", "")
+        for root in agent.get("roots", []):
+            known.add((rel_dir, root["subdir"]))
+
+    # Also respect user prefs
+    prefs = _load_discovery_prefs()
+    for item in prefs.get("included_heuristic", []):
+        root = item.get("root", "")
+        subdir = item.get("subdir", "")
+        if root and subdir:
+            known.add((root, subdir))
+    for item in prefs.get("custom_roots", []):
+        root = item.get("root", "")
+        subdir = item.get("subdir", "")
+        if root and subdir:
+            known.add((root, subdir))
+
+    found: list[tuple[str, str, str]] = []
+
+    if not home.exists() or not home.is_dir():
+        return found
+
+    for entry in home.iterdir():
+        if not entry.is_dir() or not entry.name.startswith("."):
+            continue
+
+        rel_dir = entry.name
+        try:
+            sub_entries = [e for e in entry.iterdir() if e.name not in EXCLUDED_SUBDIRS]
+        except (OSError, PermissionError):
+            continue
+
+        for sub in sub_entries:
+            sub_name = sub.name
+            if sub_name in EXCLUDED_SUBDIRS:
+                continue
+            if sub_name in _AGENT_SUBDIR_SIGNALS:
+                if (rel_dir, sub_name) not in known:
+                    label = f"{rel_dir.lstrip('.').replace('_', '-')}-{sub_name}"
+                    found.append((label, rel_dir, sub_name))
+
+    # Deduplicate while preserving order
+    seen: set[tuple[str, str]] = set()
+    deduped: list[tuple[str, str, str]] = []
+    for item in found:
+        key = (item[1], item[2])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(item)
+
+    return deduped
 
 DOC_EXTENSIONS = frozenset({".md", ".txt", ".json", ".yaml", ".yml", ".toml"})
 MAX_FILE_READ_CHARS = 200_000
@@ -844,8 +1100,8 @@ def _collect_skill_documents(skills_dir: Path, label: str) -> list[CandidateDocu
 def discover_from_agents(home: Path) -> DiscoveryReport:
     """Scan agent client directories under *home* and produce a DiscoveryReport.
 
-    This scans only the agent roots (`.codex/*`, `.claude/*`) - it does NOT
-    recursively traverse discovered project directories.
+    Scans all configured agent roots (hardcoded + user-discovered + custom)
+    but does NOT recursively traverse discovered project directories.
 
     Returns a DiscoveryReport with sections for agent roots, projects,
     documents, servers, and warnings.
@@ -856,7 +1112,7 @@ def discover_from_agents(home: Path) -> DiscoveryReport:
     servers: list[ServerAlias] = []
     warnings: list[str] = []
 
-    for label, relative_dir, sub_dir in AGENT_ROOTS:
+    for label, relative_dir, sub_dir in get_effective_agent_roots():
         root, texts = _scan_agent_root(label, home, relative_dir, sub_dir)
         roots.append(root)
         warnings.extend(

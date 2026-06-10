@@ -4,6 +4,51 @@
 
 ### Added
 
+## [0.2.7] — 2026-06-03
+
+### Fixed
+
+- Git Bridge `pull` now uses `--allow-unrelated-histories` to support syncing between two independently initialized PCs.
+
+## [0.2.6] — 2026-06-03
+
+### Fixed
+
+- Git Bridge `push` and `pull` now run with `capture_output=False`, allowing Git Credential Manager to prompt for credentials interactively (previously stdout/stderr were captured by Python, blocking credential prompts).
+
+## [0.2.5] — 2026-06-03
+
+### Fixed
+
+- Git Bridge bug: `MemoryRepository(str(db_path))` caused `AttributeError` because `sqlite.connect()` expected a `Path` object. Removed unnecessary `str()` calls in `git_commands.py` and made `sqlite.connect()` robust to both `Path` and `str` inputs.
+
+## [0.2.4] — 2026-06-03
+
+### Fixed
+
+- `__init__.py` now reads `__version__` dynamically from package metadata (`importlib.metadata`) instead of a hardcoded string.
+- `licensing.py` uses server-provided `expires_at` during activation instead of locally decoding the JWT token. Fixes cases where `expires` was incorrectly reported as `never` on some Windows machines.
+
+## [0.2.3] — 2026-06-03
+
+### Fixed
+
+- Bump `__version__` to match package metadata (was still reporting 0.2.1 internally).
+
+## [0.2.2] — 2026-06-03
+
+### Fixed
+
+- **License enforcement is now real**: previously a license key could be copied to unlimited devices. This was a critical commercial bug.
+  - Added online license server (`memory.truenex.ai/api/v1/license`) with device binding (max 3 devices per Pro key).
+  - Activation now issues an RS256 JWT token tied to a stable device fingerprint.
+  - Offline validation works for 30 days; 7-day grace period after expiry.
+  - `truenex-mem license deactivate` frees a device slot on the server.
+
+### Changed
+
+- `truenex-mem license activate` no longer supports `--offline`, `--tier`, `--expires-at`, or `--feature` flags. Tier and expiry are server-side.
+
 ## [0.2.1] — 2026-06-02
 
 ### Added
