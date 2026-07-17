@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build release artifacts (sdist + wheel), compute SHA-256 hashes, and publish a GitHub Release.
+"""Build and validate release artifacts, optionally publishing a GitHub Release.
 
 Usage:
     python scripts/build_release.py
+    python scripts/build_release.py --publish-github
 
 Requires:
     - git
@@ -10,16 +11,19 @@ Requires:
     - python -m build
     - pytest
 
-The script will:
+By default the script will:
   1. Run tests
   2. Build sdist + wheel
   3. Compute SHA-256 hashes
-  4. Create a git tag v{version} (if missing)
-  5. Create a GitHub Release with artifacts attached
+
+With ``--publish-github`` it will also create/push the version tag and create a
+GitHub Release. PyPI publication is handled by GitHub Actions Trusted
+Publishing after a version tag is pushed.
 """
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -89,7 +93,18 @@ def is_prerelease(version: str) -> bool:
     return any(k in version.lower() for k in ("alpha", "beta", "a", "b", "rc"))
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--publish-github",
+        action="store_true",
+        help="Create/push the version tag and publish the GitHub Release.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
     root = Path(__file__).resolve().parent.parent
     dist_dir = root / "dist"
     if dist_dir.exists():
@@ -121,6 +136,22 @@ def main() -> int:
     info_path = dist_dir / "release-info.json"
     info_path.write_text(json.dumps(release_info, indent=2) + "\n", encoding="utf-8")
     print(f"  [OK] {info_path}")
+
+    if not args.publish_github:
+        print("\n[OK] Release artifacts prepared locally; no tag or remote state changed.")
+        print("     Re-run with --publish-github only after reviewing and committing the release.")
+        return 0
+
+    dirty = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    if dirty:
+        print("[ERR] Refusing to publish from a dirty working tree.")
+        return 1
 
     # ── Git tag ───────────────────────────────────────────────────────────────
     if not tag_exists_locally(tag, root):

@@ -453,6 +453,7 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
         conn.execute("DELETE FROM schema_migrations WHERE version = '2'")
         conn.execute("DELETE FROM schema_migrations WHERE version = '3'")
         conn.execute("DELETE FROM schema_migrations WHERE version = '4'")
+        conn.execute("DELETE FROM schema_migrations WHERE version = '5'")
         conn.execute("INSERT OR REPLACE INTO schema_migrations(version, applied_at) VALUES ('1', 'now')")
         conn.commit()
 
@@ -460,7 +461,7 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
     result = migrate_apply(db_path, backups_dir)
     assert result["applied"] is True
     assert result["previous_version"] == "1"
-    assert result["current_version"] == "4"
+    assert result["current_version"] == "5"
 
     # Verify legacy data survives
     with connect(db_path) as conn:
@@ -475,11 +476,11 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
         }
         assert "source_ledger" in tables
 
-        # Verify schema version is 2
+        # Verify the latest schema version.
         ver = conn.execute(
             "SELECT version FROM schema_migrations ORDER BY CAST(version AS INTEGER) DESC LIMIT 1"
         ).fetchone()
-        assert ver["version"] == "4"
+        assert ver["version"] == "5"
 
 
 def test_migrate_from_v0_legacy_creates_full_schema() -> None:
@@ -491,7 +492,7 @@ def test_migrate_from_v0_legacy_creates_full_schema() -> None:
     result = migrate_apply(db_path, backups_dir)
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "4"
+    assert result["current_version"] == "5"
 
     with connect(db_path) as conn:
         tables = {

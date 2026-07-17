@@ -18,9 +18,10 @@ def test_version_info_contains_distinct_versions() -> None:
     info = get_version_info()
 
     assert info["app_version"] == truenex_memory.__version__
-    assert info["db_schema_version"] == "4"
+    assert info["db_schema_version"] == "5"
     assert info["mcp_tools_version"] == "1"
     assert info["memory_export_version"] == "1"
+    assert info["update_channel"] == "stable"
 
 
 def test_release_manifest_parses_simple_releases_repo_shape() -> None:
@@ -46,7 +47,7 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     def fetcher(url: str) -> dict[str, object]:
         assert url == DEFAULT_MANIFEST_URL
         return {
-            "version": "0.3.0",
+            "version": "0.5.0",
             "channel": "dev",
             "force_update": False,
             "update_full": True,
@@ -59,7 +60,7 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     result = check_for_updates(fetcher=fetcher)
 
     assert result.update_available is True
-    assert result.latest_version == "0.3.0"
+    assert result.latest_version == "0.5.0"
     assert result.update_full is True
     assert result.manifest_url == DEFAULT_MANIFEST_URL
 

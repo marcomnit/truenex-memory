@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 import sys
 import os
@@ -14,6 +15,7 @@ from truenex_memory.core.memory_service import MemoryService
 from truenex_memory.core.config import resolve_project_config
 from truenex_memory.core.llm_client import chat_with_llm
 from truenex_memory.core.chat_engine import gather_chat_context
+from truenex_memory.store.models import SearchHit
 
 
 def _get_service() -> MemoryService:
@@ -59,10 +61,18 @@ class IndexRequest(BaseModel):
     exclude: list[str] = Field(default_factory=list)
 
 
+class SearchFilters(BaseModel):
+    project: str | None = None
+    type: str | None = None
+    status: str | None = None
+    date_after: str | None = None
+
+
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
     include_inactive: bool = False
+    filters: SearchFilters | None = None
 
 
 class AddMemoryRequest(BaseModel):
@@ -128,6 +138,28 @@ class SourceOut(BaseModel):
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/api/health/llm")
+def health_llm():
+    """Return whether any LLM provider appears configured."""
+    providers = []
+    if os.environ.get("OPENAI_API_KEY"):
+        providers.append("openai")
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        providers.append("anthropic")
+    if os.environ.get("DEEPSEEK_API_KEY"):
+        providers.append("deepseek")
+    if os.environ.get("GOOGLE_API_KEY"):
+        providers.append("google")
+    if os.environ.get("KIMI_API_KEY"):
+        providers.append("kimi")
+    if os.environ.get("LLAMA_BASE_URL"):
+        providers.append("llama-server")
+    return {
+        "available": bool(providers),
+        "providers": providers,
+    }
 
 
 @app.get("/api/version")
@@ -199,10 +231,66 @@ def index_project(req: IndexRequest):
 
 # ── Search ─────────────────────────────────────────────────────────────────
 
+def _parse_iso_dt(value: str) -> datetime | None:
+    try:
+        value = value.strip()
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        return datetime.fromisoformat(value)
+    except (ValueError, AttributeError):
+        return None
+
+
+def _match_filters(hit: SearchHit, filters: SearchFilters) -> bool:
+    if filters.project and filters.project.lower() not in (hit.project or "").lower():
+        return False
+    if filters.type:
+        filter_type = filters.type.lower()
+        hit_type = (hit.memory_type or "").lower()
+        # UX alias: "document" matches "document_chunk"
+        if filter_type == "document":
+            if hit_type not in ("document", "document_chunk"):
+                return False
+        elif filter_type != hit_type:
+            return False
+    if filters.status and filters.status.lower() != (hit.status or "").lower():
+        return False
+    if filters.date_after:
+        hit_dt = _parse_iso_dt(hit.created_at) if hit.created_at else None
+        filter_dt = _parse_iso_dt(filters.date_after)
+        if filter_dt is not None and filter_dt.tzinfo is None and hit_dt is not None and hit_dt.tzinfo is not None:
+            filter_dt = filter_dt.replace(tzinfo=timezone.utc)
+        if filter_dt is not None and (hit_dt is None or hit_dt < filter_dt):
+            return False
+    return True
+
+
 @app.post("/api/search")
 def search(req: SearchRequest):
     svc = _get_service()
-    results = svc.search(req.query, top_k=req.top_k, include_inactive=req.include_inactive)
+    include_inactive = req.include_inactive
+    if req.filters and req.filters.status and req.filters.status.lower() not in {"active", "unverified"}:
+        include_inactive = True
+
+    # When filters are active, retrieve many more candidates so that post-filter
+    # results are meaningful. Without this, a strict filter on a small top_k can
+    # yield zero results even when matching items exist deeper in the ranking.
+    has_active_filter = bool(
+        req.filters
+        and any(
+            getattr(req.filters, field) for field in ("project", "type", "status", "date_after")
+        )
+    )
+    fetch_k = req.top_k
+    if has_active_filter:
+        fetch_k = max(req.top_k * 10, 100)
+
+    results = svc.search(req.query, top_k=fetch_k, include_inactive=include_inactive)
+    if req.filters:
+        results = [r for r in results if _match_filters(r, req.filters)]
+
+    # Respect the caller's requested page size.
+    results = results[: req.top_k]
     return [
         {
             "title": r.title,
@@ -212,6 +300,10 @@ def search(req: SearchRequest):
             "memory_type": r.memory_type,
             "status": r.status,
             "score": r.score,
+            "source_id": r.source_id,
+            "document_id": r.document_id,
+            "project": r.project,
+            "created_at": r.created_at,
         }
         for r in results
     ]
@@ -279,6 +371,15 @@ def list_sources():
     return svc.list_sources_with_documents()
 
 
+@app.get("/api/source/{source_id}")
+def get_source(source_id: str):
+    svc = _get_service()
+    source = svc.get_source(source_id)
+    if source is None:
+        raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
+    return source
+
+
 # ── Stats ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/stats")
@@ -293,6 +394,133 @@ def stats():
         "memory_nodes": s.get("memory_nodes", 0),
         "vector_backend": svc.vector_store_status,
     }
+
+
+# ── Catalog status ─────────────────────────────────────────────────────────
+
+@app.get("/api/catalog/status")
+def catalog_status():
+    svc = _get_service()
+    return svc.catalog_status()
+
+
+# ── Project graph ──────────────────────────────────────────────────────────
+
+@app.get("/api/project-graph")
+def project_graph(project_name: str = Query(..., description="Project name")):
+    svc = _get_service()
+    if not svc.config.db_path.exists():
+        raise HTTPException(status_code=404, detail="Database not found")
+
+    from truenex_memory.store.sqlite import connect
+
+    with connect(svc.config.db_path) as conn:
+        # Find active sources whose path contains the project name
+        source_rows = conn.execute(
+            """
+            SELECT source_id, source_path_or_alias, chunk_count
+            FROM source_ledger
+            WHERE status = 'active'
+              AND (project_name = ? OR source_path_or_alias LIKE ?)
+            """,
+            (project_name, f"%{project_name}%"),
+        ).fetchall()
+
+        if not source_rows:
+            # Fallback: try to match any source path that could belong to this project
+            source_rows = conn.execute(
+                """
+                SELECT source_id, source_path_or_alias, chunk_count
+                FROM source_ledger
+                WHERE status = 'active'
+                """,
+            ).fetchall()
+            source_rows = [
+                r for r in source_rows
+                if project_name.lower() in str(r[1]).lower().replace("\\", "/")
+            ]
+
+        source_paths = [row[1] for row in source_rows]
+
+        # Load all documents once for fast Python-side matching
+        doc_rows = conn.execute(
+            "SELECT id, path, filename FROM documents"
+        ).fetchall()
+
+        matched_docs: list[tuple[str, str, str]] = []
+        seen_doc_ids: set[str] = set()
+        for doc_id, doc_path, doc_filename in doc_rows:
+            normalized_path = doc_path.replace("\\", "/")
+            for sp in source_paths:
+                sp_norm = sp.replace("\\", "/")
+                if normalized_path == sp_norm or normalized_path.startswith(sp_norm.rstrip("/") + "/"):
+                    if doc_id not in seen_doc_ids:
+                        matched_docs.append((doc_id, doc_path, doc_filename))
+                        seen_doc_ids.add(doc_id)
+                    break
+
+        nodes: list[dict[str, Any]] = []
+        total_chunks = 0
+        total_tokens = 0
+        breakdown: dict[str, int] = {}
+        top_files: list[dict[str, Any]] = []
+
+        for doc_id, doc_path, doc_filename in matched_docs:
+            chunk_rows = conn.execute(
+                "SELECT heading_path, token_count FROM chunks WHERE document_id = ?",
+                (doc_id,),
+            ).fetchall()
+
+            chunk_count = len(chunk_rows)
+            token_count = sum(c[1] or 0 for c in chunk_rows)
+            headings = list(dict.fromkeys([c[0] for c in chunk_rows if c[0]]))[:10]
+
+            ext = doc_filename.rsplit(".", 1)[-1].split("::")[0] or "unknown"
+            breakdown[ext] = breakdown.get(ext, 0) + 1
+
+            nodes.append({
+                "id": str(doc_id),
+                "label": doc_filename,
+                "path": doc_path,
+                "file_type": ext,
+                "chunk_count": chunk_count,
+                "token_count": token_count,
+                "heading_preview": headings,
+            })
+
+            total_chunks += chunk_count
+            total_tokens += token_count
+            top_files.append({"name": doc_filename, "chunks": chunk_count})
+
+        top_files.sort(key=lambda x: x["chunks"], reverse=True)
+
+        # Derive project_root as longest common prefix
+        project_root = ""
+        if matched_docs:
+            paths = [p.replace("\\", "/") for _, p, _ in matched_docs]
+            if paths:
+                project_root = paths[0]
+                for p in paths[1:]:
+                    while not p.startswith(project_root):
+                        project_root = project_root.rsplit("/", 1)[0] if "/" in project_root else ""
+                        if not project_root:
+                            break
+
+        return {
+            "nodes": nodes,
+            "edges": [],
+            "summary": {
+                "project_name": project_name,
+                "total_files": len(nodes),
+                "total_chunks": total_chunks,
+                "total_tokens": total_tokens,
+                "breakdown": breakdown,
+                "top_files": top_files[:10],
+                "common_headings": [],
+                "abstract": "",
+            },
+            "project_root": project_root,
+        }
 
 
 # ── File metadata ──────────────────────────────────────────────────────────
@@ -336,7 +564,16 @@ def update_settings(req: SettingsUpdate):
 
 @app.post("/api/chat")
 def chat(req: ChatRequest):
-    gathered = gather_chat_context(req.query, project_hint=req.project_hint)
+    try:
+        gathered = gather_chat_context(req.query, project_hint=req.project_hint)
+    except Exception as exc:
+        # Context retrieval is local infrastructure. Fail with a service-level
+        # response instead of leaking an unhandled 500 when the global store is
+        # unavailable, read-only, or temporarily inconsistent.
+        raise HTTPException(
+            503,
+            "Memoria locale temporaneamente non disponibile. Riprova dopo aver verificato il database.",
+        ) from exc
 
     if not gathered["context"].strip():
         err = gathered.get("error")

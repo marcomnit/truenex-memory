@@ -9,7 +9,7 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "5"
 
 
 @dataclass(frozen=True)
@@ -21,18 +21,20 @@ class MemoryRecord:
     metadata: dict[str, Any]
 
 
-def connect(db_path: Path) -> sqlite3.Connection:
+def connect(db_path: Path | str) -> sqlite3.Connection:
     """Open a SQLite connection with local-first defaults."""
 
+    db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA recursive_triggers = ON")
     return conn
 
 
 def initialize_schema(conn: sqlite3.Connection) -> None:
-    """Create the v1 local schema if it does not already exist."""
+    """Create or safely upgrade the local schema."""
 
     conn.executescript(
         """
@@ -174,13 +176,73 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
         );
         """
     )
+    _ensure_column(conn, "chunks", "embedding_model", "TEXT")
+    _ensure_column(conn, "chunks", "embedding_vector_json", "TEXT")
+    fts_migration_pending = conn.execute(
+        "SELECT 1 FROM schema_migrations WHERE version = ?",
+        (SCHEMA_VERSION,),
+    ).fetchone() is None
+    if _ensure_chunks_fts(conn) and fts_migration_pending:
+        rebuild_chunks_fts(conn)
     conn.execute(
         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, datetime('now'))",
         (SCHEMA_VERSION,),
     )
-    _ensure_column(conn, "chunks", "embedding_model", "TEXT")
-    _ensure_column(conn, "chunks", "embedding_vector_json", "TEXT")
     conn.commit()
+
+
+def chunks_fts_available(conn: sqlite3.Connection) -> bool:
+    """Return whether the persistent chunk FTS5 index is available."""
+
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chunks_fts'"
+    ).fetchone()
+    return row is not None
+
+
+def rebuild_chunks_fts(conn: sqlite3.Connection) -> None:
+    """Rebuild the disposable FTS index from canonical chunk rows."""
+
+    conn.execute("INSERT INTO chunks_fts(chunks_fts) VALUES ('rebuild')")
+
+
+def _ensure_chunks_fts(conn: sqlite3.Connection) -> bool:
+    """Create the FTS5 external-content index and synchronization triggers."""
+
+    try:
+        conn.executescript(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+              content,
+              heading_path,
+              content='chunks',
+              content_rowid='rowid',
+              tokenize='unicode61 remove_diacritics 2'
+            );
+
+            CREATE TRIGGER IF NOT EXISTS chunks_fts_ai AFTER INSERT ON chunks BEGIN
+              INSERT INTO chunks_fts(rowid, content, heading_path)
+              VALUES (new.rowid, new.content, COALESCE(new.heading_path, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS chunks_fts_ad AFTER DELETE ON chunks BEGIN
+              INSERT INTO chunks_fts(chunks_fts, rowid, content, heading_path)
+              VALUES ('delete', old.rowid, old.content, COALESCE(old.heading_path, ''));
+            END;
+
+            CREATE TRIGGER IF NOT EXISTS chunks_fts_au AFTER UPDATE ON chunks BEGIN
+              INSERT INTO chunks_fts(chunks_fts, rowid, content, heading_path)
+              VALUES ('delete', old.rowid, old.content, COALESCE(old.heading_path, ''));
+              INSERT INTO chunks_fts(rowid, content, heading_path)
+              VALUES (new.rowid, new.content, COALESCE(new.heading_path, ''));
+            END;
+            """
+        )
+    except sqlite3.OperationalError as exc:
+        if "fts5" in str(exc).lower() or "no such module" in str(exc).lower():
+            return False
+        raise
+    return True
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, column_type: str) -> None:

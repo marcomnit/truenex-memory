@@ -8,12 +8,12 @@ from truenex_memory import __version__
 
 
 APP_VERSION = __version__
-DB_SCHEMA_VERSION = "4"
+DB_SCHEMA_VERSION = "5"
 MCP_TOOLS_VERSION = "1"
 LICENSE_FORMAT_VERSION = "1"
 MEMORY_EXPORT_VERSION = "1"
 CLOUD_API_VERSION = "0"
-DEFAULT_UPDATE_CHANNEL = "dev"
+DEFAULT_UPDATE_CHANNEL = "stable"
 
 
 @dataclass(frozen=True)

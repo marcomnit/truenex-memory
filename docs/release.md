@@ -26,19 +26,19 @@ Raw URL:
 https://raw.githubusercontent.com/marcomnit/truenex-memory-releases/main/version.json
 ```
 
-Initial manifest:
+Release manifest example:
 
 ```json
 {
   "manifest_version": "1",
-  "version": "0.1.0",
-  "channel": "dev",
+  "version": "0.4.0",
+  "channel": "stable",
   "force_update": false,
   "update_full": false,
-  "download_url": null,
-  "release_notes_url": null,
-  "requires_migration": false,
-  "min_supported_version": "0.1.0"
+  "download_url": "https://pypi.org/project/truenex-memory/0.4.0/",
+  "release_notes_url": "https://github.com/marcomnit/truenex-memory/releases/tag/v0.4.0",
+  "requires_migration": true,
+  "min_supported_version": "0.3.0"
 }
 ```
 
@@ -49,17 +49,38 @@ truenex-mem update check
 ```
 
 The command performs a GET request to the manifest URL and compares semantic
-versions. It prints JSON. It does not apply updates.
+versions. It prints JSON and does not modify the installation.
 
-## Future Apply Flow
+## Apply An Update
 
-`truenex-mem update apply` is intentionally not implemented yet. Before adding
-it, the project must have:
+The supported updater upgrades the PyPI package through the detected installer:
 
-- release artifacts with SHA-256 hashes;
-- migration backup/rollback (implemented locally and covered by tests);
-- signed or verified manifest strategy;
-- e2e tests for install, update, migration, rollback, and data preservation.
+```bash
+truenex-mem update self
+```
+
+It uses `pipx upgrade` for pipx installations and `pip install --upgrade` for
+pip installations. Database migrations remain explicit so a backup is created
+before changing an existing database:
+
+```bash
+truenex-mem migrate status
+truenex-mem migrate apply
+```
+
+## Publishing
+
+Pushing a tag matching `v*` runs the release workflow. The tag must match the
+version in `pyproject.toml`. The workflow:
+
+1. runs unit and end-to-end tests;
+2. builds and validates wheel and source distributions;
+3. uploads immutable workflow artifacts;
+4. creates the GitHub Release;
+5. publishes to PyPI through Trusted Publishing.
+
+The PyPI project must authorize the GitHub environment named `pypi` before the
+first automated publication. No PyPI token is stored in the repository.
 
 ## Local Schema Migrations
 

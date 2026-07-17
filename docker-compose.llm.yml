@@ -1,0 +1,50 @@
+# Llama-server sidecar for local LLM inference
+# Usage:
+#   CPU:  docker compose -f docker-compose.llm.yml --profile cpu up -d
+#   GPU:  docker compose -f docker-compose.llm.yml --profile cuda up -d
+#   Or use: python scripts/start_llm.py
+
+services:
+  llm-cpu:
+    profiles: ["cpu"]
+    image: ghcr.io/ggerganov/llama.cpp:server
+    ports:
+      - "9081:9081"
+    volumes:
+      - ${MODELS_DIR:-./models}:/models:ro
+    environment:
+      - MODEL_FILE=${MODEL_FILE:-qwen2.5-7b-instruct-q4_k_m.gguf}
+    command: >
+      --host 0.0.0.0
+      --port 9081
+      --model /models/${MODEL_FILE:-qwen2.5-7b-instruct-q4_k_m.gguf}
+      --ctx-size 4096
+      --parallel 2
+      --n-gpu-layers 0
+      --metrics
+
+  llm-cuda:
+    profiles: ["cuda"]
+    image: ghcr.io/ggerganov/llama.cpp:server-cuda
+    ports:
+      - "9081:9081"
+    volumes:
+      - ${MODELS_DIR:-./models}:/models:ro
+    environment:
+      - MODEL_FILE=${MODEL_FILE:-qwen2.5-7b-instruct-q4_k_m.gguf}
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --host 0.0.0.0
+      --port 9081
+      --model /models/${MODEL_FILE:-qwen2.5-7b-instruct-q4_k_m.gguf}
+      --ctx-size 8192
+      --parallel 2
+      --n-gpu-layers ${N_GPU_LAYERS:-999}
+      --metrics

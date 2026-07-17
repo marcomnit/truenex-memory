@@ -42,6 +42,10 @@ class SearchHit:
     memory_type: str
     status: str
     score: float
+    document_id: str | None = None
+    source_id: str | None = None
+    project: str | None = None
+    created_at: str | None = None
 
 
 @dataclass(frozen=True)

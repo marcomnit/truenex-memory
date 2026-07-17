@@ -418,7 +418,7 @@ class TestDiscoverFromAgents:
         _setup_fake_home(home)
         report = discover_from_agents(home)
 
-        assert len(report.agent_roots) == 7
+        assert len(report.agent_roots) == 16
         labels = {r.label for r in report.agent_roots}
         assert labels == {
             "codex-sessions",
@@ -428,6 +428,15 @@ class TestDiscoverFromAgents:
             "claude-commands",
             "claude-history",
             "claude-skills",
+            "kimi-sessions",
+            "kimi-plans",
+            "kimi-skills",
+            "cursor-projects",
+            "openclaw-workspace",
+            "openclaw-agents",
+            "aider-caches",
+            "antigravity-extensions",
+            "gemini-antigravity",
         }
 
     def test_discovers_projects_from_codex(self) -> None:
@@ -1114,8 +1123,9 @@ class TestNoFullDiskScan:
         report = discover_from_agents(home)
 
         agent_paths = {str(r.path) for r in report.agent_roots}
+        allowed = {".codex", ".claude", ".kimi", ".cursor", ".kimi_openclaw", ".aider", ".antigravity", ".gemini"}
         for path_str in agent_paths:
-            assert ".codex" in path_str or ".claude" in path_str, (
+            assert any(a in path_str for a in allowed), (
                 f"Unexpected path scanned: {path_str}"
             )
 

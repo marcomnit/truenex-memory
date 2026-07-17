@@ -305,8 +305,9 @@ python -m compileall -q src
 ## 🗺️ Roadmap
 
 - **v0.1.0** — Public alpha: local memory, MCP server, CLI, auto-memory lifecycle.
-- **v0.2.0** (current pre-release) — Stabilization: public package build, release artifacts, expanded docs, test coverage >80%.
+- **v0.2.0** — Stabilization: public package build, release artifacts, expanded docs, test coverage >80%.
 - **v0.3.0** — Ecosystem: plugin system, custom embedders, multi-project merge workflows.
+- **v0.4.0** — Persistent FTS5 search, schema v5 migration, faster exact retrieval, and hardened multi-PC updates.
 
 See the full roadmap in [ROADMAP.md](ROADMAP.md).
 

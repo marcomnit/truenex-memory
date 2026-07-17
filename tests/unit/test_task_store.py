@@ -78,4 +78,4 @@ def test_schema_version_bumped(store: TaskStore) -> None:
     with connect(store.db_path) as conn:
         initialize_schema(conn)
         row = conn.execute("SELECT version FROM schema_migrations ORDER BY CAST(version AS INTEGER) DESC LIMIT 1").fetchone()
-        assert row["version"] == SCHEMA_VERSION == "4"
+        assert row["version"] == SCHEMA_VERSION == "5"

@@ -3,48 +3,18 @@
 from __future__ import annotations
 
 import json
-import urllib.error
-import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
 
-from truenex_memory.licensing import LicenseInfo, LicenseManager
+from truenex_memory.licensing import LicenseManager
 
 license_app = typer.Typer(help="Manage Truenex Memory Pro license.")
 _DEFAULT_DIR = Path.home() / ".truenex-memory"
-_LICENSE_API_URL = "https://truenex.ai/api/v1/billing/license/activate"
 
 
 def _manager(license_dir: Path | None = None) -> LicenseManager:
     return LicenseManager(license_dir or _DEFAULT_DIR)
-
-
-def _activate_online(key: str) -> dict:
-    """Call remote license activation API."""
-    payload = json.dumps({"license_key": key}).encode("utf-8")
-    req = urllib.request.Request(
-        _LICENSE_API_URL,
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "User-Agent": "Truenex-Memory-CLI/1.0",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8")
-        try:
-            detail = json.loads(body).get("detail", body)
-        except json.JSONDecodeError:
-            detail = body
-        raise typer.BadParameter(f"Online activation failed: {detail}") from e
-    except Exception as e:
-        raise typer.BadParameter(f"Online activation failed: {e}") from e
 
 
 @license_app.command("status")
@@ -69,7 +39,6 @@ def license_status(
         typer.echo(f"Expires: {status['expires_at'] or 'never'}")
         remaining = status["days_remaining"]
         typer.echo(f"Days remaining: {remaining if remaining is not None else 'never'}")
-        typer.echo(f"Features: {', '.join(status['features']) if status['features'] else 'none'}")
         typer.echo(f"Grace period: {'yes' if status['grace_period'] else 'no'} "
                    f"(offline grace: {status['offline_grace_days']} days)")
 
@@ -77,18 +46,6 @@ def license_status(
 @license_app.command("activate")
 def license_activate(
     key: str = typer.Argument(..., help="License key to activate."),
-    offline: bool = typer.Option(False, "--offline", help="Activate locally without contacting the server."),
-    tier: str = typer.Option("pro", "--tier", "-t", help="License tier: free, pro, or team."),
-    expires_at: str | None = typer.Option(
-        None,
-        "--expires-at",
-        help="Expiry date in ISO format (e.g. 2026-12-31). Leave blank for no expiry.",
-    ),
-    features: list[str] | None = typer.Option(
-        None,
-        "--feature",
-        help="Feature flag to enable (repeatable).",
-    ),
     json_out: bool = typer.Option(False, "--json", help="Print result as JSON."),
     license_dir: Path | None = typer.Option(
         None,
@@ -96,41 +53,12 @@ def license_activate(
         help="Directory for license.json (default: ~/.truenex-memory/).",
     ),
 ) -> None:
-    """Activate a Truenex Memory Pro license."""
-    if not offline:
-        data = _activate_online(key)
-        expiry_dt: datetime | None = None
-        if data.get("expires_at"):
-            expiry_dt = datetime.fromisoformat(data["expires_at"])
-            if expiry_dt.tzinfo is None:
-                expiry_dt = expiry_dt.replace(tzinfo=timezone.utc)
-        info = LicenseInfo(
-            key=data["license_key"],
-            tier=data.get("tier", "pro"),
-            activated_at=datetime.now(timezone.utc),
-            expires_at=expiry_dt,
-            features=data.get("features", []),
-        )
-        _manager(license_dir).save(info)
-    else:
-        expiry_dt = None
-        if expires_at:
-            try:
-                expiry_dt = datetime.fromisoformat(expires_at)
-            except ValueError:
-                raise typer.BadParameter(
-                    f"Invalid ISO date: {expires_at!r}. Use format YYYY-MM-DD or "
-                    f"YYYY-MM-DDTHH:MM:SS."
-                ) from None
-            if expiry_dt.tzinfo is None:
-                expiry_dt = expiry_dt.replace(tzinfo=timezone.utc)
-
-        info = _manager(license_dir).activate(
-            key=key,
-            tier=tier,
-            expires_at=expiry_dt,
-            features=list(features or []),
-        )
+    """Activate a Truenex Memory Pro license (requires internet)."""
+    try:
+        info = _manager(license_dir).activate(key=key)
+    except RuntimeError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
 
     if json_out:
         typer.echo(json.dumps(info.to_dict(), indent=2, sort_keys=True))

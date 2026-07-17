@@ -188,14 +188,14 @@ DEFAULT_AGENT_MANIFEST: dict[str, object] = {
 }
 
 
-def _agent_manifest_path() -> Path:
+def _agent_manifest_path(home: Path | None = None) -> Path:
     """Return the path to the agent manifest file."""
-    return Path.home() / ".truenex-memory" / "agent_manifest.json"
+    return (home or Path.home()) / ".truenex-memory" / "agent_manifest.json"
 
 
-def load_agent_manifest() -> dict[str, object]:
+def load_agent_manifest(home: Path | None = None) -> dict[str, object]:
     """Load the agent manifest from disk, creating it with defaults if missing."""
-    path = _agent_manifest_path()
+    path = _agent_manifest_path(home)
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
@@ -256,14 +256,14 @@ _AGENT_SUBDIR_SIGNALS = frozenset({
 })
 
 
-def _discovery_prefs_path() -> Path:
+def _discovery_prefs_path(home: Path | None = None) -> Path:
     """Return the path to the discovery preferences file."""
-    return Path.home() / ".truenex-memory" / "discovery_prefs.json"
+    return (home or Path.home()) / ".truenex-memory" / "discovery_prefs.json"
 
 
-def _load_discovery_prefs() -> dict:
+def _load_discovery_prefs(home: Path | None = None) -> dict:
     """Load discovery preferences from disk."""
-    path = _discovery_prefs_path()
+    path = _discovery_prefs_path(home)
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
@@ -283,14 +283,14 @@ def _save_discovery_prefs(prefs: dict) -> None:
     path.write_text(json.dumps(prefs, indent=2), encoding="utf-8")
 
 
-def get_effective_agent_roots() -> list[tuple[str, str, str]]:
+def get_effective_agent_roots(home: Path | None = None) -> list[tuple[str, str, str]]:
     """Return the full list of agent roots to scan.
 
     Combines manifest roots, user-discovered roots, and custom roots,
     minus any the user explicitly excluded.
     """
-    prefs = _load_discovery_prefs()
-    manifest = load_agent_manifest()
+    prefs = _load_discovery_prefs(home)
+    manifest = load_agent_manifest(home)
 
     roots: list[tuple[str, str, str]] = []
     for agent in manifest.get("agents", []):
@@ -1112,7 +1112,7 @@ def discover_from_agents(home: Path) -> DiscoveryReport:
     servers: list[ServerAlias] = []
     warnings: list[str] = []
 
-    for label, relative_dir, sub_dir in get_effective_agent_roots():
+    for label, relative_dir, sub_dir in get_effective_agent_roots(home):
         root, texts = _scan_agent_root(label, home, relative_dir, sub_dir)
         roots.append(root)
         warnings.extend(

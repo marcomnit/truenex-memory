@@ -7,6 +7,8 @@ from pathlib import Path
 import re
 import sqlite3
 
+from truenex_memory.store.sqlite import chunks_fts_available
+
 
 DEFAULT_GLOBAL_SEARCH_LIMIT = 10
 DEFAULT_EXCERPT_CHARS = 320
@@ -134,12 +136,13 @@ def build_global_search(
             and _table_exists(conn, "chunks")
             and _table_exists(conn, "documents")
         ):
-            hits.extend(_search_chunks(conn, tokens, excerpt_chars))
+            hits.extend(_search_chunks(conn, tokens, excerpt_chars, top_k=top_k))
         elif kind_filter in ("all", "chunks"):
             report.warnings.append("documents/chunks tables not found")
 
+        hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
         hits.sort(key=lambda item: (-item.score, _kind_rank(item.kind), item.title, item.id))
-        report.results = hits[:top_k]
+        report.results = _deduplicate_global_hits(hits)[:top_k]
         report.result_count = len(report.results)
     except sqlite3.DatabaseError:
         report.warnings.append("database readable but global search query failed")
@@ -239,15 +242,102 @@ def _search_chunks(
     conn: sqlite3.Connection,
     tokens: set[str],
     excerpt_chars: int,
+    *,
+    top_k: int,
+) -> list[GlobalSearchHit]:
+    if chunks_fts_available(conn):
+        try:
+            return _search_chunks_fts(
+                conn,
+                tokens,
+                excerpt_chars,
+                candidate_limit=max(top_k * 20, 100),
+            )
+        except sqlite3.OperationalError:
+            pass
+    return _search_chunks_bm25(conn, tokens, excerpt_chars)
+
+
+def _search_chunks_fts(
+    conn: sqlite3.Connection,
+    tokens: set[str],
+    excerpt_chars: int,
+    *,
+    candidate_limit: int,
+) -> list[GlobalSearchHit]:
+    query = _fts_or_query(tokens)
+    if not query:
+        return []
+    if _table_exists(conn, "source_ledger"):
+        rows = conn.execute(
+            """
+            SELECT c.*, d.path, d.filename, NULL AS ledger_status,
+                   bm25(chunks_fts, 1.0, 2.0) AS fts_rank
+            FROM chunks_fts
+            JOIN chunks c ON c.rowid = chunks_fts.rowid
+            JOIN documents d ON d.id = c.document_id
+            WHERE chunks_fts MATCH ?
+              AND (
+                NOT EXISTS (
+                    SELECT 1 FROM source_ledger sl
+                    WHERE sl.source_path_or_alias = d.path
+                ) OR EXISTS (
+                    SELECT 1 FROM source_ledger sl
+                    WHERE sl.source_path_or_alias = d.path
+                      AND sl.status NOT IN (?, ?)
+                )
+              )
+            ORDER BY fts_rank ASC
+            LIMIT ?
+            """,
+            (query, *EXCLUDED_LEDGER_STATUSES, candidate_limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT c.*, d.path, d.filename, NULL AS ledger_status,
+                   bm25(chunks_fts, 1.0, 2.0) AS fts_rank
+            FROM chunks_fts
+            JOIN chunks c ON c.rowid = chunks_fts.rowid
+            JOIN documents d ON d.id = c.document_id
+            WHERE chunks_fts MATCH ?
+            ORDER BY fts_rank ASC
+            LIMIT ?
+            """,
+            (query, candidate_limit),
+        ).fetchall()
+
+    hits: list[GlobalSearchHit] = []
+    for row in rows:
+        stripped_content = _strip_metadata_preamble(str(row["content"] or ""))
+        source_type = row["source_type"] if "source_type" in row.keys() else None
+        score = round(
+            max(0.0, -float(row["fts_rank"])) * 10.0 * source_boost(source_type),
+            6,
+        )
+        hits.append(_global_chunk_hit(row, stripped_content, excerpt_chars, score))
+    return hits
+
+
+def _search_chunks_bm25(
+    conn: sqlite3.Connection,
+    tokens: set[str],
+    excerpt_chars: int,
 ) -> list[GlobalSearchHit]:
     if _table_exists(conn, "source_ledger"):
         rows = conn.execute(
             """
-            SELECT c.*, d.path, d.filename, sl.status AS ledger_status
+            SELECT c.*, d.path, d.filename, NULL AS ledger_status
             FROM chunks c
             JOIN documents d ON d.id = c.document_id
-            LEFT JOIN source_ledger sl ON sl.source_path_or_alias = d.path
-            WHERE sl.source_path_or_alias IS NULL OR sl.status NOT IN (?, ?)
+            WHERE NOT EXISTS (
+                SELECT 1 FROM source_ledger sl
+                WHERE sl.source_path_or_alias = d.path
+            ) OR EXISTS (
+                SELECT 1 FROM source_ledger sl
+                WHERE sl.source_path_or_alias = d.path
+                  AND sl.status NOT IN (?, ?)
+            )
             """,
             EXCLUDED_LEDGER_STATUSES,
         ).fetchall()
@@ -280,21 +370,33 @@ def _search_chunks(
             pass
         final_score = round(raw_score * source_boost(st), 6)
         title = str(row["heading_path"] or row["filename"] or Path(str(row["path"])).name)
-        hits.append(
-            GlobalSearchHit(
-                id=str(row["id"]),
-                kind="document_chunk",
-                title=title,
-                content=stripped_content,
-                content_excerpt=_excerpt(stripped_content, excerpt_chars),
-                source_path=str(row["path"]) if row["path"] is not None else None,
-                heading_path=str(row["heading_path"]) if row["heading_path"] is not None else None,
-                memory_type="document_chunk",
-                status="active",
-                score=final_score,
-            )
-        )
+        hits.append(_global_chunk_hit(row, stripped_content, excerpt_chars, final_score))
     return hits
+
+
+def _global_chunk_hit(
+    row: sqlite3.Row,
+    content: str,
+    excerpt_chars: int,
+    score: float,
+) -> GlobalSearchHit:
+    title = str(row["heading_path"] or row["filename"] or Path(str(row["path"])).name)
+    return GlobalSearchHit(
+        id=str(row["id"]),
+        kind="document_chunk",
+        title=title,
+        content=content,
+        content_excerpt=_excerpt(content, excerpt_chars),
+        source_path=str(row["path"]) if row["path"] is not None else None,
+        heading_path=str(row["heading_path"]) if row["heading_path"] is not None else None,
+        memory_type="document_chunk",
+        status="active",
+        score=score,
+    )
+
+
+def _fts_or_query(tokens: set[str]) -> str:
+    return " OR ".join(f'"{token.replace(chr(34), chr(34) * 2)}"' for token in sorted(tokens))
 
 
 def _connect_readonly(db_path: Path) -> sqlite3.Connection:
@@ -334,6 +436,34 @@ def _strip_metadata_preamble(content: str) -> str:
         if index > 0 and not line.strip():
             return "\n".join(lines[index + 1 :]).lstrip()
     return content
+
+
+def _is_searchable_source_path(source_path: str | None) -> bool:
+    if not source_path:
+        return True
+    normalized = "/" + source_path.replace("\\", "/").casefold().strip("/") + "/"
+    blocked_segments = (
+        "/$recycle.bin/",
+        "/recycler/",
+        "/system volume information/",
+        "/.trash/",
+        "/.trashes/",
+    )
+    return not any(segment in normalized for segment in blocked_segments)
+
+
+def _deduplicate_global_hits(hits: list[GlobalSearchHit]) -> list[GlobalSearchHit]:
+    unique: list[GlobalSearchHit] = []
+    seen: set[tuple[str, str]] = set()
+    for hit in hits:
+        normalized_content = " ".join(hit.content.split()).casefold()
+        key = (hit.memory_type, normalized_content)
+        if normalized_content and key in seen:
+            continue
+        if normalized_content:
+            seen.add(key)
+        unique.append(hit)
+    return unique
 
 
 def _kind_rank(kind: str) -> int:

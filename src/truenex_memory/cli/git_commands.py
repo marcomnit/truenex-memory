@@ -8,6 +8,7 @@ All commands require a **Pro** license.
 
 from __future__ import annotations
 
+import gzip
 import json
 import platform
 import subprocess
@@ -43,6 +44,11 @@ def _db_path(project_root: Path) -> Path:
 def _memory_json_path(project_root: Path) -> Path:
     """Return the JSON export path inside the sync directory."""
     return _sync_dir(project_root) / "memory.json"
+
+
+def _memory_gz_path(project_root: Path) -> Path:
+    """Return the gzipped JSON export path inside the sync directory."""
+    return _sync_dir(project_root) / "memory.json.gz"
 
 
 def _manifest_path(project_root: Path) -> Path:
@@ -159,9 +165,9 @@ def git_init(
         sync.mkdir(parents=True, exist_ok=True)
         _run_git(sync, "init")
 
-        # Create a minimal .gitignore to protect the DB
+        # Create a minimal .gitignore to protect the DB and the uncompressed JSON
         gitignore = sync / ".gitignore"
-        gitignore.write_text("*.db\n*.db-journal\n", encoding="utf-8")
+        gitignore.write_text("*.db\n*.db-journal\nmemory.json\n", encoding="utf-8")
         _run_git(sync, "add", ".gitignore")
         _run_git(sync, "commit", "-m", "chore: init sync repo")
 
@@ -254,7 +260,6 @@ def git_push(
     _ensure_repo(project_root)
 
     sync = _sync_dir(project_root)
-    sync = _sync_dir(project_root)
     if branch is None:
         branch_proc = _run_git(sync, "branch", "--show-current", check=False)
         branch = branch_proc.stdout.strip() or "main"
@@ -294,7 +299,7 @@ def git_push(
     try:
         # 1. Export DB → JSON
         if db_path.exists():
-            repo = MemoryRepository(str(db_path))
+            repo = MemoryRepository(db_path)
             payload = repo.export_data()
             mem_file.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
             result["exported_nodes"] = len(payload.get("memory_nodes", []))
@@ -303,7 +308,13 @@ def git_push(
             mem_file.write_text("{}", encoding="utf-8")
             result["exported_nodes"] = 0
 
-        # 2. Write manifest
+        # 2. Compress JSON → gzip
+        gz_file = _memory_gz_path(project_root)
+        with open(mem_file, "rb") as f_in:
+            with gzip.open(gz_file, "wb", compresslevel=9) as f_out:
+                f_out.write(f_in.read())
+
+        # 3. Write manifest
         manifest = {
             "version": "0.2.0",
             "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -314,8 +325,17 @@ def git_push(
             json.dumps(manifest, indent=2), encoding="utf-8"
         )
 
-        # 3. Git add / commit / push
-        _run_git(sync, "add", str(mem_file.name))
+        # 4. Ensure memory.json is gitignored and remove from tracking if present
+        gitignore = sync / ".gitignore"
+        ignore_content = gitignore.read_text(encoding="utf-8") if gitignore.exists() else ""
+        if "memory.json" not in ignore_content.splitlines():
+            with open(gitignore, "a", encoding="utf-8") as f:
+                f.write("memory.json\n")
+        _run_git(sync, "rm", "--cached", "memory.json", check=False)
+
+        # 5. Git add / commit / push
+        _run_git(sync, "add", str(gz_file.name))
+        _run_git(sync, "add", ".gitignore")
         _run_git(sync, "add", "manifest.json")
 
         # Check if there is anything to commit
@@ -326,10 +346,10 @@ def git_push(
         else:
             result["committed"] = False
 
-        push_proc = _run_git(sync, "push", remote, branch, check=False)
+        push_proc = _run_git(sync, "push", remote, branch, check=False, capture=False)
         result["pushed"] = push_proc.returncode == 0
         if push_proc.returncode != 0:
-            result["push_stderr"] = push_proc.stderr
+            result["push_stderr"] = push_proc.stderr or "see terminal output"
 
         result["status"] = "ok"
         if json_out:
@@ -345,7 +365,7 @@ def git_push(
                 typer.echo(f"   Pushed to {remote}/{branch}.")
             else:
                 typer.echo(
-                    f"⚠️   Push may have failed: {push_proc.stderr}", err=True
+                    f"⚠️   Push may have failed: {push_proc.stderr or 'see terminal output'}", err=True
                 )
 
     except subprocess.CalledProcessError as exc:
@@ -444,16 +464,23 @@ def git_pull(
         raise typer.Exit(code=0)
 
     try:
-        pull_proc = _run_git(sync, "pull", remote, branch, check=False)
+        pull_proc = _run_git(sync, "pull", "--allow-unrelated-histories", remote, branch, check=False, capture=False)
         result["pull_stdout"] = pull_proc.stdout
         if pull_proc.returncode != 0:
             result["status"] = "error"
-            result["pull_stderr"] = pull_proc.stderr
+            result["pull_stderr"] = pull_proc.stderr or "see terminal output"
             if json_out:
                 _json_out(result)
             else:
-                typer.echo(f"❌  Pull failed: {pull_proc.stderr}", err=True)
+                typer.echo(f"❌  Pull failed: {pull_proc.stderr or 'see terminal output'}", err=True)
             raise typer.Exit(code=1)
+
+        # Decompress if a gzipped export is present
+        gz_file = _memory_gz_path(project_root)
+        if gz_file.exists():
+            with gzip.open(gz_file, "rb") as f_in:
+                with open(mem_file, "wb") as f_out:
+                    f_out.write(f_in.read())
 
         if not mem_file.exists():
             result["status"] = "ok"
@@ -469,7 +496,7 @@ def git_pull(
 
         # Import JSON → DB
         payload = json.loads(mem_file.read_text(encoding="utf-8"))
-        repo = MemoryRepository(str(db_path))
+        repo = MemoryRepository(db_path)
         repo.import_data(payload)
         imported = len(payload.get("memory_nodes", []))
         result["imported_nodes"] = imported
@@ -554,13 +581,18 @@ def git_status(
         # DB node count
         db_nodes = 0
         if db_path.exists():
-            repo = MemoryRepository(str(db_path))
+            repo = MemoryRepository(db_path)
             db_nodes = len(repo.list_memory_nodes())
         result["db_nodes"] = db_nodes
 
-        # JSON node count
+        # JSON node count (prefer gzipped export if present)
         mem_nodes = 0
-        if mem_file.exists():
+        gz_file = _memory_gz_path(project_root)
+        if gz_file.exists():
+            with gzip.open(gz_file, "rb") as f_in:
+                payload = json.loads(f_in.read().decode("utf-8"))
+            mem_nodes = len(payload.get("memory_nodes", []))
+        elif mem_file.exists():
             payload = json.loads(mem_file.read_text(encoding="utf-8"))
             mem_nodes = len(payload.get("memory_nodes", []))
         result["memory_json_nodes"] = mem_nodes

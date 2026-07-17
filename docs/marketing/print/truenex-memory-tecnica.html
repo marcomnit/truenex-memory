@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Truenex Memory — Tecnica</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1a1a2e;
+  background: #fff;
+  line-height: 1.7;
+  font-size: 11pt;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 40px 60px;
+}
+
+h1 {
+  font-size: 28pt;
+  font-weight: 800;
+  color: #0d0d2b;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+  border-bottom: 3px solid #7C4DFF;
+  padding-bottom: 12px;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 4px solid #00BCD4;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #333;
+  margin: 24px 0 8px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+blockquote {
+  background: #f0edff;
+  border-left: 4px solid #7C4DFF;
+  padding: 16px 20px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: #4a3b8c;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+strong {
+  color: #0d0d2b;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 28px auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+
+thead th {
+  background: #7C4DFF;
+  color: white;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+}
+
+thead th:first-child { border-radius: 6px 0 0 0; }
+thead th:last-child { border-radius: 0 6px 0 0; }
+
+tbody td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #e8e8f0;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) { background: #fafaff; }
+tbody tr:last-child td:first-child { border-radius: 0 0 0 6px; }
+tbody tr:last-child td:last-child { border-radius: 0 0 6px 0; }
+
+code {
+  background: #f0f0f8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 9.5pt;
+  color: #d63384;
+}
+
+pre {
+  background: #0d0d2b;
+  color: #e0e0f0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-size: 9pt;
+  line-height: 1.5;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+ul, ol { margin: 0 0 12px 24px; }
+li { margin: 4px 0; }
+
+hr {
+  border: none;
+  border-top: 1px solid #e0e0f0;
+  margin: 32px 0;
+}
+
+/* Cover page */
+.cover {
+  text-align: center;
+  padding: 80px 0 40px;
+  page-break-after: always;
+}
+
+.cover h1 {
+  font-size: 36pt;
+  border: none;
+  margin-bottom: 20px;
+}
+
+.cover .subtitle {
+  font-size: 14pt;
+  color: #7C4DFF;
+  margin-bottom: 40px;
+}
+
+.cover .badge {
+  display: inline-block;
+  background: #00BCD4;
+  color: white;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 10pt;
+  font-weight: 600;
+  margin: 4px;
+}
+
+.cover .badge.purple { background: #7C4DFF; }
+
+/* Print rules */
+@media print {
+  body {
+    padding: 30px 40px;
+    max-width: 100%;
+  }
+
+  img {
+    max-width: 95%;
+    box-shadow: none;
+  }
+
+  h2 { page-break-before: always; }
+  h2:first-of-type { page-break-before: avoid; }
+
+  pre, table, img { page-break-inside: avoid; }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+</style>
+</head>
+<body>
+<h1>Truenex Memory — Documento Tecnico</h1>
+<blockquote>
+<p>Documentazione tecnica completa del memory layer per agenti AI.</p>
+</blockquote>
+<hr />
+<h2>1. Architettura a 9 Strati</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_1.png" alt="Architettura a 9 Strati" /></p>
+<p>Truenex Memory è organizzato in nove strati modulari, dal basso verso l'alto. Ogni strato dipende solo da quelli sottostanti.</p>
+<h3>L1 — SQLite Database</h3>
+<p>Unico file <code>truenex_memory.db</code> in <code>~/.truenex-memory/</code>. Schema v4 con 9 tabelle:</p>
+<pre><code class="language-sql">documents       -- file indicizzati (path, content_hash, last_indexed_at)
+chunks          -- frammenti con embedding (heading_path, qdrant_point_id)
+memory_nodes    -- memorie con status, confidence, provenance
+edges           -- relazioni tra nodi di memoria
+retrieval_logs  -- log di ogni query (trace_id, results_json)
+source_ledger   -- stato di ogni fonte: active|missing|skipped|error|pending
+tasks           -- pipeline adattiva multi-agente
+task_steps      -- step registrati per ogni task
+verifier_rounds -- round di verifica per suggerimenti
+</code></pre>
+<h3>L2 — Ingestion Pipeline</h3>
+<p>Due parser: <code>text_docs</code> (<code>.md</code>, <code>.py</code>, <code>.yaml</code>, <code>.json</code>, <code>.toml</code>) e <code>jsonl_sessions</code> (log sessioni agenti). Il parser sessioni estrae solo richieste utente, risposte assistant e compaction summaries — esclude system messages, tool call, tool results.</p>
+<h3>L3 — Chunking &amp; Embedding</h3>
+<p>Chunking deterministico Markdown-aware: max 1200 char (600 per sessioni agenti), heading_path gerarchico. <code>HashingEmbedder</code> a 384 dimensioni, zero download di modelli, target production <code>intfloat/multilingual-e5-base</code>. Qdrant opzionale con fallback fails-closed su SQLite.</p>
+<h3>L4 — Retrieval Engine</h3>
+<p>Strategia a cascata: semantica (cosine similarity) → BM25 keyword → keyword matching su memory_nodes. Filtro ledger-aware: esclude chunk da fonti <code>missing</code> e <code>skipped</code>. Ogni query produce un <code>RetrievalLog</code> con <code>trace_id</code>.</p>
+<h3>L5 — Agent Discovery</h3>
+<p>Scansione confinata a <code>.codex/</code> e <code>.claude/</code>. Regex-based extraction di path, documenti, alias SSH. Confidence scoring deterministico. Zero blind disk scan.</p>
+<h3>L6 — Global Refresh</h3>
+<p>Incrementale. State machine a 5 stati. Preserva la versione attiva su errore di re-indicizzazione. JSONL stability check: 120s configurabili.</p>
+<h3>L7 — Auto Memory</h3>
+<p>Generazione automatica di memorie da chunk indicizzati. Deduplicazione per SHA-256. Soglia confidenza minima 0.50. Solo l'utente promuove a <code>active</code>. Tombstone per rigetto.</p>
+<h3>L8 — MCP Server</h3>
+<p>JSON-RPC 2.0 via stdio. Tool: <code>memory_search</code>, <code>memory_add</code>, <code>global_project_context</code>, <code>global_status</code>, <code>task_open/step_add/close</code>.</p>
+<h3>L9 — CLI</h3>
+<p>Comandi completi: <code>init</code>, <code>add</code>, <code>search</code>, <code>list</code>, <code>index</code>, <code>export</code>, <code>import</code>, <code>migrate</code>, <code>global discover/refresh/auto</code>, <code>doctor</code>, <code>mcp</code>.</p>
+<hr />
+<h2>2. Flusso di Discovery e Refresh</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_2.png" alt="Flusso Discovery e Refresh" /></p>
+<p>Il processo completo dalla scoperta all'indicizzazione:</p>
+<ol>
+<li><strong>Agent Roots</strong> — <code>.codex/</code> e <code>.claude/</code> come uniche fonti di discovery</li>
+<li><strong>Regex Extraction</strong> — path assoluti, alias SSH, documenti</li>
+<li><strong>DiscoveryReport</strong> — candidati classificati per confidence score</li>
+<li><strong>Human Confirmation</strong> — revisione e conferma utente</li>
+<li><strong>sources.json</strong> — Source Catalog (95 fonti confermate in produzione)</li>
+<li><strong>Parser</strong> — <code>text_docs</code> (MD, PY, YAML) + <code>jsonl_sessions</code></li>
+<li><strong>Chunking</strong> — divisione in blocchi con heading_path</li>
+<li><strong>Embedding</strong> — vettori 384-dim, Qdrant opzionale</li>
+<li><strong>Storage</strong> — SQLite + Qdrant</li>
+</ol>
+<hr />
+<h2>3. State Machine del Source Ledger</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_3.png" alt="Source Ledger State Machine" /></p>
+<p>Il Source Ledger è l'autorità per il comportamento incrementale.</p>
+<h3>Stati</h3>
+<p>| Stato | Significato |<br />
+|---|---|<br />
+| <code>pending</code> | In coda per elaborazione (migrazioni) |<br />
+| <code>active</code> | Indicizzato e disponibile |<br />
+| <code>skipped</code> | Non indicizzabile / JSONL instabile |<br />
+| <code>missing</code> | File non più esistente su disco |<br />
+| <code>error</code> | Errore di parsing o indicizzazione |</p>
+<h3>Regola Critica</h3>
+<blockquote>
+<p><strong>Un errore di re-indicizzazione NON distrugge mai l'ultima versione attiva valida.</strong> Il sistema preserva i dati indicizzati precedenti e riporta l'errore.</p>
+</blockquote>
+<h3>Impatto sul Retrieval</h3>
+<pre><code class="language-sql">SELECT c.* FROM chunks c
+JOIN documents d ON d.id = c.document_id
+LEFT JOIN source_ledger sl ON sl.source_path_or_alias = d.path
+WHERE sl.source_id IS NULL OR sl.status NOT IN ('missing', 'skipped')
+</code></pre>
+<p>I chunk da fonti inaffidabili sono automaticamente esclusi.</p>
+<hr />
+<h2>4. Strategia di Retrieval a Cascata</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_4.png" alt="Retrieval Cascade" /></p>
+<pre><code>INPUT: memory_search(&quot;bug router dual-model&quot;)
+
+LIVELLO 1 — Ricerca Semantica
+  Query vector → cosine similarity (Qdrant o SQLite)
+  JOIN source_ledger (esclude missing/skipped)
+  → Se risultati: RETURN classificati
+  → Se 0 risultati: prosegue
+
+LIVELLO 2 — BM25 Fallback
+  Tokenizzazione → BM25 scoring + source_boost
+  JOIN source_ledger
+  → Se risultati: RETURN classificati
+  → Se 0 risultati: prosegue
+
+LIVELLO 3 — Keyword Matching
+  Jaccard-like token overlap su memory_nodes (active + unverified)
+  → RETURN classificati
+
+OUTPUT: SearchHit[] con title, content, source_path, heading_path,
+        memory_type, status, score + trace_id
+</code></pre>
+<hr />
+<h2>5. Flusso Auto Memory</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_5.png" alt="Auto Memory Flow" /></p>
+<p>Generazione automatica di conoscenza dai contenuti indicizzati:</p>
+<ol>
+<li><strong>Indexed Chunks</strong> — contenuto candidato</li>
+<li><strong>SHA-256 Hash</strong> — calcolo hash del contenuto</li>
+<li><strong>Deduplication</strong> — skip se già presente come <code>active</code></li>
+<li><strong>Tombstone Check</strong> — skip se <code>obsolete</code> con stesso hash</li>
+<li><strong>Confidence Threshold</strong> — minimo 0.50</li>
+<li><strong>Classification</strong> — decision / note / pattern</li>
+<li><strong>Create Unverified</strong> — <code>status='unverified'</code>, <code>source_kind='auto'</code></li>
+<li><strong>Human Review</strong> — approve (active), reject (obsolete + tombstone), promote (curated_auto)</li>
+</ol>
+<hr />
+<h2>6. MCP Server e Toolkit</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_6.png" alt="MCP Server &amp; Toolkit" /></p>
+<p>Server JSON-RPC 2.0 via stdio. Tool esposti:</p>
+<p>| Tool | Descrizione |<br />
+|---|---|<br />
+| <code>memory_search(query, top_k)</code> | Ricerca semantica con score, provenance, trace_id |<br />
+| <code>memory_add(content, type)</code> | Nuova memoria o decisione |<br />
+| <code>global_project_context(project)</code> | Contesto completo di un progetto |<br />
+| <code>global_status()</code> | Report: catalog, ledger, chunks, warnings |<br />
+| <code>task_open/step_add/close</code> | Pipeline adattiva multi-agente |</p>
+<p>Compatibile nativamente con Claude Code, Codex, Cursor.</p>
+<hr />
+<h2>7. Strutture Dati Chiave</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_8.png" alt="Strutture Dati" /></p>
+<h3>SourceLedgerRecord</h3>
+<p>Traccia lo stato di ogni file indicizzato: <code>source_id</code>, <code>source_path</code>, <code>project_name</code>, <code>source_type</code>, <code>content_hash</code> (SHA-256), <code>last_modified_at</code>, <code>status</code> (active/missing/skipped/error/pending), <code>error_message</code>, <code>chunk_count</code>.</p>
+<h3>MemoryNode</h3>
+<p>Una memoria o decisione: <code>type</code> (decision/note/issue/pattern), <code>status</code> (active/obsolete/superseded/conflicting/unverified), <code>source_kind</code> (manual/auto/curated_auto), <code>content_hash</code>, <code>confidence</code> (0.0–1.0), provenance completa.</p>
+<h3>TextChunk</h3>
+<p>Un frammento indicizzato: <code>content</code>, <code>heading_path</code> (es. &quot;Architettura &gt; Database&quot;), <code>content_hash</code>, <code>token_count</code>.</p>
+<hr />
+<h2>8. Stato del Progetto</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_9.png" alt="Stato Attuale" /></p>
+<p><strong>Maggio 2026 — Global Store in produzione:</strong></p>
+<pre><code>~/.truenex-memory/
+├── sources.json         (95 fonti confermate)
+├── truenex_memory.db    (42.471 chunk, 7.647 documenti, 7.879 ledger rows)
+└── config.json
+</code></pre>
+<ul>
+<li>✅ Core: storage, indexing, retrieval, MCP (Fasi 1-2)</li>
+<li>✅ Discovery: agent roots, catalog, refresh incrementale (Fase 2.5)</li>
+<li>🔄 Auto Memory: in implementazione (Fase 3)</li>
+<li>⏸️ Watcher, cloud sync, semantic dedup (rimandati)</li>
+</ul>
+<h3>Roadmap al Completamento</h3>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_9_2.png" alt="Stato Completato" /></p>
+<p>Visione target: tutte le funzionalità al 100%, watcher automatico, auto-memory matura, sistema pronto per produzione.</p>
+<hr />
+<h2>Riferimenti</h2>
+<ul>
+<li><a href="https://github.com/marcomnit/truenex-memory">Truenex Memory Repository</a></li>
+<li><a href="one-liner.md">One-Liner &amp; Definizioni</a></li>
+<li><a href="narrativa.md">Documento Narrativo</a></li>
+<li><a href="marketing.md">Documento Marketing</a></li>
+</ul>
+
+</body>
+</html>
