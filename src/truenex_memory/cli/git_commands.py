@@ -260,7 +260,6 @@ def git_push(
     _ensure_repo(project_root)
 
     sync = _sync_dir(project_root)
-    sync = _sync_dir(project_root)
     if branch is None:
         branch_proc = _run_git(sync, "branch", "--show-current", check=False)
         branch = branch_proc.stdout.strip() or "main"

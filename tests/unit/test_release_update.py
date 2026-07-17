@@ -47,7 +47,7 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     def fetcher(url: str) -> dict[str, object]:
         assert url == DEFAULT_MANIFEST_URL
         return {
-            "version": "0.3.0",
+            "version": "0.5.0",
             "channel": "dev",
             "force_update": False,
             "update_full": True,
@@ -60,7 +60,7 @@ def test_update_check_uses_injected_fetcher_and_reports_available_update() -> No
     result = check_for_updates(fetcher=fetcher)
 
     assert result.update_available is True
-    assert result.latest_version == "0.3.0"
+    assert result.latest_version == "0.5.0"
     assert result.update_full is True
     assert result.manifest_url == DEFAULT_MANIFEST_URL
 
