@@ -1,0 +1,780 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truenex Memory — Query, don't re-read.</title>
+<meta name="description" content="The local memory layer that gives your AI coding agents persistent memory. One semantic query instead of 60 files. Hundreds of tokens instead of tens of thousands.">
+<meta name="theme-color" content="#7C4DFF">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%237C4DFF'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='white' font-size='18' font-weight='800'%3ETM%3C/text%3E%3C/svg%3E">
+<style>
+/* ── Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,system-ui,sans-serif;color:#1e293b;background:#f6f8fc;line-height:1.6;font-size:16px;overflow-x:hidden;-webkit-font-smoothing:antialiased;position:relative;z-index:1;}
+
+/* ── Orbital background system ── */
+.orbital-bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;opacity:.88;}
+.orbital-bg svg{position:absolute;width:100%;height:100%;}
+.orbital-bg .orbit-ring{fill:none;stroke-width:.6px;vector-effect:non-scaling-stroke;}
+.orbital-bg .orbit-ring.r1{stroke:rgba(124,77,255,.16);animation:orbit-drift 40s linear infinite;transform-origin:center;}
+.orbital-bg .orbit-ring.r2{stroke:rgba(0,188,212,.12);animation:orbit-drift 55s linear infinite reverse;transform-origin:center;}
+.orbital-bg .orbit-ring.r3{stroke:rgba(124,77,255,.10);animation:orbit-drift 48s linear infinite;transform-origin:center;}
+.orbital-bg .orbit-node{fill:rgba(124,77,255,.22);animation:node-pulse 6s ease-in-out infinite;}
+.orbital-bg .orbit-node.n2{fill:rgba(0,188,212,.20);animation-delay:2s;}
+.orbital-bg .orbit-node.n3{fill:rgba(124,77,255,.17);animation-delay:4s;}
+.orbital-bg .bg-particle{fill:rgba(124,77,255,.08);animation:particle-drift 18s ease-in-out infinite;}
+.orbital-bg .bg-particle.p2{fill:rgba(0,188,212,.06);animation-duration:22s;animation-delay:-7s;}
+@keyframes orbit-drift{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+@keyframes node-pulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+@keyframes particle-drift{0%,100%{transform:translate(0,0) scale(1);}25%{transform:translate(12px,-18px) scale(1.4);}50%{transform:translate(-8px,10px) scale(.8);}75%{transform:translate(-16px,-6px) scale(1.2);}}
+@keyframes atom-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+
+/* ── Header ── */
+.header{position:sticky;top:0;z-index:50;border-bottom:1px solid rgba(255,255,255,.6);background:rgba(255,255,255,.72);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;}
+.header-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.header-logo .logo-icon{position:relative;width:44px;height:44px;flex-shrink:0;overflow:hidden;}
+.header-logo .logo-icon .atom-orbit{position:absolute;inset:0;border:1px solid rgba(124,77,255,.08);border-radius:50%;animation:atom-spin 12s linear infinite;pointer-events:none;}
+.header-logo .logo-icon .atom-orbit.o2a{animation-duration:8s;animation-direction:reverse;border-color:rgba(0,188,212,.06);}
+.header-logo .logo-icon .atom-orbit.o3a{animation-duration:15s;border-color:rgba(124,77,255,.05);}
+.header-logo .logo-icon .atom-dot{position:absolute;left:50%;top:50%;width:3px;height:3px;border-radius:50%;background:rgba(124,77,255,.4);box-shadow:0 0 3px rgba(124,77,255,.2);transform:translate(-50%,-50%) translateX(20px);}
+.header-logo .logo-icon .atom-orbit.o2a .atom-dot{transform:translate(-50%,-50%) translateX(16px);background:rgba(0,188,212,.35);box-shadow:0 0 2px rgba(0,188,212,.2);}
+.header-logo .logo-icon .atom-orbit.o3a .atom-dot{transform:translate(-50%,-50%) translateX(22px);background:rgba(124,77,255,.3);box-shadow:0 0 2px rgba(124,77,255,.15);}
+.header-logo .logo-icon .atom-core{position:absolute;inset:4px;z-index:1;width:calc(100% - 8px);height:calc(100% - 8px);object-fit:contain;}
+.header-logo .logo-text .lt1{font-size:14px;font-weight:700;letter-spacing:.24em;color:#64748b;}
+.header-logo .logo-text .lt2{font-size:11px;color:#94a3b8;}
+.header-nav{display:flex;align-items:center;gap:8px;}
+.header-nav a{text-decoration:none;font-size:13px;font-weight:500;color:#475569;padding:8px 14px;border-radius:999px;transition:background .15s,color .15s;}
+.header-nav a:hover{background:#f1f5f9;color:#0f172a;}
+.header-nav .lang-switch{display:inline-flex;border:1px solid #e2e8f0;border-radius:999px;overflow:hidden;margin:0 4px;}
+.header-nav .lang-switch button{border:0;padding:6px 12px;background:transparent;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;}
+.header-nav .lang-switch button.active{background:#7C4DFF;color:#fff;}
+.header-nav .btn-cta{background:#0f172a;color:#fff;font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.06);}
+.header-nav .btn-cta:hover{background:#1e293b;transform:translateY(-1px);}
+
+/* ── Main ── */
+.main{max-width:1200px;margin:0 auto;padding:32px 24px 80px;}
+
+/* ── Hero ── */
+.hero{display:grid;gap:24px;grid-template-columns:1.12fr .88fr;margin-bottom:48px;}
+@media(max-width:900px){.hero{grid-template-columns:1fr;}}
+.hero-main{border:1px solid rgba(255,255,255,.7);border-radius:2rem;background:rgba(255,255,255,.82);padding:40px 36px;box-shadow:0 30px 100px rgba(15,23,42,.07);backdrop-filter:blur(20px);}
+
+.hero-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(0,188,212,.3);border-radius:999px;background:rgba(0,188,212,.06);padding:4px 14px;font-size:12px;font-weight:600;color:#0891b2;margin-bottom:20px;}
+.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:#00BCD4;}
+.hero h1{font-size:3.2rem;font-weight:700;line-height:1.12;letter-spacing:-.02em;color:#0f172a;max-width:700px;}
+@media(max-width:700px){.hero h1{font-size:2.2rem;}}
+.hero h1 .grad{background:linear-gradient(to right,#0f172a,#7C4DFF,#00BCD4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero p.sub{font-size:1.05rem;line-height:1.7;color:#475569;margin-top:18px;max-width:560px;}
+.hero-buttons{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:999px;transition:all .15s;cursor:pointer;border:0;}
+.btn-dark{background:#0f172a;color:#fff;box-shadow:0 4px 14px rgba(15,23,42,.12);}
+.btn-dark:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(124,77,255,.18);}
+.btn-outline{border:1px solid #e2e8f0;background:#fff;color:#334155;}
+.btn-outline:hover{background:#f8fafc;transform:translateY(-1px);}
+
+.hero-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px;}
+.hero-stat{border:1px solid #e2e8f0;border-radius:1.2rem;background:#f8fafc;padding:16px;transition:all .2s;}
+.hero-stat:hover{transform:translateY(-2px);background:#fff;border-color:#cbd5e1;}
+.hero-stat .num{font-size:1.5rem;font-weight:800;color:#7C4DFF;line-height:1.2;}
+.hero-stat .lbl{font-size:.8rem;color:#64748b;margin-top:2px;}
+
+/* Hero side cards */
+.hero-side{display:grid;gap:20px;}
+.hero-side .hs-card{border-radius:2rem;padding:28px;text-decoration:none;transition:all .3s;display:flex;flex-direction:column;}
+.hero-side .hs-card:hover{transform:translateY(-3px);}
+.hero-side .hs-dark{background:#0f172a;color:#fff;box-shadow:0 30px 100px rgba(15,23,42,.16);}
+.hero-side .hs-dark:hover{box-shadow:0 30px 120px rgba(15,23,42,.25);}
+.hero-side .hs-dark .kicker{font-size:11px;font-weight:700;letter-spacing:.2em;color:rgba(255,255,255,.5);text-transform:uppercase;}
+.hero-side .hs-dark h3{font-size:1.5rem;font-weight:700;margin-top:10px;}
+.hero-side .hs-dark p{font-size:.9rem;color:rgba(255,255,255,.7);margin-top:10px;line-height:1.6;}
+.hero-side .hs-dark .arrow{color:rgba(0,188,212,.9);font-weight:600;font-size:.9rem;margin-top:16px;display:flex;align-items:center;gap:4px;}
+.hero-side .hs-light{border:1px solid rgba(255,255,255,.7);background:rgba(255,255,255,.85);box-shadow:0 30px 100px rgba(15,23,42,.07);backdrop-filter:blur(20px);}
+.hero-side .hs-light .kicker{font-size:11px;font-weight:700;letter-spacing:.2em;color:#94a3b8;text-transform:uppercase;}
+.hero-side .hs-light h3{font-size:1.5rem;font-weight:700;color:#0f172a;margin-top:10px;}
+.hero-side .hs-light p{font-size:.9rem;color:#64748b;margin-top:10px;line-height:1.6;}
+.hero-side .hs-light .arrow{color:#7C4DFF;font-weight:600;font-size:.9rem;margin-top:16px;display:flex;align-items:center;gap:4px;}
+
+/* ── Section cards ── */
+.section-card{border:1px solid rgba(255,255,255,.7);border-radius:2rem;background:rgba(255,255,255,.82);box-shadow:0 30px 100px rgba(15,23,42,.07);backdrop-filter:blur(20px);padding:44px 40px;margin-bottom:32px;}
+@media(max-width:600px){.section-card{padding:28px 20px;}}
+.section-kicker{font-size:11px;font-weight:700;letter-spacing:.22em;color:#94a3b8;text-transform:uppercase;margin-bottom:12px;}
+.section-card h2{font-size:2rem;font-weight:700;letter-spacing:-.02em;color:#0f172a;max-width:700px;}
+.section-card > p{font-size:.95rem;color:#64748b;margin-top:16px;max-width:600px;line-height:1.7;}
+
+/* ── How it works ── */
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:32px;}
+@media(max-width:800px){.steps-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:500px){.steps-grid{grid-template-columns:1fr;}}
+.step{border:1px solid #e2e8f0;border-radius:1.4rem;background:#f8fafc;padding:24px;transition:all .2s;text-align:center;}
+.step:hover{transform:translateY(-3px);border-color:#cbd5e1;background:#fff;}
+.step-num{width:44px;height:44px;border-radius:50%;background:#7C4DFF;color:#fff;display:grid;place-items:center;font-size:1.2rem;font-weight:800;margin:0 auto 14px;}
+.step h3{font-size:1.1rem;font-weight:700;color:#0f172a;margin-bottom:6px;}
+.step p{font-size:.85rem;color:#64748b;line-height:1.55;}
+
+/* ── Comparison table ── */
+.comp-table{width:100%;margin-top:24px;border-collapse:collapse;border-radius:1.2rem;overflow:hidden;border:1px solid #e2e8f0;}
+.comp-table thead th{background:#7C4DFF;color:#fff;padding:14px 18px;text-align:left;font-size:.9rem;font-weight:700;}
+.comp-table tbody td{padding:14px 18px;border-bottom:1px solid #f1f5f9;font-size:.9rem;}
+.comp-table tbody tr:nth-child(even){background:#f8fafc;}
+.comp-table .green{color:#059669;font-weight:700;}
+.comp-table .red{color:#dc2626;}
+
+/* ── Features grid ── */
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:28px;}
+.feat{border:1px solid #e2e8f0;border-radius:1.2rem;background:#f8fafc;padding:24px;transition:all .2s;}
+.feat:hover{transform:translateY(-3px);background:#fff;border-color:#cbd5e1;}
+.feat-icon{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;margin-bottom:14px;}
+.feat h3{font-size:1.05rem;font-weight:700;color:#0f172a;margin-bottom:6px;}
+.feat p{font-size:.85rem;color:#64748b;line-height:1.6;}
+
+/* ── Code blocks ── */
+.code-block{background:#0f172a;color:#e2e8f0;border-radius:1.2rem;padding:20px 24px;font-family:'Cascadia Code','Fira Code',Consolas,monospace;font-size:.82rem;line-height:1.7;overflow-x:auto;margin-top:16px;}
+.code-block .kw{color:#c084fc;}
+.code-block .str{color:#34d399;}
+.code-block .cmt{color:#64748b;}
+
+/* ── Tech layers ── */
+.tech-layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:28px;}
+.tech-layer{border:1px solid #e2e8f0;border-radius:1.2rem;background:#f8fafc;padding:22px;transition:all .2s;}
+.tech-layer:hover{transform:translateY(-2px);background:#fff;}
+.tech-layer h4{font-size:.95rem;font-weight:700;color:#7C4DFF;margin-bottom:8px;}
+.tech-layer p{font-size:.84rem;color:#475569;line-height:1.6;}
+
+/* ── Principle cards ── */
+.principle-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:28px;}
+.principle{border:1px solid #e2e8f0;border-radius:1.4rem;background:#f8fafc;padding:28px 24px;text-align:center;transition:all .2s;}
+.principle:hover{transform:translateY(-3px);background:#fff;border-color:#cbd5e1;}
+.principle-icon{width:50px;height:50px;border-radius:12px;display:grid;place-items:center;margin:0 auto 16px;}
+.principle h3{font-size:1.1rem;font-weight:700;color:#7C4DFF;margin-bottom:6px;}
+.principle p{font-size:.84rem;color:#64748b;line-height:1.6;}
+
+/* ── Stats bar ── */
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-top:24px;}
+.stat-box{text-align:center;padding:20px 14px;border:1px solid #e2e8f0;border-radius:1rem;background:#f8fafc;}
+.stat-box .num{font-size:1.8rem;font-weight:800;color:#7C4DFF;}
+.stat-box .lbl{font-size:.8rem;color:#64748b;margin-top:2px;}
+
+/* ── CTA ── */
+.cta-block{text-align:center;padding:20px 0;}
+.cta-block p{margin-bottom:18px;color:#64748b;font-size:.95rem;}
+
+/* ── Footer ── */
+.footer{text-align:center;padding:32px 24px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:.82rem;}
+.footer a{color:#7C4DFF;text-decoration:none;}
+
+/* ── Images ── */
+.section-img{width:100%;max-width:100%;border-radius:1.2rem;margin-top:28px;box-shadow:0 4px 24px rgba(15,23,42,.06);}
+.section-img.soft{border:1px solid #e2e8f0;box-shadow:none;}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:24px;}
+.img-grid img{width:100%;border-radius:1rem;border:1px solid #e2e8f0;transition:transform .2s;}
+.img-grid img:hover{transform:scale(1.02);}
+	.img-grid img, .section-img, .hero-side img{cursor:pointer;}
+
+	/* ── Lightbox ── */
+	.lightbox{display:none;position:fixed;inset:0;z-index:999;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);cursor:pointer;}
+	.lightbox.open{display:flex;align-items:center;justify-content:center;}
+	.lightbox img{max-width:92vw;max-height:90vh;object-fit:contain;border-radius:10px;box-shadow:0 30px 80px rgba(0,0,0,.4);cursor:default;animation:lb-in .25s ease-out;}
+	.lightbox-close{position:absolute;top:20px;right:28px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:22px;cursor:pointer;display:grid;place-items:center;transition:background .15s;z-index:1;}
+	.lightbox-close:hover{background:rgba(255,255,255,.18);}
+	@keyframes lb-in{from{opacity:0;transform:scale(.92);}to{opacity:1;transform:scale(1);}}
+
+/* ── Scroll reveal ── */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .6s ease-out,transform .6s ease-out;}
+.reveal.visible{opacity:1;transform:translateY(0);}
+
+/* ── Mobile nav toggle ── */
+.mobile-menu-btn{display:none;border:1px solid #e2e8f0;border-radius:999px;background:#fff;padding:8px 16px;font-size:13px;color:#334155;cursor:pointer;}
+@media(max-width:768px){
+  .mobile-menu-btn{display:inline-flex;}
+  .header-nav a:not(.mobile-menu-btn):not(.lang-switch *){display:none;}
+  .header-nav.open{flex-direction:column;position:absolute;top:100%;left:0;right:0;background:rgba(255,255,255,.96);backdrop-filter:blur(20px);border-bottom:1px solid #e2e8f0;padding:16px 24px;}
+  .header-nav.open a{display:block;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- Orbital background -->
+<div class="orbital-bg" aria-hidden="true">
+  <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+    <!-- Core glow -->
+    <defs>
+      <radialGradient id="core-glow" cx="50%" cy="45%" r="35%">
+        <stop offset="0%" stop-color="rgba(124,77,255,0.10)"/>
+        <stop offset="100%" stop-color="rgba(124,77,255,0)"/>
+      </radialGradient>
+      <radialGradient id="core-glow2" cx="70%" cy="60%" r="25%">
+        <stop offset="0%" stop-color="rgba(0,188,212,0.07)"/>
+        <stop offset="60%" stop-color="rgba(0,188,212,0.02)"/>
+        <stop offset="100%" stop-color="rgba(0,188,212,0)"/>
+      </radialGradient>
+      <radialGradient id="core-glow3" cx="18%" cy="72%" r="22%">
+        <stop offset="0%" stop-color="rgba(124,77,255,0.06)"/>
+        <stop offset="100%" stop-color="rgba(124,77,255,0)"/>
+      </radialGradient>
+    </defs>
+    <circle cx="50%" cy="45%" r="320" fill="url(#core-glow)"/>
+    <circle cx="70%" cy="60%" r="240" fill="url(#core-glow2)"/>
+    <circle cx="18%" cy="72%" r="190" fill="url(#core-glow3)"/>
+    <!-- Elliptical orbits -->
+    <ellipse cx="50%" cy="45%" rx="360" ry="140" class="orbit-ring r1" transform="rotate(-15, 720, 405)"/>
+    <ellipse cx="50%" cy="45%" rx="300" ry="110" class="orbit-ring r2" transform="rotate(25, 720, 405)"/>
+    <ellipse cx="50%" cy="45%" rx="420" ry="170" class="orbit-ring r3" transform="rotate(8, 720, 405)"/>
+    <!-- Orbit in upper right -->
+    <ellipse cx="78%" cy="22%" rx="180" ry="70" class="orbit-ring r1" transform="rotate(-30, 1123, 198)"/>
+    <ellipse cx="78%" cy="22%" rx="140" ry="55" class="orbit-ring r2" transform="rotate(20, 1123, 198)"/>
+    <!-- Orbit in lower left -->
+    <ellipse cx="15%" cy="75%" rx="200" ry="80" class="orbit-ring r1" transform="rotate(15, 216, 675)"/>
+    <ellipse cx="15%" cy="75%" rx="160" ry="60" class="orbit-ring r3" transform="rotate(-22, 216, 675)"/>
+    <!-- Glowing nodes -->
+    <circle cx="50%" cy="45%" r="2.5" fill="rgba(124,77,255,.38)"/>
+    <circle cx="50%" cy="45%" r="8" fill="none" stroke="rgba(124,77,255,.12)" stroke-width=".6"/>
+    <circle cx="50%" cy="45%" r="18" fill="none" stroke="rgba(124,77,255,.06)" stroke-width=".5"/>
+    <circle cx="50%" cy="45%" r="30" fill="none" stroke="rgba(124,77,255,.03)" stroke-width=".4"/>
+    <!-- Node on upper-right orbit -->
+    <ellipse cx="78%" cy="22%" rx="220" ry="90" class="orbit-ring r3" transform="rotate(-8, 1123, 198)"/>
+    <circle cx="78%" cy="22%" r="2" fill="rgba(0,188,212,.32)"/>
+    <circle cx="78%" cy="22%" r="7" fill="none" stroke="rgba(0,188,212,.10)" stroke-width=".5"/>
+    <circle cx="78%" cy="22%" r="14" fill="none" stroke="rgba(0,188,212,.04)" stroke-width=".4"/>
+    <!-- Node on lower-left orbit -->
+    <ellipse cx="15%" cy="75%" rx="250" ry="105" class="orbit-ring r2" transform="rotate(40, 216, 675)"/>
+    <circle cx="15%" cy="75%" r="2.2" class="orbit-node n2"/>
+    <circle cx="15%" cy="75%" r="7" fill="none" stroke="rgba(124,77,255,.10)" stroke-width=".5"/>
+    <circle cx="15%" cy="75%" r="14" fill="none" stroke="rgba(124,77,255,.04)" stroke-width=".4"/>
+    <!-- Connection lines between nuclei -->
+    <!-- Floating orbital nodes -->
+    <circle cx="14%" cy="50%" r="1.8" class="orbit-node n3"/>
+    <circle cx="82%" cy="38%" r="1.5" class="orbit-node"/>
+    <circle cx="58%" cy="22%" r="1.4" class="orbit-node n2"/>
+    <circle cx="22%" cy="62%" r="1.6" class="orbit-node"/>
+    <circle cx="68%" cy="72%" r="1.3" class="orbit-node n3"/>
+    <circle cx="42%" cy="30%" r="1.5" class="orbit-node n2"/>
+    <circle cx="88%" cy="55%" r="1.2" class="orbit-node"/>
+    <circle cx="32%" cy="84%" r="1.4" class="orbit-node n3"/>
+    <!-- Connection mesh -->
+    <line x1="50%" y1="45%" x2="78%" y2="22%" stroke="rgba(124,77,255,.06)" stroke-width=".4"/>
+    <line x1="50%" y1="45%" x2="15%" y2="75%" stroke="rgba(0,188,212,.06)" stroke-width=".4"/>
+    <line x1="78%" y1="22%" x2="15%" y2="75%" stroke="rgba(124,77,255,.04)" stroke-width=".3"/>
+    <line x1="14%" y1="50%" x2="58%" y2="22%" stroke="rgba(124,77,255,.03)" stroke-width=".25"/>
+    <line x1="82%" y1="38%" x2="32%" y2="84%" stroke="rgba(0,188,212,.03)" stroke-width=".25"/>
+    <line x1="42%" y1="30%" x2="68%" y2="72%" stroke="rgba(124,77,255,.03)" stroke-width=".25"/>
+    <!-- Background particles -->
+    <circle cx="8%" cy="18%" r=".8" class="bg-particle"/>
+    <circle cx="92%" cy="12%" r=".6" class="bg-particle p2"/>
+    <circle cx="62%" cy="88%" r=".7" class="bg-particle"/>
+    <circle cx="28%" cy="10%" r=".5" class="bg-particle p2"/>
+    <circle cx="94%" cy="78%" r=".8" class="bg-particle"/>
+    <circle cx="38%" cy="92%" r=".6" class="bg-particle p2"/>
+    <circle cx="76%" cy="48%" r=".5" class="bg-particle"/>
+    <circle cx="10%" cy="42%" r=".7" class="bg-particle p2"/>
+  </svg>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="header-logo">
+      <div class="logo-icon">
+        <div class="atom-orbit" aria-hidden><span class="atom-dot"></span></div>
+        <div class="atom-orbit o2a" aria-hidden><span class="atom-dot"></span></div>
+        <div class="atom-orbit o3a" aria-hidden><span class="atom-dot"></span></div>
+        <img src="logo-header.png" alt="Truenex AI" class="atom-core">
+      </div>
+      <div class="logo-text">
+        <div class="lt1">TRUENEX</div>
+        <div class="lt2">Memory Layer</div>
+      </div>
+    </a>
+    <nav class="header-nav" id="mobileNav">
+      <a href="#how"><span data-en="How it works" data-it="Come funziona">How it works</span></a>
+      <a href="#compare"><span data-en="Compare" data-it="Confronto">Compare</span></a>
+      <a href="#tech"><span data-en="Technical" data-it="Tecnica">Technical</span></a>
+      <a href="#open"><span data-en="Open Source" data-it="Open Source">Open Source</span></a>
+	      <a href="#quickstart"><span data-en="Quickstart" data-it="Quickstart">Quickstart</span></a>
+	      <a href="#roadmap"><span data-en="Roadmap" data-it="Roadmap">Roadmap</span></a>
+      <div class="lang-switch">
+        <button class="active" onclick="setLang('en',this)">EN</button>
+        <button onclick="setLang('it',this)">IT</button>
+      </div>
+      <a href="#quickstart" class="btn btn-dark btn-cta"><span data-en="Quickstart ↓" data-it="Quickstart ↓">Quickstart ↓</span></a>
+    </nav>
+    <button class="mobile-menu-btn" onclick="document.getElementById('mobileNav').classList.toggle('open')" aria-label="Menu">Menu</button>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="main">
+
+<!-- ==================== HERO ==================== -->
+<section class="hero reveal" id="home">
+  <div class="hero-main">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      <span data-en="Local-first · Zero telemetry · Apache 2.0" data-it="Local-first · Zero telemetria · Apache 2.0">Local-first · Zero telemetry · Apache 2.0</span>
+    </div>
+    <h1>
+      <span class="grad" data-en="Your AI agents finally remember." data-it="I tuoi agenti AI finalmente ricordano.">Your AI agents finally remember.</span>
+    </h1>
+    <p class="sub" data-en="Truenex Memory is the local memory layer that gives your AI coding agents persistent context. Instead of re-reading 60 docs every session (50,000+ tokens wasted), the agent queries and gets 5 relevant chunks. ~500 tokens. 0.3 seconds." data-it="Truenex Memory è il memory layer locale che dà ai tuoi agenti AI un contesto persistente. Invece di rileggere 60 documenti a ogni sessione (50.000+ token sprecati), l'agente interroga e riceve 5 chunk rilevanti. ~500 token. 0.3 secondi.">Truenex Memory is the local memory layer that gives your AI coding agents persistent context. Instead of re-reading 60 docs every session (50,000+ tokens wasted), the agent queries and gets 5 relevant chunks. ~500 tokens. 0.3 seconds.</p>
+    <div class="hero-buttons">
+      <a href="#how" class="btn btn-dark"><span data-en="See how it works" data-it="Scopri come funziona">See how it works</span></a>
+      <a href="#quickstart" class="btn btn-outline"><span data-en="Quickstart ↓" data-it="Quickstart ↓">Quickstart ↓</span></a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="num" data-en="42K+" data-it="42K+">42K+</div>
+        <div class="lbl" data-en="Indexed chunks in production" data-it="Chunk indicizzati in produzione">Indexed chunks in production</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num">100×</div>
+        <div class="lbl" data-en="Token reduction per session" data-it="Riduzione token per sessione">Token reduction per session</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num" data-en="0.3s" data-it="0.3s">0.3s</div>
+        <div class="lbl" data-en="Time to full context" data-it="Tempo per contesto completo">Time to full context</div>
+      </div>
+      <div class="hero-stat">
+        <div class="num" data-en="100%" data-it="100%">100%</div>
+        <div class="lbl" data-en="Local · Private · Yours*" data-it="Locale · Privato · Tuo*">Local · Private · Yours</div>
+      </div>
+    </div>
+    <p style="font-size:.72rem;color:#94a3b8;margin-top:12px;" data-en="Based on Marco's current local multi-project store. Numbers vary by project size." data-it="Basato sullo store locale multi-progetto di Marco. I numeri variano in base alla dimensione del progetto.">Based on Marco's current local multi-project store. Numbers vary by project size.</p>
+  </div>
+
+  <div class="hero-side">
+    <img src="../docs/marketing/images/new/truenex-memory_2-6.png" alt="Truenex Memory Hero" style="width:100%;border-radius:1.6rem;box-shadow:0 30px 80px rgba(124,77,255,.12);">
+    <a href="#open" class="hs-card hs-dark">
+      <div class="kicker" data-en="OPEN SOURCE" data-it="OPEN SOURCE">OPEN SOURCE</div>
+      <h3 data-en="Free. Forever." data-it="Core: Gratuito. Per sempre.">Core: Free. Forever.</h3>
+      <p data-en="Open source core (Apache 2.0). Single SQLite file, local embedder, zero model downloads. Your data stays yours. Optional Pro/Team features may come later without locking your local memory." data-it="Core open source (Apache 2.0). Singolo file SQLite, embedder locale, zero download di modelli. I tuoi dati restano tuoi. Funzionalità Pro/Team opzionali potranno arrivare senza bloccare la memoria locale.">Open source core (Apache 2.0). Single SQLite file, local embedder, zero model downloads. No cloud, no account, no subscription required for the open-source core. Optional Pro/Team features may come later without locking your local memory.</p>
+      <div class="arrow"><span data-en="Learn more" data-it="Scopri di più">Learn more</span> →</div>
+    </a>
+    <a href="#tech" class="hs-card hs-light">
+      <div class="kicker" data-en="ARCHITECTURE" data-it="ARCHITETTURA">ARCHITECTURE</div>
+      <h3 data-en="9 modular layers" data-it="9 strati modulari">9 modular layers</h3>
+      <p data-en="From SQLite persistence to MCP server. Three-tier retrieval cascade. Source ledger state machine. Auto memory generation." data-it="Dalla persistenza SQLite al server MCP. Retrieval a cascata a tre livelli. State machine del source ledger. Auto-generazione di memoria.">From SQLite persistence to MCP server. Three-tier retrieval cascade. Source ledger state machine. Auto memory generation.</p>
+      <div class="arrow"><span data-en="Deep dive" data-it="Approfondisci">Deep dive</span> →</div>
+    </a>
+  </div>
+</section>
+
+<!-- ==================== HOW IT WORKS ==================== -->
+<section class="section-card reveal" id="how">
+  <div class="section-kicker" data-en="HOW IT WORKS" data-it="COME FUNZIONA">HOW IT WORKS</div>
+  <h2 data-en="Four steps to give your agent a second brain." data-it="Quattro passi per dare al tuo agente un secondo cervello.">Four steps to give your agent a second brain.</h2>
+  <p data-en="From discovery to retrieval — once indexed, the agent never re-reads documentation again." data-it="Dalla scoperta al retrieval — una volta indicizzato, l'agente non rilegge mai più la documentazione.">From discovery to retrieval — once indexed, the agent never re-reads documentation again.</p>
+
+  <div class="steps-grid">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3 data-en="Discover" data-it="Scopri">Discover</h3>
+      <p data-en="Scans .codex/ and .claude/ directories only. Finds projects, docs, SSH aliases. No blind disk scan." data-it="Scansiona solo le directory .codex/ e .claude/. Trova progetti, documenti, alias SSH. Nessuna scansione incontrollata.">Scans .codex/ and .claude/ directories only. Finds projects, docs, SSH aliases. No blind disk scan.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3 data-en="Index" data-it="Indicizza">Index</h3>
+      <p data-en="Markdown-aware chunking. 384-dim vector embeddings. Stored in SQLite. Once, then incremental updates only." data-it="Chunking Markdown-aware. Embedding vettoriali 384-dim. Salvato in SQLite. Una volta, poi solo aggiornamenti incrementali.">Markdown-aware chunking. 384-dim vector embeddings. Stored in SQLite. Once, then incremental updates only.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3 data-en="Query" data-it="Interroga">Query</h3>
+      <p data-en="Agent calls memory_search(). Semantic → BM25 → keyword cascade. 5 relevant chunks in 0.3 seconds." data-it="L'agente chiama memory_search(). Cascata semantica → BM25 → keyword. 5 chunk rilevanti in 0.3 secondi.">Agent calls memory_search(). Semantic → BM25 → keyword cascade. 5 relevant chunks in 0.3 seconds.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <h3 data-en="Learn" data-it="Impara">Learn</h3>
+      <p data-en="Generates conservative unverified memory candidates from indexed content. SHA-256 dedup and tombstone check. You review, approve, reject, or promote them into curated decisions, notes or patterns." data-it="Genera candidati memoria conservativi (unverified) dai contenuti indicizzati. Dedup SHA-256 e tombstone check. Rivedi, approvi, rifiuti o promuovi in decisioni, note o pattern curati.">Generates conservative unverified memory candidates from indexed local sources. SHA-256 dedup and tombstone check. You review, approve, reject, or promote them into curated decisions, notes or patterns.</p>
+    </div>
+  </div>
+
+  <img src="../docs/marketing/images/truenex-memory_7.png" alt="End-to-End Flow" class="section-img" data-en="End-to-end agent journey: Discover → Index → Query → Learn" data-it="Viaggio end-to-end dell'agente: Scopri → Indicizza → Interroga → Impara">
+</section>
+
+<!-- ==================== COMPARE ==================== -->
+<section class="section-card reveal" id="compare">
+  <div class="section-kicker" data-en="BEFORE & AFTER" data-it="PRIMA & DOPO">BEFORE & AFTER</div>
+  <h2 data-en="Stop paying for your agent's amnesia." data-it="Smetti di pagare per l'amnesia del tuo agente.">Stop paying for your agent's amnesia.</h2>
+  <p data-en="Every new chat session starts from zero. Your agent re-reads everything. That's 50,000 tokens you've already paid for, burned just to get back to where you were." data-it="Ogni nuova chat riparte da zero. L'agente rilegge tutto. Sono 50.000 token che hai già pagato, bruciati solo per tornare al punto in cui eri già arrivato.">Every new chat session starts from zero. Your agent re-reads everything. That's 50,000 tokens you've already paid for, burned just to get back to where you were.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th data-en="Metric" data-it="Metrica">Metric</th>
+        <th data-en="Without Truenex Memory" data-it="Senza Truenex Memory">Without Truenex Memory</th>
+        <th data-en="With Truenex Memory" data-it="Con Truenex Memory">With Truenex Memory</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-en="Docs read per session" data-it="Documenti letti a sessione">Docs read per session</td>
+        <td class="red" data-en="60+ files" data-it="60+ file">60+ files</td>
+        <td class="green" data-en="5 relevant chunks" data-it="5 chunk rilevanti">5 relevant chunks</td>
+      </tr>
+      <tr>
+        <td data-en="Tokens wasted" data-it="Token sprecati">Tokens wasted</td>
+        <td class="red" data-en="50,000+ per session" data-it="50.000+ a sessione">50,000+ per session</td>
+        <td class="green" data-en="~500 per query" data-it="~500 per query">~500 per query</td>
+      </tr>
+      <tr>
+        <td data-en="Time to context" data-it="Tempo per il contesto">Time to context</td>
+        <td class="red" data-en="2+ minutes" data-it="2+ minuti">2+ minutes</td>
+        <td class="green" data-en="0.3 seconds" data-it="0.3 secondi">0.3 seconds</td>
+      </tr>
+      <tr>
+        <td data-en="Context Window" data-it="Finestra di contesto">Context Window</td>
+        <td class="red" data-en="Saturated with noise" data-it="Satura di rumore">Saturated with noise</td>
+        <td class="green" data-en="Free for reasoning" data-it="Libera per il ragionamento">Free for reasoning</td>
+      </tr>
+      <tr>
+        <td data-en="Persistence" data-it="Persistenza">Persistence</td>
+        <td class="red" data-en="Zero. Each session starts fresh." data-it="Zero. Ogni sessione riparte da zero.">Zero. Each session starts fresh.</td>
+        <td class="green" data-en="Total. Agent remembers everything." data-it="Totale. Contesto persistente tra sessioni.">Total. Persistent context across sessions.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <img src="../docs/marketing/images/new/truenex-memory_2-5.png" alt="Before & After" class="section-img">
+
+  <div class="stats-bar" style="margin-top:28px;">
+    <div class="stat-box">
+      <div class="num">42,483</div>
+      <div class="lbl" data-en="Chunks indexed" data-it="Chunk indicizzati">Chunks indexed</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">7,650</div>
+      <div class="lbl" data-en="Documents" data-it="Documenti">Documents</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">95</div>
+      <div class="lbl" data-en="Confirmed sources" data-it="Fonti confermate">Confirmed sources</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">7</div>
+      <div class="lbl" data-en="Agent roots active" data-it="Root agent attive">Agent roots active</div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TECHNICAL ==================== -->
+<section class="section-card reveal" id="tech">
+  <div class="section-kicker" data-en="TECHNICAL ARCHITECTURE" data-it="ARCHITETTURA TECNICA">TECHNICAL ARCHITECTURE</div>
+  <h2 data-en="Nine layers. Zero bloat." data-it="Nove strati. Zero sprechi.">Nine layers. Zero bloat.</h2>
+  <p data-en="Each layer depends only on the ones below it. Modular, testable, production-hardened." data-it="Ogni strato dipende solo da quelli sottostanti. Modulare, testabile, testato su uno store locale reale multi-progetto.">Each layer depends only on the ones below it. Modular, testable, tested on a real multi-project local store.</p>
+
+  <div class="tech-layers">
+    <div class="tech-layer">
+      <h4>L1 · SQLite Database</h4>
+      <p>Single file <code>truenex_memory.db</code>. 9 tables: documents, chunks, memory_nodes, edges, retrieval_logs, source_ledger, tasks, task_steps, verifier_rounds.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L2 · Ingestion Pipeline</h4>
+      <p>Two parsers: text_docs (MD, PY, YAML, JSON, TOML) and jsonl_sessions. Session parser extracts only user requests, assistant responses, compaction summaries — excludes system messages and tool calls.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L3 · Chunking & Embedding</h4>
+      <p>Markdown-aware deterministic chunking (max 1200 chars). HashingEmbedder at 384 dimensions. Zero model downloads. Qdrant optional with fails-closed fallback to SQLite.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L4 · Retrieval Engine</h4>
+      <p>Three-tier cascade: Semantic (cosine similarity) → BM25 (keyword) → Jaccard token overlap. Ledger-aware: auto-excludes chunks from missing/skipped sources. Every query produces a RetrievalLog with trace_id.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L5 · Agent Discovery</h4>
+      <p>Confined scan to .codex/ and .claude/ directories. Regex-based extraction of paths, documents, SSH aliases. Deterministic confidence scoring. Zero blind disk scan.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L6 · Global Refresh</h4>
+      <p>Incremental state machine. 5 states: pending → active ⇄ skipped | missing | error. Preserves last valid version on re-indexing error. JSONL stability check (120s configurable).</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L7 · Auto Memory</h4>
+      <p>Generates conservative unverified memory candidates from indexed chunks. SHA-256 dedup + tombstone check. Confidence threshold ≥ 0.50. Human review lifecycle: approve (active), reject (obsolete + tombstone), promote (curated_auto → decision / note / pattern).</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L8 · MCP Server</h4>
+      <p>JSON-RPC 2.0 over stdio. Tools: memory_search, memory_add, global_project_context, global_status, task_open/step_add/close. Native compatibility with Claude Code, Codex, Cursor.</p>
+    </div>
+    <div class="tech-layer">
+      <h4>L9 · CLI</h4>
+      <p>Full command set: init, add, search, list, index, export, import, migrate, global discover/refresh/auto, doctor, mcp.</p>
+    </div>
+  </div>
+
+  <!-- Cascade code -->
+  <div class="img-grid" style="margin-top:32px;">
+    <img src="../docs/marketing/images/truenex-memory_1.png" alt="9-Layer Architecture">
+    <img src="../docs/marketing/images/truenex-memory_4.png" alt="Retrieval Cascade">
+  </div>
+
+  <p style="margin-top:28px;font-weight:700;font-size:.95rem;color:#0f172a;" data-en="Retrieval Cascade" data-it="Cascata di Retrieval">Retrieval Cascade</p>
+  <div class="code-block">
+<span class="cmt"># INPUT: memory_search("bug router dual-model")</span>
+<span class="cmt">#</span>
+<span class="cmt"># LEVEL 1 — Semantic Search</span>
+<span class="cmt">#   cosine similarity on 384-dim embeddings</span>
+<span class="cmt">#   JOIN source_ledger → excludes missing/skipped</span>
+<span class="cmt">#   → If results: RETURN ranked by score</span>
+<span class="cmt">#   → If 0 results: continue</span>
+<span class="cmt">#</span>
+<span class="cmt"># LEVEL 2 — BM25 Fallback</span>
+<span class="cmt">#   Tokenization + BM25 scoring + source_boost</span>
+<span class="cmt">#   → If results: RETURN ranked by score</span>
+<span class="cmt">#   → If 0 results: continue</span>
+<span class="cmt">#</span>
+<span class="cmt"># LEVEL 3 — Keyword Matching</span>
+<span class="cmt">#   Jaccard token overlap on memory_nodes</span>
+<span class="cmt">#   → RETURN ranked</span>
+<span class="cmt">#</span>
+<span class="cmt"># OUTPUT: SearchHit[] with title, content, score, trace_id</span>
+  </div>
+
+  <div class="img-grid">
+    <img src="../docs/marketing/images/truenex-memory_3.png" alt="Source Ledger State Machine">
+    <img src="../docs/marketing/images/truenex-memory_5.png" alt="Auto Memory Flow">
+    <img src="../docs/marketing/images/truenex-memory_6.png" alt="MCP Server & Toolkit">
+  </div>
+</section>
+
+<!-- ==================== OPEN SOURCE ==================== -->
+<section class="section-card reveal" id="open">
+  <div class="section-kicker" data-en="OPEN SOURCE" data-it="OPEN SOURCE">OPEN SOURCE</div>
+  <h2 data-en="Built on three principles." data-it="Costruito su tre principi.">Built on three principles.</h2>
+
+  <div class="principle-grid">
+    <div class="principle">
+      <div class="principle-icon" style="background:rgba(124,77,255,.08);color:#7C4DFF;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      </div>
+      <h3 data-en="Local-First" data-it="Local-First">Local-First</h3>
+      <p data-en="Everything runs on your machine. Single SQLite file in your home directory. No GPU, no cloud, no API keys required. The embedder is deterministic — zero model downloads." data-it="Tutto gira sulla tua macchina. Singolo file SQLite nella tua home. Nessuna GPU, nessun cloud, nessuna API key. L'embedder è deterministico — zero download di modelli.">Everything runs on your machine. Single SQLite file in your home directory. No GPU, no cloud, no API keys required. The embedder is deterministic — zero model downloads.</p>
+    </div>
+    <div class="principle">
+      <div class="principle-icon" style="background:rgba(0,188,212,.08);color:#00BCD4;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      </div>
+      <h3 data-en="Privacy-First" data-it="Privacy-First">Privacy-First</h3>
+      <p data-en="Zero telemetry. Zero code or memory upload. Full JSON export — your data, always readable. If you stop using it, your data stays yours." data-it="Zero telemetria. Zero upload di codice o memoria. Export JSON completo — i tuoi dati, sempre leggibili. Se smetti di usarlo, i dati restano tuoi.">Zero telemetry. Zero code or memory upload. Full JSON export — your data, always readable. If you stop using it, your data stays yours.</p>
+    </div>
+    <div class="principle">
+      <div class="principle-icon" style="background:rgba(124,77,255,.08);color:#7C4DFF;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      </div>
+      <h3 data-en="Agent-First" data-it="Agent-First">Agent-First</h3>
+      <p data-en="MCP stdio interface — the same protocol agents use to talk to the filesystem. Built for the agent, not for the browser. Native Claude Code, Codex, Cursor compatibility." data-it="Interfaccia MCP stdio — lo stesso protocollo con cui gli agenti parlano al filesystem. Costruito per l'agente, non per il browser. Compatibilità nativa con Claude Code, Codex, Cursor.">MCP stdio interface — the same protocol agents use to talk to the filesystem. Built for the agent, not for the browser. Native Claude Code, Codex, Cursor compatibility.</p>
+    </div>
+  </div>
+
+  <img src="../docs/marketing/images/new/truenex-memory_2-9.png" alt="Token Savings Infographic" class="section-img soft">
+
+  <!-- CTA -->
+  <div class="cta-block" style="margin-top:36px;">
+    <p data-en="Open source. Apache 2.0. Free forever." data-it="Open source. Apache 2.0. Gratuito per sempre.">Open source. Apache 2.0. Free forever.</p>
+    <a href="#quickstart" class="btn btn-dark" style="margin-right:10px;"><span data-en="Quickstart ↓" data-it="Quickstart ↓">Quickstart ↓</span></a>
+    <a href="#roadmap" class="btn btn-outline"><span data-en="Read the Docs" data-it="Stato & Roadmap">Roadmap & Status</span></a>
+  </div>
+</section>
+
+<!-- ==================== QUICKSTART ==================== -->
+<section class="section-card reveal" id="quickstart">
+  <div class="section-kicker" data-en="QUICKSTART" data-it="INSTALLAZIONE">QUICKSTART</div>
+  <h2 data-en="One command to get started." data-it="Un comando per iniziare.">One command to get started.</h2>
+  <p data-en="Install, discover your projects, and connect your agent. Works on macOS, Linux, and Windows." data-it="Installa, scopri i tuoi progetti e connetti il tuo agente. Funziona su macOS, Linux e Windows.">Install, discover your projects, and connect your agent. Works on macOS, Linux, and Windows.</p>
+
+  <div class="code-block" style="margin-top:24px;">
+<span class="cmt"># Install Truenex Memory</span>
+pipx install truenex-memory
+
+<span class="cmt"># Auto-discover your agent projects and index everything</span>
+truenex-memory global auto run
+
+<span class="cmt"># Launch the MCP server (connect from Claude Code, Codex, Cursor)</span>
+truenex-memory mcp
+  </div>
+
+  <p style="margin-top:16px;font-size:.85rem;color:#64748b;" data-en="The MCP server speaks JSON-RPC 2.0 over stdio. Add it to your agent's MCP config and memory_search() becomes available immediately." data-it="Il server MCP parla JSON-RPC 2.0 su stdio. Aggiungilo alla config MCP del tuo agente e memory_search() diventa subito disponibile.">The MCP server speaks JSON-RPC 2.0 over stdio. Add it to your agent's MCP config and memory_search() becomes available immediately.</p>
+</section>
+
+<!-- ==================== CORE VS PRO ==================== -->
+<section class="section-card reveal" id="roadmap">
+  <div class="section-kicker" data-en="CORE VS PRO" data-it="CORE VS PRO">CORE VS PRO</div>
+  <h2 data-en="What's free, what may become paid." data-it="Cosa è gratuito, cosa potrà essere a pagamento.">What's free, what may become paid.</h2>
+  <p data-en="The open source core is and will always be free. Optional Pro/Team features may add advanced workflows without ever locking your local data." data-it="Il core open source è e resterà sempre gratuito. Funzionalità Pro/Team opzionali potranno aggiungere workflow avanzati senza mai bloccare i tuoi dati locali.">The open source core is and will always be free. Optional Pro/Team features may add advanced workflows without ever locking your local data.</p>
+
+  <table class="comp-table" style="margin-top:24px;">
+    <thead>
+      <tr>
+        <th data-en="Area" data-it="Area">Area</th>
+        <th data-en="Open Source Core" data-it="Core Open Source">Open Source Core</th>
+        <th data-en="Future Pro / Team" data-it="Futuro Pro / Team">Future Pro / Team</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td data-en="Local SQLite memory" data-it="Memoria SQLite locale">Local SQLite memory</td>
+        <td class="green" data-en="Included" data-it="Incluso">Included</td>
+        <td data-en="Included" data-it="Incluso">Included</td>
+      </tr>
+      <tr>
+        <td data-en="CLI (init, add, search, export, etc.)" data-it="CLI (init, add, search, export, ecc.)">CLI (init, add, search, export, etc.)</td>
+        <td class="green" data-en="Included" data-it="Incluso">Included</td>
+        <td data-en="Included" data-it="Incluso">Included</td>
+      </tr>
+      <tr>
+        <td data-en="MCP for Claude Code, Codex, Cursor" data-it="MCP per Claude Code, Codex, Cursor">MCP for Claude Code, Codex, Cursor</td>
+        <td class="green" data-en="Included" data-it="Incluso">Included</td>
+        <td data-en="Included" data-it="Incluso">Included</td>
+      </tr>
+      <tr>
+        <td data-en="Local search / retrieval cascade" data-it="Ricerca locale / cascata retrieval">Local search / retrieval cascade</td>
+        <td class="green" data-en="Included" data-it="Incluso">Included</td>
+        <td data-en="Included" data-it="Incluso">Included</td>
+      </tr>
+      <tr>
+        <td data-en="Source catalog & ledger" data-it="Catalogo fonti & ledger">Source catalog & ledger</td>
+        <td class="green" data-en="Included" data-it="Incluso">Included</td>
+        <td data-en="Included" data-it="Incluso">Included</td>
+      </tr>
+      <tr>
+        <td data-en="Auto Memory review lifecycle" data-it="Ciclo revisione Auto Memory">Auto Memory review lifecycle</td>
+        <td class="green" data-en="Included (manual review)" data-it="Incluso (revisione manuale)">Included (manual review)</td>
+        <td data-en="Advanced workflows (auto-promotion, conflict resolution)" data-it="Workflow avanzati (auto-promozione, risoluzione conflitti)">Advanced workflows</td>
+      </tr>
+      <tr>
+        <td data-en="Visual graph / knowledge UI" data-it="UI grafo conoscenza">Visual graph / knowledge UI</td>
+        <td data-en="Basic / deferred" data-it="Base / rimandata">Basic / deferred</td>
+        <td data-en="Advanced interactive dashboard" data-it="Dashboard interattiva avanzata">Advanced UI</td>
+      </tr>
+      <tr>
+        <td data-en="Multi-project dashboards" data-it="Dashboard multi-progetto">Multi-project dashboards</td>
+        <td data-en="Basic CLI" data-it="CLI base">Basic CLI</td>
+        <td data-en="Advanced UI with cross-project search" data-it="UI avanzata con ricerca cross-project">Advanced UI</td>
+      </tr>
+      <tr>
+        <td data-en="Team sync / shared memory" data-it="Sync team / memoria condivisa">Team sync / shared memory</td>
+        <td data-en="No" data-it="No">No</td>
+        <td data-en="Optional, opt-in" data-it="Opzionale, opt-in">Optional, opt-in</td>
+      </tr>
+      <tr>
+        <td data-en="Governance / audit / compliance" data-it="Governance / audit / conformità">Governance / audit / compliance</td>
+        <td data-en="Local basics" data-it="Base locale">Local basics</td>
+        <td data-en="Team / Enterprise" data-it="Team / Enterprise">Team / Enterprise</td>
+      </tr>
+      <tr>
+        <td data-en="Cloud features" data-it="Funzionalità cloud">Cloud features</td>
+        <td data-en="No" data-it="No">No</td>
+        <td data-en="Optional, opt-in, your keys" data-it="Opzionale, opt-in, tue chiavi">Optional, opt-in</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="feat-grid" style="margin-top:20px;">
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(124,77,255,.08);color:#7C4DFF;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+      <h3 data-en="Your data is never locked" data-it="I tuoi dati non sono mai bloccati">Your data is never locked</h3>
+      <p data-en="Full JSON export always available. If you stop using Truenex Memory, your data stays yours in a readable format." data-it="Export JSON completo sempre disponibile. Se smetti di usare Truenex Memory, i tuoi dati restano tuoi in formato leggibile.">Full JSON export always available. If you stop using Truenex Memory, your data stays yours in a readable format.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(0,188,212,.08);color:#00BCD4;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+      <h3 data-en="Paid features improve workflows" data-it="Le funzionalità a pagamento migliorano i workflow">Paid features improve workflows</h3>
+      <p data-en="Pro/Team features add convenience, not lock-in. They may add sync, governance, and advanced UI — never ownership of your memory." data-it="Le funzionalità Pro/Team aggiungono comodità, non vincoli. Potranno aggiungere sync, governance e UI avanzata — mai la proprietà della tua memoria.">Pro/Team features add convenience, not lock-in. They may add sync, governance, and advanced UI — never ownership of your memory.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(124,77,255,.08);color:#7C4DFF;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <h3 data-en="Status: production on real store" data-it="Stato: in produzione su store reale">Status: production on real store</h3>
+      <p data-en="Currently used on Marco's local store: 42k+ chunks, 7.6k+ documents, 95 confirmed sources. Public beta coming. No cloud features in core." data-it="Attualmente in uso sullo store locale di Marco: 42k+ chunk, 7.6k+ documenti, 95 fonti confermate. Public beta in arrivo. Nessuna funzionalità cloud nel core.">Currently used on Marco's local store: 42k+ chunks, 7.6k+ documents, 95 confirmed sources. Public beta coming. No cloud features in core.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== PRIVACY ==================== -->
+<section class="section-card reveal" id="privacy">
+  <div class="section-kicker" data-en="PRIVACY" data-it="PRIVACY">PRIVACY</div>
+  <h2 data-en="What Truenex Memory does NOT do." data-it="Cosa Truenex Memory NON fa.">What Truenex Memory does NOT do.</h2>
+  <p data-en="Privacy isn't a feature. It's the architecture." data-it="La privacy non è una funzionalità. È l'architettura.">Privacy isn't a feature. It's the architecture.</p>
+
+  <div class="feat-grid" style="margin-top:24px;">
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(220,38,38,.08);color:#dc2626;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      <h3 data-en="No secret scanning" data-it="Nessuna scansione di segreti">No secret scanning</h3>
+      <p data-en="Does not intentionally scan for secrets, tokens, or credentials. Discovery is confined to agent directories only." data-it="Non scansiona intenzionalmente segreti, token o credenziali. La discovery è confinata alle directory agent.">Does not intentionally scan for secrets, tokens, or credentials. Discovery is confined to agent directories only.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(220,38,38,.08);color:#dc2626;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      <h3 data-en="No remote execution" data-it="Nessuna esecuzione remota">No remote execution</h3>
+      <p data-en="Does not execute SSH commands, does not open remote databases. Server aliases in the catalog are hints only — no connection is made." data-it="Non esegue comandi SSH, non apre database remoti. Gli alias server nel catalogo sono solo hint — nessuna connessione viene stabilita.">Does not execute SSH commands, does not open remote databases. Server aliases in the catalog are hints only — no connection is made.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(220,38,38,.08);color:#dc2626;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      <h3 data-en="Zero telemetry" data-it="Zero telemetria">Zero telemetry</h3>
+      <p data-en="No analytics, no tracking, no phone-home. The embedder is deterministic — no model weights to download. The only network calls are those you explicitly configure." data-it="Nessuna analytics, nessun tracking, nessun phone-home. L'embedder è deterministico — nessun modello da scaricare. Le uniche chiamate di rete sono quelle che configuri esplicitamente.">No analytics, no tracking, no phone-home. The embedder is deterministic — no model weights to download. The only network calls are those you explicitly configure.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon" style="background:rgba(220,38,38,.08);color:#dc2626;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+      <h3 data-en="No upload" data-it="Nessun upload">No upload</h3>
+      <p data-en="Zero code or memory upload. All indexing happens locally. All embeddings stay on your machine. Full JSON export — readable by any tool." data-it="Zero upload di codice o memoria. Tutta l'indicizzazione avviene in locale. Tutti gli embedding restano sulla tua macchina. Export JSON completo — leggibile da qualsiasi tool.">Zero code or memory upload. All indexing happens locally. All embeddings stay on your machine. Full JSON export — readable by any tool.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <p>Truenex Memory · Apache 2.0 · GitHub (public soon)</p>
+</footer>
+
+<script>
+// ── Language toggle ──
+let currentLang = 'en';
+function setLang(l, btn) {
+  currentLang = l;
+  document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('[data-en]').forEach(el => {
+    const v = el.dataset[l] || el.dataset.en;
+    if (v) el.textContent = v;
+  });
+  document.documentElement.lang = l;
+}
+
+// ── Scroll reveal ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── Lightbox ──
+document.querySelectorAll('.img-grid img, .section-img, .hero-side img').forEach(img => {
+  img.addEventListener('click', (e) => {
+    e.preventDefault();
+    const lb = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lightbox-img');
+    lbImg.src = img.src;
+    lbImg.alt = img.alt;
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  });
+});
+function closeLightbox() {
+  const lb = document.getElementById('lightbox');
+  lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
+
+// Initial reveal check
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.reveal').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight) el.classList.add('visible');
+  });
+});
+</script>
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Close">×</button>
+  <img src="" alt="" id="lightbox-img">
+</div>
+</body>
+</html>

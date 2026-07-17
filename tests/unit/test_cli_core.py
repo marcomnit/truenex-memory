@@ -130,7 +130,7 @@ def test_cli_migrate_status_and_apply() -> None:
         applied = json.loads(result.stdout)
         assert applied["applied"] is True
         assert applied["previous_version"] == "0"
-        assert applied["current_version"] == "4"
+        assert applied["current_version"] == "5"
         assert Path(applied["backup_path"]).exists()
 
         result = runner.invoke(app, ["migrate", "apply", "--json"])
@@ -182,7 +182,14 @@ def test_cli_import_roundtrip() -> None:
         assert "Imported" in result.stdout
 
 
-def test_cli_task_open_close() -> None:
+def test_cli_task_open_close(tmp_path: Path, monkeypatch) -> None:
+    from truenex_memory.cli import task_commands
+
+    monkeypatch.setattr(
+        task_commands,
+        "_DEFAULT_DB",
+        tmp_path / ".truenex-memory" / "truenex_memory.db",
+    )
     with _cwd(_workdir("cli_task")):
         result = runner.invoke(app, ["task", "open", "Fix bug", "--type", "bugfix", "--project", "AI_Agent", "--json"])
         assert result.exit_code == 0

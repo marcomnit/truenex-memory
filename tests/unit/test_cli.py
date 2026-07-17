@@ -15,9 +15,12 @@ def test_help() -> None:
     assert "Local-first" in result.stdout
 
 
+from truenex_memory import __version__
+
+
 def test_version_command() -> None:
     """version command should print version and exit 0."""
     result = runner.invoke(app, ["version"])
     assert result.exit_code == 0
     assert "truenex-mem" in result.stdout
-    assert "0.2.1" in result.stdout
+    assert __version__ in result.stdout

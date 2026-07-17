@@ -2,7 +2,33 @@
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-17
+
 ### Added
+
+- Persistent SQLite FTS5 index for document chunks, including automatic backfill and insert/update/delete triggers.
+- Database schema v5 with safe migration and backup support.
+- Search API filters and richer source, project, and timestamp metadata in results.
+- Optional local LLM bootstrap tooling, Docker configuration, and setup documentation.
+- Release workflow for tagged builds, GitHub Releases, and PyPI Trusted Publishing.
+
+### Changed
+
+- Lexical evidence is evaluated before dense fallback so partially embedded databases cannot hide exact matches.
+- Global and project search use the persistent FTS5 index, with the previous Python BM25 implementation retained as a compatibility fallback.
+- Agent discovery resolves manifests and preferences from the explicitly selected home directory.
+
+### Fixed
+
+- `memory_search` no longer scans the entire chunk corpus in Python for every query.
+- Ingestion metadata preambles are no longer exposed as search results.
+- Search results suppress operating-system trash paths and collapse identical mirrored chunks.
+- Retrieval gating now follows the most recent ledger status for each source path.
+- Chat returns a controlled service-unavailable response when the local memory database cannot be opened.
+
+### Security
+
+- Local activation databases, `.env` files, and private signing keys are explicitly excluded from version control.
 
 ## [0.2.7] — 2026-06-03
 

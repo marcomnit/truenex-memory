@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "truenex-memory"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local-first memory layer for coding agents"
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -58,6 +58,30 @@ truenex-mem = "truenex_memory.cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/truenex_memory"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/.github/workflows",
+    "/docs",
+    "/examples",
+    "/scripts",
+    "/src",
+    "/tests",
+    "/CHANGELOG.md",
+    "/CODE_OF_CONDUCT.md",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/README.md",
+    "/ROADMAP.md",
+    "/SECURITY.md",
+    "/pyproject.toml",
+]
+exclude = [
+    "/docs/codex-review-desktop-spec.md",
+    "/docs/marketing",
+    "/docs/session-refactor-manifest-2026-06-10.md",
+    "/docs/v0_1_search_first_roadmap.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

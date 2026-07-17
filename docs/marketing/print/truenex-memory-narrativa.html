@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Truenex Memory — Narrativa</title>
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1a1a2e;
+  background: #fff;
+  line-height: 1.7;
+  font-size: 11pt;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 40px 60px;
+}
+
+h1 {
+  font-size: 28pt;
+  font-weight: 800;
+  color: #0d0d2b;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+  border-bottom: 3px solid #7C4DFF;
+  padding-bottom: 12px;
+}
+
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 36px 0 12px;
+  padding-left: 10px;
+  border-left: 4px solid #00BCD4;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: #333;
+  margin: 24px 0 8px;
+}
+
+p {
+  margin: 0 0 12px;
+}
+
+blockquote {
+  background: #f0edff;
+  border-left: 4px solid #7C4DFF;
+  padding: 16px 20px;
+  margin: 20px 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  color: #4a3b8c;
+}
+
+blockquote p {
+  margin: 0;
+}
+
+strong {
+  color: #0d0d2b;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 28px auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  page-break-inside: avoid;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 10pt;
+  page-break-inside: avoid;
+}
+
+thead th {
+  background: #7C4DFF;
+  color: white;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 600;
+}
+
+thead th:first-child { border-radius: 6px 0 0 0; }
+thead th:last-child { border-radius: 0 6px 0 0; }
+
+tbody td {
+  padding: 9px 14px;
+  border-bottom: 1px solid #e8e8f0;
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) { background: #fafaff; }
+tbody tr:last-child td:first-child { border-radius: 0 0 0 6px; }
+tbody tr:last-child td:last-child { border-radius: 0 0 6px 0; }
+
+code {
+  background: #f0f0f8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: 9.5pt;
+  color: #d63384;
+}
+
+pre {
+  background: #0d0d2b;
+  color: #e0e0f0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-size: 9pt;
+  line-height: 1.5;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+ul, ol { margin: 0 0 12px 24px; }
+li { margin: 4px 0; }
+
+hr {
+  border: none;
+  border-top: 1px solid #e0e0f0;
+  margin: 32px 0;
+}
+
+/* Cover page */
+.cover {
+  text-align: center;
+  padding: 80px 0 40px;
+  page-break-after: always;
+}
+
+.cover h1 {
+  font-size: 36pt;
+  border: none;
+  margin-bottom: 20px;
+}
+
+.cover .subtitle {
+  font-size: 14pt;
+  color: #7C4DFF;
+  margin-bottom: 40px;
+}
+
+.cover .badge {
+  display: inline-block;
+  background: #00BCD4;
+  color: white;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 10pt;
+  font-weight: 600;
+  margin: 4px;
+}
+
+.cover .badge.purple { background: #7C4DFF; }
+
+/* Print rules */
+@media print {
+  body {
+    padding: 30px 40px;
+    max-width: 100%;
+  }
+
+  img {
+    max-width: 95%;
+    box-shadow: none;
+  }
+
+  h2 { page-break-before: always; }
+  h2:first-of-type { page-break-before: avoid; }
+
+  pre, table, img { page-break-inside: avoid; }
+
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+}
+</style>
+</head>
+<body>
+<h1>Truenex Memory — Il Racconto</h1>
+<blockquote>
+<p>La storia di come un agente AI ha smesso di dimenticare tutto a ogni sessione.</p>
+</blockquote>
+<hr />
+<h2>Atto I — Il Problema</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/new/truenex-memory_2-3.png" alt="Il Problema: Amnesia dell'Agente" /></p>
+<p>C'è un costo di cui nessuno parla quando si usano agenti AI per scrivere codice. Non è il canone mensile dell'API. Non è il tempo speso a fare prompt engineering. <strong>È il costo del contesto perso.</strong></p>
+<p>Ogni nuova chat con un AI agent ricomincia da zero. L'agente deve rileggere tutto: 60 file di documentazione, 150 log di sessione, 30 decisioni architetturali, 10 riferimenti a server. File su file. Decine di migliaia di token.</p>
+<p>Non perché sia stupido. Perché non ha alternativa.</p>
+<p><strong>Ogni sessione ricomincia con una tassa occulta.</strong> Token bruciati in letture che hai già fatto, in decisioni che hai già preso, in bug che hai già risolto. Token che paghi. Token che rallentano le risposte. Token che tolgono spazio nella context window alle cose che ti servono davvero.</p>
+<p>E la cosa peggiore? <strong>Sono token sprecati per tornare al punto in cui eri già arrivato.</strong></p>
+<hr />
+<h2>Atto II — La Soluzione</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/new/truenex-memory_2-4.png" alt="La Soluzione: Il Secondo Cervello" /></p>
+<p>Truenex Memory è il pezzo mancante. È un &quot;secondo cervello&quot; che si installa in locale sulla tua macchina e fa da ponte tra i tuoi progetti e i tuoi agenti AI.</p>
+<p>Funziona così. La prima volta che lo lanci, Truenex Memory scansiona — in modo intelligente e selettivo, solo le directory dei tuoi agenti, mai l'intero disco — e scopre da solo quali progetti hai, quali server usi, quali documenti sono rilevanti. Tu rivedi, confermi, ed è fatta.</p>
+<p>Da quel momento, l'agente non legge più. Chiede. <code>memory_search(&quot;qual è il bug noto del router?&quot;)</code>. Il sistema restituisce 5 chunk classificati per rilevanza. L'agente ha il contesto che gli serve in <strong>500 token invece di 50.000</strong>.</p>
+<p>La differenza non è solo comodità. È <strong>tempo reale</strong> — le risposte arrivano più veloci. È <strong>denaro reale</strong> — paghi solo i token che servono. È <strong>qualità reale</strong> — la context window respira.</p>
+<hr />
+<h2>Atto III — Il Confronto</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/new/truenex-memory_2-5.png" alt="Before &amp; After" /></p>
+<p>| | Senza Truenex Memory | Con Truenex Memory |<br />
+|---|---|---|<br />
+| <strong>Documentazione</strong> | 60+ file letti a ogni chat | 5 chunk rilevanti via query |<br />
+| <strong>Token sprecati</strong> | 50.000+ per sessione | ~500 per contesto |<br />
+| <strong>Tempo</strong> | 2+ minuti per &quot;mettersi in pari&quot; | 0.3 secondi |<br />
+| <strong>Context Window</strong> | Satura di rumore | Libera per il ragionamento |<br />
+| <strong>Persistenza</strong> | Nessuna. Ogni chat riparte da zero | Totale. L'agente ricorda tutto |</p>
+<hr />
+<h2>Atto IV — Il Viaggio dell'Agente</h2>
+<p><img src="file:///D:/Project_sw/ProjectPy/truenex-memory/docs/marketing/images/truenex-memory_7.png" alt="Flusso End-to-End" /></p>
+<p>Il ciclo completo in quattro passi:</p>
+<ol>
+<li>
+<p><strong>Discovery</strong> — L'agente esplora le cartelle <code>.codex/</code> e <code>.claude/</code>. Trova progetti, documenti, server. Niente scansioni incontrollate del disco.</p>
+</li>
+<li>
+<p><strong>Index</strong> — Tutto viene parsificato, suddiviso in chunk, vettorizzato e salvato in SQLite. Una volta sola. Poi solo aggiornamenti incrementali.</p>
+</li>
+<li>
+<p><strong>Query</strong> — Inizia una nuova sessione. L'agente interroga il sistema invece di leggere tutto. Riceve esattamente i chunk che servono, classificati per rilevanza.</p>
+</li>
+<li>
+<p><strong>Learn</strong> — Il sistema genera automaticamente memorie dai contenuti ricorrenti. Tu approvi o rifiuti. La conoscenza si stratifica senza gonfiare l'indice.</p>
+</li>
+</ol>
+<hr />
+<h2>I Principi</h2>
+<ul>
+<li><strong>100% Locale</strong> — Un file SQLite nella tua home. Niente cloud, niente account, niente abbonamenti.</li>
+<li><strong>100% Privato</strong> — Zero telemetria. Zero upload di codice o memoria. L'embedder è deterministico, nessun modello da scaricare.</li>
+<li><strong>100% Agent-First</strong> — L'interfaccia è MCP stdio, lo stesso protocollo con cui l'agente parla al filesystem.</li>
+<li><strong>100% Tuo</strong> — Export JSON completo. Se smetti di usarlo, i dati restano tuoi, in formato leggibile.</li>
+</ul>
+<hr />
+<h2>Il Claim</h2>
+<blockquote>
+<p><strong>Non stai pagando per la memoria del tuo agente. Stai pagando per la sua amnesia.</strong></p>
+</blockquote>
+<hr />
+<p><strong>Open Source · Apache 2.0 · Local-First · Privacy-First</strong></p>
+
+</body>
+</html>

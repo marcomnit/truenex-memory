@@ -212,6 +212,43 @@ def test_global_search_excludes_skipped_ledger_chunks() -> None:
     assert report.result_count == 0
 
 
+def test_global_search_deduplicates_chunks_with_multiple_ledger_rows() -> None:
+    wd = _workdir("duplicate_ledger")
+    db_path = wd / "memory.db"
+    source_path = str(wd / "meddesk.md")
+    _add_chunk(
+        db_path,
+        doc_id="doc_meddesk",
+        chunk_id="doc_meddesk_chunk_0",
+        path=source_path,
+        content="MedDesk lead key rotation keeps a legacy public key.",
+    )
+    with connect(db_path) as conn:
+        upsert_ledger_entry(
+            conn,
+            "source_default",
+            source_path,
+            "project_docs",
+            project_name="default",
+            status="active",
+            chunk_count=1,
+        )
+        upsert_ledger_entry(
+            conn,
+            "source_project",
+            source_path,
+            "project_docs",
+            project_name="truenex_memory",
+            status="active",
+            chunk_count=1,
+        )
+
+    report = build_global_search(db_path, "MedDesk lead key rotation")
+
+    assert report.result_count == 1
+    assert report.results[0].id == "doc_meddesk_chunk_0"
+
+
 def test_global_search_strips_metadata_preamble_from_chunk_results() -> None:
     wd = _workdir("metadata")
     db_path = wd / "memory.db"
@@ -234,6 +271,39 @@ def test_global_search_strips_metadata_preamble_from_chunk_results() -> None:
     assert report.results[0].content.startswith("Readable bootstrap")
     assert "TRUENEX_INGESTION_METADATA" not in report.results[0].content_excerpt
     assert "Readable bootstrap content" in text
+
+
+def test_global_search_excludes_trash_and_deduplicates_mirrors() -> None:
+    wd = _workdir("hygiene")
+    db_path = wd / "memory.db"
+    shared = "AGENAS ECM internal regulatory assistant documentation."
+    _add_chunk(
+        db_path,
+        doc_id="doc_project",
+        chunk_id="chunk_project",
+        path="D:/Project_sw/AGENAS.md",
+        content=shared,
+    )
+    _add_chunk(
+        db_path,
+        doc_id="doc_mirror",
+        chunk_id="chunk_mirror",
+        path="D:/GIT/AGENAS.md",
+        content=shared,
+    )
+    _add_chunk(
+        db_path,
+        doc_id="doc_trash",
+        chunk_id="chunk_trash",
+        path="D:/$RECYCLE.BIN/deleted.md",
+        content="Truenex Memory layered architecture.",
+    )
+
+    duplicate_report = build_global_search(db_path, "AGENAS ECM documentation", top_k=10)
+    architecture_report = build_global_search(db_path, "layered architecture", top_k=10)
+
+    assert duplicate_report.result_count == 1
+    assert all("$RECYCLE.BIN" not in (hit.source_path or "") for hit in architecture_report.results)
 
 
 def test_global_search_is_read_only_and_does_not_write_retrieval_logs() -> None:

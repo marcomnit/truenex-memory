@@ -36,7 +36,7 @@ def test_migration_status_does_not_create_missing_database() -> None:
 
     status = migration_status(db_path)
 
-    assert status == {"current_version": "0", "latest_version": "4", "pending": True}
+    assert status == {"current_version": "0", "latest_version": "5", "pending": True}
     assert not db_path.exists()
 
 
@@ -49,7 +49,7 @@ def test_migrate_apply_creates_schema_without_backup_for_new_database() -> None:
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "4"
+    assert result["current_version"] == "5"
     assert result["backup_path"] is None
     assert db_path.exists()
     assert list(backups_dir.glob("*.db")) == []
@@ -65,7 +65,7 @@ def test_migrate_apply_backs_up_existing_database_before_schema_changes() -> Non
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "4"
+    assert result["current_version"] == "5"
     backup_path = Path(str(result["backup_path"]))
     assert backup_path.exists()
     assert backup_path.parent == backups_dir
@@ -89,7 +89,7 @@ def test_migrate_apply_is_idempotent_after_schema_is_current() -> None:
 
     assert first["applied"] is True
     assert second["applied"] is False
-    assert second["current_version"] == "4"
+    assert second["current_version"] == "5"
     assert second["pending"] is False
     assert list(backups_dir.glob("*.db")) == []
 
@@ -167,7 +167,7 @@ def test_cli_migrate_status_json() -> None:
         assert result.exit_code == 0, result.stdout
         data = json.loads(result.stdout)
         assert data["current_version"] == "0"
-        assert data["latest_version"] == "4"
+        assert data["latest_version"] == "5"
         assert data["pending"] is True
     finally:
         os.chdir(orig_cwd)
@@ -209,7 +209,7 @@ def test_cli_migrate_apply_json() -> None:
         data = json.loads(result.stdout)
         assert data["applied"] is True
         assert data["previous_version"] == "0"
-        assert data["current_version"] == "4"
+        assert data["current_version"] == "5"
     finally:
         os.chdir(orig_cwd)
 
@@ -385,7 +385,7 @@ def test_restore_backup_reads_correct_schema_version() -> None:
     fresh_db = workdir / ".truenex-memory-restored" / "truenex_memory.db"
     result = restore_backup(fresh_db, backups_dir, backup_filename)
 
-    assert result["current_version"] == "4"
+    assert result["current_version"] == "5"
 
 
 # ---------------------------------------------------------------------------

@@ -291,6 +291,7 @@ def _index_record(record: IngestionRecord, repository: MemoryRepository) -> int:
             relative_path=relative_path,
             chunks=chunks,
             source_type=record.source_type,
+            update_ledger=False,
         )
     finally:
         try:

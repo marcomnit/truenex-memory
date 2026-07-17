@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from truenex_memory.core.config import ensure_project_dirs, resolve_project_config
@@ -44,6 +45,7 @@ class MemoryService:
             self.config.db_path,
             embedder=self.embedder,
             vector_store=vector_store,
+            project_id=os.environ.get("TRUENEX_PROJECT_ID") or self.config.project_root.name,
         )
 
     def init_project(self) -> None:
@@ -101,6 +103,14 @@ class MemoryService:
     def stats(self) -> dict[str, int]:
         self.init_project()
         return self.repository.stats()
+
+    def get_source(self, source_id: str) -> dict | None:
+        self.init_project()
+        return self.repository.get_source(source_id)
+
+    def catalog_status(self) -> dict:
+        self.init_project()
+        return self.repository.catalog_status()
 
     def list_retrieval_logs(self, *, limit: int = 20) -> list[RetrievalLog]:
         self.init_project()

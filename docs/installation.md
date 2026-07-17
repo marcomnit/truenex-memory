@@ -30,6 +30,16 @@ truenex-mem update self
 
 This works regardless of how you originally installed (pipx or pip).
 
+For releases that change the local database schema, finish with:
+
+```bash
+truenex-mem migrate status
+truenex-mem migrate apply
+truenex-mem version-info
+```
+
+`migrate apply` creates a safety backup before upgrading an existing database.
+
 ## Install from source (developers)
 
 ```bash
