@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import logging
@@ -27,6 +28,17 @@ EXPORT_VERSION = "1"
 PROJECT_ID = os.environ.get("TRUENEX_PROJECT_ID", "default")
 METADATA_MARKER = "TRUENEX_INGESTION_METADATA"
 EXPORT_TABLES = ("documents", "chunks", "memory_nodes", "edges", "retrieval_logs", "schema_migrations")
+
+# Reciprocal Rank Fusion (RRF) constants for merging heterogeneous rankers.
+# RRF_K is the standard rank-smoothing constant (Cormack et al., 2009): it
+# damps the influence of top ranks so rank 1 does not dominate rank 5.
+RRF_K = 60
+# Memories are curated knowledge written explicitly by an agent or a person,
+# not text extracted automatically from a file. At equal position within
+# their own ranking they must outrank document chunks, so their per-source
+# RRF contribution is weighted higher.
+MEMORY_SOURCE_WEIGHT = 1.5
+CHUNK_SOURCE_WEIGHT = 1.0
 
 
 class MemoryRepository:
@@ -232,20 +244,24 @@ class MemoryRepository:
             # Prefer lexical evidence whenever the query occurs in indexed
             # content.  A partially embedded database must not hide relevant
             # unembedded chunks merely because dense search returned a match.
-            hits = _search_memories(conn, tokens, include_inactive, self.project_id)
-            hits.extend(
-                _search_chunks(
-                    conn,
-                    tokens,
-                    self.project_id,
-                    limit=max(top_k * 20, 100),
-                )
+            memory_hits = _search_memories(conn, tokens, include_inactive, self.project_id)
+            chunk_hits = _search_chunks(
+                conn,
+                tokens,
+                self.project_id,
+                limit=max(top_k * 20, 100),
             )
-            hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
-            if not hits:
+            # Filter each source before fusion: memory scores (0.0-1.0) and
+            # chunk BM25 scores (hundreds) are not comparable, so they must be
+            # merged by rank (RRF), never by raw score.
+            memory_hits = [hit for hit in memory_hits if _is_searchable_source_path(hit.source_path)]
+            chunk_hits = [hit for hit in chunk_hits if _is_searchable_source_path(hit.source_path)]
+            if not memory_hits and not chunk_hits:
                 hits = self._search_semantic_chunks(conn, query, top_k)
                 hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
-            hits.sort(key=lambda item: item.score, reverse=True)
+                hits.sort(key=lambda item: item.score, reverse=True)
+            else:
+                hits = _fuse_ranked_hits(memory_hits, chunk_hits)
             results = _deduplicate_search_hits(hits)[:top_k]
             self.last_trace_id = self._record_retrieval_log(conn, query, top_k, results)
             conn.commit()
@@ -1089,13 +1105,91 @@ def _is_searchable_source_path(source_path: str | None) -> bool:
     return not any(segment in normalized for segment in blocked_segments)
 
 
+def _normalized_hit_content(content: str) -> str:
+    """Lowercase with whitespace collapsed; shared by fusion and dedup keys."""
+
+    return " ".join(content.split()).casefold()
+
+
+def _fuse_ranked_hits(
+    memory_hits: list[SearchHit], chunk_hits: list[SearchHit]
+) -> list[SearchHit]:
+    """Merge memory and chunk hits with Reciprocal Rank Fusion (RRF).
+
+    The two sources produce scores on incomparable scales (memories:
+    token-overlap ratio in 0.0-1.0; chunks: rescaled BM25 in the hundreds),
+    so they are ranked independently and merged by *position*, not by raw
+    score::
+
+        fused(hit) = sum over sources of weight_source / (RRF_K + rank_in_source)
+
+    Ranks are 1-based within each source after sorting by that source's own
+    score, descending. ``RRF_K`` (60) is the standard smoothing constant; it
+    damps the gap between adjacent top ranks. ``MEMORY_SOURCE_WEIGHT`` (1.5)
+    versus ``CHUNK_SOURCE_WEIGHT`` (1.0) encodes that memories are curated
+    knowledge written explicitly by an agent or a person, so at equal rank
+    within their own list they outrank document chunks.
+
+    The two sources are disjoint on ``memory_type`` (memories carry their own
+    type, chunks are always ``document_chunk``), so cross-list collisions do
+    not occur in practice. Summing applies only to true duplicates — same
+    normalized content appearing twice within or across the lists (e.g. a
+    mirrored copy of a file). Identity is keyed on ``(memory_type,
+    source_path or document_id, title, normalized_content)``, where
+    ``normalized_content`` is lowercase with whitespace collapsed (the same
+    normalization used by ``_deduplicate_search_hits``), so distinct chunks
+    of the same file and distinct memories sharing a first line never
+    collapse into one another.
+
+    Exposed score scale: each returned hit carries its RRF score in
+    ``score``, rounded to 6 decimals. The theoretical range is::
+
+        (0, (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1)]
+        = (0, ~0.040984]
+
+    a single small positive scale where higher is better. These scores are
+    NOT comparable with scores returned by versions before the RRF fusion
+    (which mixed raw memory ratios and raw BM25 values in one field).
+
+    Known limitation: when lexical search produces no hits at all,
+    ``MemoryRepository.search()`` falls back to dense semantic search, which
+    exposes raw cosine scores on a different scale; those results do not go
+    through this fusion.
+    """
+
+    scores: dict[tuple[str, str, str, str], float] = {}
+    representatives: dict[tuple[str, str, str, str], SearchHit] = {}
+
+    def _accumulate(hits: list[SearchHit], weight: float) -> None:
+        ranked = sorted(hits, key=lambda item: item.score, reverse=True)
+        for rank, hit in enumerate(ranked, start=1):
+            key = (
+                hit.memory_type,
+                hit.source_path or hit.document_id or "",
+                hit.title,
+                _normalized_hit_content(hit.content),
+            )
+            scores[key] = scores.get(key, 0.0) + weight / (RRF_K + rank)
+            representatives.setdefault(key, hit)
+
+    _accumulate(memory_hits, MEMORY_SOURCE_WEIGHT)
+    _accumulate(chunk_hits, CHUNK_SOURCE_WEIGHT)
+
+    merged = [
+        replace(representatives[key], score=round(score, 6))
+        for key, score in scores.items()
+    ]
+    merged.sort(key=lambda item: item.score, reverse=True)
+    return merged
+
+
 def _deduplicate_search_hits(hits: list[SearchHit]) -> list[SearchHit]:
     """Keep the highest-ranked copy of equivalent indexed content."""
 
     unique: list[SearchHit] = []
     seen: set[tuple[str, str]] = set()
     for hit in hits:
-        normalized_content = " ".join(hit.content.split()).casefold()
+        normalized_content = _normalized_hit_content(hit.content)
         key = (hit.memory_type, normalized_content)
         if normalized_content and key in seen:
             continue
