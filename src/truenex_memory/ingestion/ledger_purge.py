@@ -30,9 +30,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 import sqlite3
 
 from truenex_memory.store.sqlite import connect
+
+
+# SQLite variable limit is 999 by default; stay well below it.
+_DELETE_BATCH_SIZE = 500
+
+
+def _batched(seq: list[str], size: int) -> Iterable[list[str]]:
+    """Yield *seq* in consecutive chunks of at most *size* elements."""
+
+    for start in range(0, len(seq), size):
+        yield seq[start : start + size]
 
 
 def _normalize_path_key(path: str) -> str:
@@ -173,6 +185,9 @@ def purge_missing_ledger_entries(
                     report.documents_kept_active_reference += 1
                     continue
                 document_ids.extend(docs_by_path.get(key, []))
+            # Two missing ledger rows can share one path: dedupe so the
+            # counters match what the SQL actually deletes.
+            document_ids = list(dict.fromkeys(document_ids))
             report.documents_to_delete = len(document_ids)
             report.chunks_to_delete = sum(
                 chunk_count_by_doc.get(doc_id, 0) for doc_id in document_ids
@@ -207,19 +222,31 @@ def purge_missing_ledger_entries(
                 pending_documents = 0
                 pending_chunks = 0
                 pending_ledger = 0
-                for doc_id in document_ids:
-                    # The AFTER DELETE trigger chunks_fts_ad removes the
-                    # matching chunks_fts rows automatically.
-                    conn.execute("DELETE FROM chunks WHERE document_id = ?", (doc_id,))
-                    conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
-                    pending_chunks += chunk_count_by_doc.get(doc_id, 0)
-                    pending_documents += 1
-                for row in missing_rows:
+                for batch in _batched(document_ids, _DELETE_BATCH_SIZE):
+                    # Batched IN (...) deletes: with idx_chunks_document_id
+                    # each batch is an index lookup instead of a full table
+                    # scan per document.  The AFTER DELETE trigger
+                    # chunks_fts_ad removes the matching chunks_fts rows.
+                    placeholders = ", ".join("?" for _ in batch)
                     conn.execute(
-                        "DELETE FROM source_ledger WHERE source_id = ? AND status = 'missing'",
-                        (row["source_id"],),
+                        f"DELETE FROM chunks WHERE document_id IN ({placeholders})", batch
                     )
-                    pending_ledger += 1
+                    conn.execute(
+                        f"DELETE FROM documents WHERE id IN ({placeholders})", batch
+                    )
+                    pending_documents += len(batch)
+                pending_chunks = sum(
+                    chunk_count_by_doc.get(doc_id, 0) for doc_id in document_ids
+                )
+                ledger_ids = [str(row["source_id"]) for row in missing_rows]
+                for batch in _batched(ledger_ids, _DELETE_BATCH_SIZE):
+                    placeholders = ", ".join("?" for _ in batch)
+                    conn.execute(
+                        "DELETE FROM source_ledger "
+                        f"WHERE source_id IN ({placeholders}) AND status = 'missing'",
+                        batch,
+                    )
+                    pending_ledger += len(batch)
                 conn.commit()
                 # Publish counters only after the commit succeeded: on a
                 # mid-apply exception the `with` block rolls back and the

@@ -14,7 +14,7 @@ from truenex_memory.store.sqlite import connect, initialize_schema
 
 @pytest.fixture
 def client(tmp_path: Path):
-    """TestClient backed by a temporary SQLite DB (schema v5)."""
+    """TestClient backed by a temporary SQLite DB (schema v6)."""
     db_path = tmp_path / ".truenex-memory" / "truenex_memory.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = connect(db_path)

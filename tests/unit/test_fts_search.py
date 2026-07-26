@@ -50,7 +50,7 @@ def test_schema_v5_backfills_existing_chunks(tmp_path: Path) -> None:
         ).fetchone()[0]
 
     assert count == 1
-    assert version == 5
+    assert version == 6
     assert repository.search("MedDesk rotation", top_k=3)[0].source_path == "docs/meddesk.md"
 
 

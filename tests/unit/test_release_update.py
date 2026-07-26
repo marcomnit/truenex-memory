@@ -18,7 +18,7 @@ def test_version_info_contains_distinct_versions() -> None:
     info = get_version_info()
 
     assert info["app_version"] == truenex_memory.__version__
-    assert info["db_schema_version"] == "5"
+    assert info["db_schema_version"] == "6"
     assert info["mcp_tools_version"] == "1"
     assert info["memory_export_version"] == "1"
     assert info["update_channel"] == "stable"

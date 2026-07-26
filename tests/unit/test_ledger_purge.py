@@ -348,3 +348,55 @@ def test_missing_ledger_entry_without_document_is_purged_cleanly(tmp_path: Path)
     assert report.chunks_deleted == 1
     assert not report.warnings
     assert _counts(db_path)["ledger_missing"] == 0
+
+
+def test_purge_batches_more_than_500_documents(tmp_path: Path) -> None:
+    """SQLite allows at most 999 variables per statement: the purge must
+    batch IN (...) deletes.  1.200 documents exercise 3 batches."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    repository.initialize()
+    db_path = tmp_path / "memory.db"
+    count = 1200
+    with connect(db_path) as conn:
+        conn.executemany(
+            """
+            INSERT INTO documents (
+                id, project_id, path, filename, content_hash,
+                last_indexed_at, created_at, updated_at
+            ) VALUES (?, 'default', ?, ?, 'h', 'now', 'now', 'now')
+            """,
+            [(f"doc_{i}", f"batch/doc_{i}.md", f"doc_{i}.md") for i in range(count)],
+        )
+        conn.executemany(
+            """
+            INSERT INTO chunks (
+                id, document_id, chunk_index, heading_path, content,
+                content_hash, token_count, created_at, updated_at
+            ) VALUES (?, ?, 0, NULL, ?, 'ch', 5, 'now', 'now')
+            """,
+            [(f"doc_{i}_chunk_0", f"doc_{i}", f"batchtoken content {i}") for i in range(count)],
+        )
+        conn.executemany(
+            """
+            INSERT INTO source_ledger (
+                source_id, source_path_or_alias, source_type, status,
+                created_at, updated_at
+            ) VALUES (?, ?, 'document', 'missing', 'now', 'now')
+            """,
+            [(f"src_{i}", f"batch/doc_{i}.md") for i in range(count)],
+        )
+        conn.commit()
+
+    report = purge_missing_ledger_entries(db_path, apply=True)
+
+    assert report.ledger_deleted == count
+    assert report.documents_deleted == count
+    assert report.chunks_deleted == count
+    assert not report.warnings
+    assert _counts(db_path) == {
+        "ledger_missing": 0,
+        "ledger_total": 0,
+        "documents": 0,
+        "chunks": 0,
+        "fts": 0,
+    }

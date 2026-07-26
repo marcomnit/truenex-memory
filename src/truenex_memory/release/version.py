@@ -8,7 +8,7 @@ from truenex_memory import __version__
 
 
 APP_VERSION = __version__
-DB_SCHEMA_VERSION = "5"
+DB_SCHEMA_VERSION = "6"
 MCP_TOOLS_VERSION = "1"
 LICENSE_FORMAT_VERSION = "1"
 MEMORY_EXPORT_VERSION = "1"

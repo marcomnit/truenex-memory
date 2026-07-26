@@ -48,4 +48,4 @@ def test_store_creates_base_schema() -> None:
         }
 
         assert "memories" in table_names
-        assert store.schema_version() == 5
+        assert store.schema_version() == 6

@@ -9,7 +9,12 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = "5"
+SCHEMA_VERSION = "6"
+# Schema version that introduced the chunks_fts external-content index and
+# its backfill.  The FTS rebuild must trigger only when THIS version's work
+# is pending, not on every later version bump (an index-only migration
+# must not reindex hundreds of thousands of chunks).
+FTS_INTRODUCED_VERSION = "5"
 
 
 @dataclass(frozen=True)
@@ -174,16 +179,41 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
           created_at       TEXT NOT NULL,
           FOREIGN KEY(task_id) REFERENCES tasks(task_id) ON DELETE CASCADE
         );
+
+        -- Secondary indexes (schema v6): without them, per-document
+        -- deletes (ledger purge) and per-path ledger lookups (global
+        -- search FTS candidate filtering) degenerate into full table
+        -- scans on large stores.
+        CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
+        CREATE INDEX IF NOT EXISTS idx_source_ledger_path ON source_ledger(source_path_or_alias);
+        CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path);
         """
     )
     _ensure_column(conn, "chunks", "embedding_model", "TEXT")
     _ensure_column(conn, "chunks", "embedding_vector_json", "TEXT")
+    fts_available = _ensure_chunks_fts(conn)
     fts_migration_pending = conn.execute(
         "SELECT 1 FROM schema_migrations WHERE version = ?",
-        (SCHEMA_VERSION,),
+        (FTS_INTRODUCED_VERSION,),
     ).fetchone() is None
-    if _ensure_chunks_fts(conn) and fts_migration_pending:
+    fts_backfill_needed = fts_migration_pending
+    if fts_available and not fts_migration_pending:
+        # Self-heal: the v5 row may be recorded while the backfill never
+        # happened or was undone (e.g. a Python build without FTS5 at v5
+        # time, or a manual DROP TABLE chunks_fts).  Rebuild when the FTS
+        # index is empty but chunks exist.  LIMIT 1 probes are O(1)-ish,
+        # unlike COUNT(*) on the FTS index.  Fresh empty databases have no
+        # chunks, so they never trigger a spurious backfill.
+        chunks_populated = conn.execute("SELECT 1 FROM chunks LIMIT 1").fetchone() is not None
+        if chunks_populated:
+            fts_empty = conn.execute("SELECT 1 FROM chunks_fts LIMIT 1").fetchone() is None
+            fts_backfill_needed = fts_empty
+    if fts_available and fts_backfill_needed:
         rebuild_chunks_fts(conn)
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, datetime('now'))",
+            (FTS_INTRODUCED_VERSION,),
+        )
     conn.execute(
         "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, datetime('now'))",
         (SCHEMA_VERSION,),
