@@ -9,7 +9,11 @@ from dataclasses import dataclass
 
 SOURCE_TYPE_BOOST: dict[str, float] = {
     "project_docs": 1.0,
-    "agent_session": 0.75,
+    # Past session transcripts are not verified facts: letting them compete
+    # at full weight with authoritative documents creates a self-confirmation
+    # loop (an agent retrieves things an agent said, not checked evidence).
+    # They stay retrievable, but rank below documents.
+    "agent_session": 0.5,
 }
 DEFAULT_SOURCE_BOOST = 0.85
 

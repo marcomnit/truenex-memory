@@ -18,6 +18,12 @@ DEFAULT_EXCLUDED_DIRS = {
     "site-packages", "dist-info", ".conda", "conda-meta",
     "dist", "build", ".eggs", ".ruff_cache", ".coverage",
     ".idea", ".vscode", ".history", ".DS_Store",
+    # Agent worktrees (e.g. `.claude/worktrees/agent-*`) are ephemeral
+    # copies of the repository: indexing them makes search return outdated
+    # duplicates of files that changed in the real working tree.
+    # The exclusion matches ANY directory named `worktrees` at any depth,
+    # not only `.claude/worktrees`.
+    "worktrees",
 }
 
 DEFAULT_EXCLUDED_DIR_PREFIXES = (

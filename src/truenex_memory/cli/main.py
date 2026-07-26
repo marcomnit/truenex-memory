@@ -69,6 +69,10 @@ from truenex_memory.ingestion.global_source_health import (
     build_source_health,
     format_source_health_report,
 )
+from truenex_memory.ingestion.ledger_purge import (
+    format_ledger_purge_report,
+    purge_missing_ledger_entries,
+)
 from truenex_memory.ingestion.global_auto_status import (
     build_auto_status,
     format_auto_status_report,
@@ -1110,6 +1114,61 @@ def sources_cleanup(
         typer.echo(format_source_health_report(report))
         if not yes:
             typer.echo("\n(dry-run, pass --yes to apply cleanup)")
+
+
+@sources_app.command("purge-missing")
+def sources_purge_missing(
+    home: Path = typer.Option(
+        Path.home(),
+        "--home",
+        help="User home directory for default paths.",
+    ),
+    db: Path | None = typer.Option(
+        None,
+        "--db",
+        help="Path to the SQLite database (default: <home>/.truenex-memory/truenex_memory.db).",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Apply the purge (delete rows)."),
+    path_filter: list[str] | None = typer.Option(
+        None,
+        "--path-filter",
+        help="Case-insensitive substring filter on source paths; repeatable. "
+        "Only missing entries matching at least one filter are purged.",
+    ),
+    sample: int = typer.Option(
+        10,
+        "--sample",
+        min=0,
+        max=100,
+        help="Max sample paths to show in dry-run.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print report as JSON."),
+) -> None:
+    """Permanently delete ledger entries marked `missing` and their content.
+
+    Dry-run by default.  With --yes, deletes source_ledger rows with
+    status 'missing', plus the documents whose path matches a purged
+    source_path_or_alias and all their chunks (FTS rows are removed by the
+    chunks delete trigger).  Documents whose path is still referenced by a
+    non-missing ledger row are never deleted.  Unlike `cleanup`, this
+    command frees disk space and removes stale evidence from search.
+    Note: future reindexing skips any directory named `worktrees` at any
+    depth (see core/exclusions.py), so purged worktree copies stay out.
+    """
+    db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
+    report = purge_missing_ledger_entries(
+        db_path,
+        apply=yes,
+        path_filters=path_filter,
+        sample_limit=sample,
+    )
+
+    if json_output:
+        typer.echo(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        typer.echo(format_ledger_purge_report(report))
+        if not yes:
+            typer.echo("\n(dry-run, pass --yes to apply the purge)")
 
 
 def _filter_catalog_entries(

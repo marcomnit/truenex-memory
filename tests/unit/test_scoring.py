@@ -24,7 +24,7 @@ def test_bm25_empty_corpus_returns_empty() -> None:
 
 def test_source_boost_values() -> None:
     assert source_boost("project_docs") == 1.0
-    assert source_boost("agent_session") == 0.75
+    assert source_boost("agent_session") == 0.5
     assert source_boost(None) == 0.85
     assert source_boost("unknown_type") == 0.85
 
