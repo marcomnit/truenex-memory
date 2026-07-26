@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 import re
 import sqlite3
 
+from truenex_memory.retrieval.fusion import (
+    CHUNK_SOURCE_WEIGHT,
+    MEMORY_SOURCE_WEIGHT,
+    reciprocal_rank_fusion,
+)
 from truenex_memory.store.sqlite import chunks_fts_available
 
 
@@ -16,6 +21,9 @@ ACTIVE_MEMORY_STATUSES = ("active", "unverified")
 EXCLUDED_LEDGER_STATUSES = ("missing", "skipped")
 METADATA_MARKER = "TRUENEX_INGESTION_METADATA"
 GLOBAL_SEARCH_KINDS = frozenset({"all", "memory", "chunks"})
+# Marker exposed in JSON reports so consumers know result scores are
+# Reciprocal Rank Fusion scores (not raw pre-RRF mixed-scale values).
+SCORE_SCALE_MARKER = "rrf-k60"
 
 
 @dataclass(frozen=True)
@@ -78,6 +86,7 @@ class GlobalSearchReport:
             "top_k": self.top_k,
             "include_inactive": self.include_inactive,
             "kind_filter": self.kind_filter,
+            "score_scale": SCORE_SCALE_MARKER,
             "result_count": self.result_count,
             "results": [item.to_dict() for item in self.results],
             "warnings": self.warnings,
@@ -93,7 +102,20 @@ def build_global_search(
     kind_filter: str = "all",
     excerpt_chars: int = DEFAULT_EXCERPT_CHARS,
 ) -> GlobalSearchReport:
-    """Search the global SQLite store without creating or mutating anything."""
+    """Search the global SQLite store without creating or mutating anything.
+
+    Memory nodes and document chunks are ranked independently and merged
+    with Reciprocal Rank Fusion (see
+    `truenex_memory.retrieval.fusion.reciprocal_rank_fusion`): their raw
+    scores live on incomparable scales (memories 0-10, chunks BM25 in the
+    hundreds on large indexes), so merging by raw score would always bury
+    memories below chunks.  The exposed ``score`` is the RRF score: a
+    single small positive scale, theoretical maximum
+    ``(MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1) ≈ 0.041``,
+    higher is better, NOT comparable with scores returned before the RRF
+    fusion.  With ``kind_filter="memory"`` or ``"chunks"`` a single source
+    is active and the fusion degenerates to that source's own ranking.
+    """
     if top_k < 1:
         raise ValueError("top_k must be greater than zero")
     if excerpt_chars < 80:
@@ -125,22 +147,36 @@ def build_global_search(
         return report
 
     try:
-        hits: list[GlobalSearchHit] = []
+        memory_hits: list[GlobalSearchHit] = []
         if kind_filter in ("all", "memory") and _table_exists(conn, "memory_nodes"):
-            hits.extend(_search_memory_nodes(conn, tokens, include_inactive, excerpt_chars))
+            memory_hits = _search_memory_nodes(conn, tokens, include_inactive, excerpt_chars)
         elif kind_filter in ("all", "memory"):
             report.warnings.append("memory_nodes table not found")
 
+        chunk_hits: list[GlobalSearchHit] = []
         if (
             kind_filter in ("all", "chunks")
             and _table_exists(conn, "chunks")
             and _table_exists(conn, "documents")
         ):
-            hits.extend(_search_chunks(conn, tokens, excerpt_chars, top_k=top_k))
+            chunk_hits = _search_chunks(conn, tokens, excerpt_chars, top_k=top_k)
         elif kind_filter in ("all", "chunks"):
             report.warnings.append("documents/chunks tables not found")
 
-        hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
+        # Filter each source before fusion: memory scores (0-10) and chunk
+        # BM25 scores (hundreds) are not comparable, so they must be merged
+        # by rank (RRF), never by raw score.
+        memory_hits = [hit for hit in memory_hits if _is_searchable_source_path(hit.source_path)]
+        chunk_hits = [hit for hit in chunk_hits if _is_searchable_source_path(hit.source_path)]
+        fused = reciprocal_rank_fusion(
+            [
+                (MEMORY_SOURCE_WEIGHT, memory_hits),
+                (CHUNK_SOURCE_WEIGHT, chunk_hits),
+            ],
+            key_fn=_global_hit_identity,
+            score_fn=lambda hit: hit.score,
+        )
+        hits = [replace(hit, score=score) for score, hit in fused]
         hits.sort(key=lambda item: (-item.score, _kind_rank(item.kind), item.title, item.id))
         report.results = _deduplicate_global_hits(hits)[:top_k]
         report.result_count = len(report.results)
@@ -193,6 +229,13 @@ def _search_memory_nodes(
     include_inactive: bool,
     excerpt_chars: int,
 ) -> list[GlobalSearchHit]:
+    """Memory-node candidates for global search.
+
+    Known divergence from the MCP path: this ranker also matches tokens
+    against ``source_path``, while `_search_memories` in
+    `store/repository.py` matches only title+content — the two paths can
+    produce different memory candidate sets for the same query.
+    """
     if include_inactive:
         rows = conn.execute("SELECT * FROM memory_nodes").fetchall()
     else:
@@ -450,6 +493,21 @@ def _is_searchable_source_path(source_path: str | None) -> bool:
         "/.trashes/",
     )
     return not any(segment in normalized for segment in blocked_segments)
+
+
+def _global_hit_identity(hit: GlobalSearchHit) -> tuple[str, str, str, str]:
+    """Fusion identity key, aligned with `store.repository._fuse_ranked_hits`.
+
+    ``kind`` keeps the two sources disjoint (``memory_node`` vs
+    ``document_chunk``), so cross-source collisions never occur; the
+    normalized content keeps distinct chunks of the same file (same
+    source_path, same title fallback) and distinct memories sharing a
+    title separate, while true duplicates (same content, e.g. mirrored
+    copies) still merge and sum their RRF contributions.
+    """
+
+    normalized_content = " ".join(hit.content.split()).casefold()
+    return (hit.kind, hit.source_path or hit.id, hit.title, normalized_content)
 
 
 def _deduplicate_global_hits(hits: list[GlobalSearchHit]) -> list[GlobalSearchHit]:

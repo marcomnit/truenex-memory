@@ -30,6 +30,9 @@ METADATA_MARKER = "TRUENEX_INGESTION_METADATA"
 EXPORT_TABLES = ("documents", "chunks", "memory_nodes", "edges", "retrieval_logs", "schema_migrations")
 
 # Reciprocal Rank Fusion (RRF) constants for merging heterogeneous rankers.
+# These values are duplicated in truenex_memory.retrieval.fusion (used by
+# the CLI `global search` path); the two copies MUST stay aligned — a
+# parity test in tests/unit/test_global_search_fusion.py enforces it.
 # RRF_K is the standard rank-smoothing constant (Cormack et al., 2009): it
 # damps the influence of top ranks so rank 1 does not dominate rank 5.
 RRF_K = 60
@@ -1142,14 +1145,18 @@ def _fuse_ranked_hits(
     collapse into one another.
 
     Exposed score scale: each returned hit carries its RRF score in
-    ``score``, rounded to 6 decimals. The theoretical range is::
+    ``score``, rounded to 6 decimals, on a single small positive scale
+    where higher is better.  The value below is the maximum for a hit
+    appearing *once per list*; it is NOT a hard bound, because true
+    duplicates (same normalized content, e.g. mirrored copies) sum their
+    RRF contributions and can exceed it::
 
-        (0, (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1)]
-        = (0, ~0.040984]
+        (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1)
+        = ~0.040984
 
-    a single small positive scale where higher is better. These scores are
-    NOT comparable with scores returned by versions before the RRF fusion
-    (which mixed raw memory ratios and raw BM25 values in one field).
+    These scores are NOT comparable with scores returned by versions
+    before the RRF fusion (which mixed raw memory ratios and raw BM25
+    values in one field).
 
     Known limitation: when lexical search produces no hits at all,
     ``MemoryRepository.search()`` falls back to dense semantic search, which

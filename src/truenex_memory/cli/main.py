@@ -1413,7 +1413,13 @@ def global_search(
     ),
     json_output: bool = typer.Option(False, "--json", help="Print report as JSON."),
 ) -> None:
-    """Search the global store without mutating retrieval logs or DB state."""
+    """Search the global store without mutating retrieval logs or DB state.
+
+    Result scores are Reciprocal Rank Fusion scores on a single small
+    positive scale (max ~0.041): memory nodes and document chunks are
+    ranked independently and merged by position, so curated memories are
+    never buried by raw BM25 score magnitude.
+    """
     if kind not in GLOBAL_SEARCH_KINDS:
         expected = ", ".join(sorted(GLOBAL_SEARCH_KINDS))
         raise typer.BadParameter(f"invalid kind {kind!r}; expected one of {expected}")
