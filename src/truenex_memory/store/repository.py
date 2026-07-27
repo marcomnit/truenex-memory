@@ -15,7 +15,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 from truenex_memory.core.chunker import TextChunk, content_hash
-from truenex_memory.retrieval.fusion import MEMORY_FUSION_MIN_OVERLAP
+from truenex_memory.retrieval.fusion import DENSE_SOURCE_WEIGHT, MEMORY_FUSION_MIN_OVERLAP
 from truenex_memory.retrieval.semantic import Embedder, VectorMatch, VectorPoint, VectorStore, chunk_point_id
 from truenex_memory.store.qdrant_store import VectorSearchHit
 from truenex_memory.store.models import MemoryNode, RetrievalLog, SearchHit, VALID_STATUSES
@@ -34,9 +34,10 @@ EXPORT_TABLES = ("documents", "chunks", "memory_nodes", "edges", "retrieval_logs
 # These values are duplicated in truenex_memory.retrieval.fusion (used by
 # the CLI `global search` path); the two copies MUST stay aligned — a
 # parity test in tests/unit/test_global_search_fusion.py enforces it.
-# MEMORY_FUSION_MIN_OVERLAP (the pre-fusion memory relevance gate) is NOT
-# duplicated: it is imported from truenex_memory.retrieval.fusion, the
-# single source for it.
+# MEMORY_FUSION_MIN_OVERLAP (the pre-fusion memory relevance gate) and
+# DENSE_SOURCE_WEIGHT (the semantic third ranker, MCP path only) are NOT
+# duplicated: they are imported from truenex_memory.retrieval.fusion, the
+# single source for them.
 # RRF_K is the standard rank-smoothing constant (Cormack et al., 2009): it
 # damps the influence of top ranks so rank 1 does not dominate rank 5.
 RRF_K = 60
@@ -190,7 +191,17 @@ class MemoryRepository:
             vector_points: list[VectorPoint] = []
             for chunk in chunks:
                 chunk_id = f"{doc_id}_chunk_{chunk.index}"
-                embedding_vector = self.embedder.embed(chunk.content) if self.embedder is not None else None
+                # Use embed_documents (asymmetric "passage: " prefix for e5)
+                # when the embedder exposes it — same getattr pattern as
+                # embed_query in _search_semantic_chunks — so chunks indexed
+                # after activation get correctly prefixed vectors.
+                embedding_vector: list[float] | None = None
+                if self.embedder is not None:
+                    embed_documents = getattr(self.embedder, "embed_documents", None)
+                    if callable(embed_documents):
+                        embedding_vector = embed_documents([chunk.content])[0]
+                    else:
+                        embedding_vector = self.embedder.embed(chunk.content)
                 point_id = chunk_point_id(chunk_id) if embedding_vector is not None else None
                 conn.execute(
                     """
@@ -281,12 +292,32 @@ class MemoryRepository:
                 memory_hits = [
                     hit for hit in memory_hits if hit.score >= MEMORY_FUSION_MIN_OVERLAP
                 ]
-            if not memory_hits and not chunk_hits:
+            # Dense (semantic) candidates as a third RRF ranker, computed
+            # ALWAYS when the active embedder is a real semantic backend
+            # (not the hashing fallback) — the old "only when lexical is
+            # empty" fallback made dense search unreachable in practice.
+            # The SQL in _sqlite_vector_matches filters by
+            # chunks.embedding_model, so with no vectors for the active
+            # model (e.g. before reindex) this returns [] cheaply and the
+            # fusion stays lexical-only.
+            dense_hits: list[SearchHit] = []
+            if self._dense_ranker_enabled():
+                dense_hits = self._search_semantic_chunks(
+                    conn, query, max(top_k * 20, 100)
+                )
+                dense_hits = [
+                    hit for hit in dense_hits if _is_searchable_source_path(hit.source_path)
+                ]
+            if not memory_hits and not chunk_hits and not dense_hits:
+                # Legacy fallback (extrema ratio): no lexical hits AND no
+                # dense candidates — e.g. hashing embedder with its own
+                # vectors, or a semantic model with no vectors yet. Kept for
+                # backwards compatibility with pre-RRF dense behavior.
                 hits = self._search_semantic_chunks(conn, query, top_k)
                 hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
                 hits.sort(key=lambda item: item.score, reverse=True)
             else:
-                hits = _fuse_ranked_hits(memory_hits, chunk_hits)
+                hits = _fuse_ranked_hits(memory_hits, chunk_hits, dense_hits)
             results = _deduplicate_search_hits(hits)[:top_k]
             self.last_trace_id = self._record_retrieval_log(conn, query, top_k, results)
             conn.commit()
@@ -465,6 +496,31 @@ class MemoryRepository:
     def _semantic_enabled(self) -> bool:
         return self.embedder is not None and self.vector_store is not None
 
+    def _dense_ranker_enabled(self) -> bool:
+        """True when the active embedder is a real semantic backend.
+
+        The hashing fallback embedder produces vectors with no semantic
+        content: using them as an always-on RRF ranker would inject noise
+        into every search. Its vectors are only used by the legacy fallback
+        (lexical completely empty). Detection prefers the embedder's
+        metadata backend and falls back to the persisted model_name prefix.
+
+        Kill-switch: TRUENEX_DENSE=off (case-insensitive, default on)
+        disables the dense ranker / vector index without changing the
+        active embedder — useful on small machines, during reindex
+        windows, or for debugging.
+        """
+
+        if os.environ.get("TRUENEX_DENSE", "on").strip().lower() == "off":
+            return False
+        if self.embedder is None:
+            return False
+        metadata = getattr(self.embedder, "metadata", None)
+        backend = getattr(metadata, "backend", None)
+        if backend is not None:
+            return backend != "hashing"
+        return not str(getattr(self.embedder, "model_name", "")).startswith("hashing-fallback:")
+
     def _search_semantic_chunks(
         self,
         conn: sqlite3.Connection,
@@ -474,9 +530,26 @@ class MemoryRepository:
         if self.embedder is None:
             return []
         assert self.embedder is not None
-        query_vector = self.embedder.embed(query)
+        # Use the asymmetric query prefix when the embedder provides it
+        # (e5 family requires "query: " / "passage: " prefixes).
+        embed_query = getattr(self.embedder, "embed_query", None)
+        if callable(embed_query):
+            query_vector = embed_query(query)
+        else:
+            query_vector = self.embedder.embed(query)
         matches = self._vector_store_matches(query_vector, top_k)
+        used_vector_index = False
         if not matches:
+            # Fast path: in-process numpy matrix (BLAS matvec) cached per
+            # (db_path, embedding_model). Returns None when numpy is missing
+            # (legacy Python scan below) or the model has no vectors.
+            from truenex_memory.retrieval.vector_index import get_index, search_index
+
+            index = get_index(self.db_path, conn, self.embedder.model_name)
+            if index is not None:
+                matches = search_index(index, query_vector, top_k)
+                used_vector_index = True
+        if not matches and not used_vector_index:
             matches = _sqlite_vector_matches(
                 conn,
                 query_vector,
@@ -486,31 +559,15 @@ class MemoryRepository:
         if not matches:
             return []
 
+        # Hydrate chunk rows in ONE batched query per 500 matches (uses
+        # idx_chunks_qdrant_point, schema v7) instead of N point lookups;
+        # rows are then reordered to match the vector-search ranking.
+        rows_by_point_id = _hydrate_chunks_by_point_ids(
+            conn, [match.point_id for match in matches]
+        )
         hits: list[SearchHit] = []
         for match in matches:
-            row = conn.execute(
-                """
-                WITH ledger_ranked AS (
-                    SELECT *, ROW_NUMBER() OVER (
-                        PARTITION BY source_path_or_alias
-                        ORDER BY updated_at DESC, rowid DESC
-                    ) AS recency_rank
-                    FROM source_ledger
-                ), ledger_by_path AS (
-                    SELECT source_path_or_alias, source_id, project_name,
-                           CASE WHEN status NOT IN ('missing', 'skipped') THEN 1 ELSE 0 END AS allowed
-                    FROM ledger_ranked
-                    WHERE recency_rank = 1
-                )
-                SELECT c.*, d.path, sl.source_id, sl.project_name
-                FROM chunks c
-                JOIN documents d ON d.id = c.document_id
-                LEFT JOIN ledger_by_path sl ON sl.source_path_or_alias = d.path
-                WHERE c.qdrant_point_id = ?
-                  AND COALESCE(sl.allowed, 1) = 1
-                """,
-                (match.point_id,),
-            ).fetchone()
+            row = rows_by_point_id.get(match.point_id)
             if row is None:
                 continue
             searchable_content = _strip_metadata_preamble(str(row["content"] or ""))
@@ -1137,14 +1194,16 @@ def _normalized_hit_content(content: str) -> str:
 
 
 def _fuse_ranked_hits(
-    memory_hits: list[SearchHit], chunk_hits: list[SearchHit]
+    memory_hits: list[SearchHit],
+    chunk_hits: list[SearchHit],
+    dense_hits: list[SearchHit] | None = None,
 ) -> list[SearchHit]:
     """Merge memory and chunk hits with Reciprocal Rank Fusion (RRF).
 
-    The two sources produce scores on incomparable scales (memories:
-    token-overlap ratio in 0.0-1.0; chunks: rescaled BM25 in the hundreds),
-    so they are ranked independently and merged by *position*, not by raw
-    score::
+    The sources produce scores on incomparable scales (memories:
+    token-overlap ratio in 0.0-1.0; lexical chunks: rescaled BM25 in the
+    hundreds; dense chunks: cosine 0.0-1.0), so they are ranked
+    independently and merged by *position*, not by raw score::
 
         fused(hit) = sum over sources of weight_source / (RRF_K + rank_in_source)
 
@@ -1154,36 +1213,37 @@ def _fuse_ranked_hits(
     versus ``CHUNK_SOURCE_WEIGHT`` (1.0) encodes that memories are curated
     knowledge written explicitly by an agent or a person, so at equal rank
     within their own list they outrank document chunks.
+    ``DENSE_SOURCE_WEIGHT`` (0.9) lets semantic candidates support lexical
+    ones without overwhelming them.
 
-    The two sources are disjoint on ``memory_type`` (memories carry their own
-    type, chunks are always ``document_chunk``), so cross-list collisions do
-    not occur in practice. Summing applies only to true duplicates — same
-    normalized content appearing twice within or across the lists (e.g. a
-    mirrored copy of a file). Identity is keyed on ``(memory_type,
-    source_path or document_id, title, normalized_content)``, where
-    ``normalized_content`` is lowercase with whitespace collapsed (the same
-    normalization used by ``_deduplicate_search_hits``), so distinct chunks
-    of the same file and distinct memories sharing a first line never
-    collapse into one another.
+    The optional third source (``dense_hits``) carries the SAME chunk
+    identity as the lexical source (``document_chunk`` type, same title and
+    stripped content), so a chunk found by BOTH rankers sums its RRF
+    contributions — the intended "corroborated by semantics" boost. This
+    works because identity is keyed on ``(memory_type, source_path or
+    document_id, title, normalized_content)`` and both rankers build hits
+    from the same chunk rows. Distinct chunks of the same file and distinct
+    memories sharing a first line never collapse into one another.
 
     Exposed score scale: each returned hit carries its RRF score in
     ``score``, rounded to 6 decimals, on a single small positive scale
     where higher is better.  The value below is the maximum for a hit
     appearing *once per list*; it is NOT a hard bound, because true
-    duplicates (same normalized content, e.g. mirrored copies) sum their
-    RRF contributions and can exceed it::
+    duplicates (same normalized content, e.g. mirrored copies, or a chunk
+    found by both lexical and dense rankers) sum their RRF contributions
+    and can exceed it::
 
-        (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1)
-        = ~0.040984
+        (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT + DENSE_SOURCE_WEIGHT) / (RRF_K + 1)
+        = ~0.055738
 
     These scores are NOT comparable with scores returned by versions
     before the RRF fusion (which mixed raw memory ratios and raw BM25
     values in one field).
 
-    Known limitation: when lexical search produces no hits at all,
-    ``MemoryRepository.search()`` falls back to dense semantic search, which
-    exposes raw cosine scores on a different scale; those results do not go
-    through this fusion.
+    Known limitation: the legacy fallback in ``MemoryRepository.search()``
+    (dense-only, when lexical finds nothing and no dense candidates join
+    the fusion) exposes raw cosine scores on a different scale; those
+    results do not go through this fusion.
     """
 
     scores: dict[tuple[str, str, str, str], float] = {}
@@ -1203,6 +1263,8 @@ def _fuse_ranked_hits(
 
     _accumulate(memory_hits, MEMORY_SOURCE_WEIGHT)
     _accumulate(chunk_hits, CHUNK_SOURCE_WEIGHT)
+    if dense_hits:
+        _accumulate(dense_hits, DENSE_SOURCE_WEIGHT)
 
     merged = [
         replace(representatives[key], score=round(score, 6))
@@ -1289,6 +1351,53 @@ def _cosine(left: list[float], right: list[float]) -> float:
     if len(left) != len(right) or not left:
         return 0.0
     return sum(a * b for a, b in zip(left, right, strict=True))
+
+
+_HYDRATION_BATCH_SIZE = 500
+
+
+def _hydrate_chunks_by_point_ids(
+    conn: sqlite3.Connection, point_ids: list[str]
+) -> dict[str, sqlite3.Row]:
+    """Fetch chunk rows for vector matches in batches of 500.
+
+    Replaces the old one-query-per-match hydration (N round-trips, each a
+    full scan before schema v7). Uses ``idx_chunks_qdrant_point``; the
+    ledger filter (``allowed``) is applied here so blocked sources never
+    hydrate, keeping parity with the legacy per-match query. Returns a
+    ``point_id -> row`` map; callers reorder by vector-search ranking.
+    """
+
+    rows_by_point_id: dict[str, sqlite3.Row] = {}
+    for offset in range(0, len(point_ids), _HYDRATION_BATCH_SIZE):
+        batch = point_ids[offset : offset + _HYDRATION_BATCH_SIZE]
+        placeholders = ", ".join("?" for _ in batch)
+        rows = conn.execute(
+            f"""
+            WITH ledger_ranked AS (
+                SELECT *, ROW_NUMBER() OVER (
+                    PARTITION BY source_path_or_alias
+                    ORDER BY updated_at DESC, rowid DESC
+                ) AS recency_rank
+                FROM source_ledger
+            ), ledger_by_path AS (
+                SELECT source_path_or_alias, source_id, project_name,
+                       CASE WHEN status NOT IN ('missing', 'skipped') THEN 1 ELSE 0 END AS allowed
+                FROM ledger_ranked
+                WHERE recency_rank = 1
+            )
+            SELECT c.*, d.path, sl.source_id, sl.project_name
+            FROM chunks c
+            JOIN documents d ON d.id = c.document_id
+            LEFT JOIN ledger_by_path sl ON sl.source_path_or_alias = d.path
+            WHERE c.qdrant_point_id IN ({placeholders})
+              AND COALESCE(sl.allowed, 1) = 1
+            """,
+            batch,
+        ).fetchall()
+        for row in rows:
+            rows_by_point_id[str(row["qdrant_point_id"])] = row
+    return rows_by_point_id
 
 
 def _rows(conn: sqlite3.Connection, table: str) -> list[dict[str, object]]:

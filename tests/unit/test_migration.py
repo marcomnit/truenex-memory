@@ -36,7 +36,7 @@ def test_migration_status_does_not_create_missing_database() -> None:
 
     status = migration_status(db_path)
 
-    assert status == {"current_version": "0", "latest_version": "6", "pending": True}
+    assert status == {"current_version": "0", "latest_version": "7", "pending": True}
     assert not db_path.exists()
 
 
@@ -49,7 +49,7 @@ def test_migrate_apply_creates_schema_without_backup_for_new_database() -> None:
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "6"
+    assert result["current_version"] == "7"
     assert result["backup_path"] is None
     assert db_path.exists()
     assert list(backups_dir.glob("*.db")) == []
@@ -65,7 +65,7 @@ def test_migrate_apply_backs_up_existing_database_before_schema_changes() -> Non
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "6"
+    assert result["current_version"] == "7"
     backup_path = Path(str(result["backup_path"]))
     assert backup_path.exists()
     assert backup_path.parent == backups_dir
@@ -89,7 +89,7 @@ def test_migrate_apply_is_idempotent_after_schema_is_current() -> None:
 
     assert first["applied"] is True
     assert second["applied"] is False
-    assert second["current_version"] == "6"
+    assert second["current_version"] == "7"
     assert second["pending"] is False
     assert list(backups_dir.glob("*.db")) == []
 
@@ -167,7 +167,7 @@ def test_cli_migrate_status_json() -> None:
         assert result.exit_code == 0, result.stdout
         data = json.loads(result.stdout)
         assert data["current_version"] == "0"
-        assert data["latest_version"] == "6"
+        assert data["latest_version"] == "7"
         assert data["pending"] is True
     finally:
         os.chdir(orig_cwd)
@@ -209,7 +209,7 @@ def test_cli_migrate_apply_json() -> None:
         data = json.loads(result.stdout)
         assert data["applied"] is True
         assert data["previous_version"] == "0"
-        assert data["current_version"] == "6"
+        assert data["current_version"] == "7"
     finally:
         os.chdir(orig_cwd)
 
@@ -385,7 +385,7 @@ def test_restore_backup_reads_correct_schema_version() -> None:
     fresh_db = workdir / ".truenex-memory-restored" / "truenex_memory.db"
     result = restore_backup(fresh_db, backups_dir, backup_filename)
 
-    assert result["current_version"] == "6"
+    assert result["current_version"] == "7"
 
 
 # ---------------------------------------------------------------------------
@@ -594,11 +594,13 @@ def test_initialize_upgrades_v5_db_to_v6_with_secondary_indexes(tmp_path) -> Non
             """
         )
         conn.commit()
-        # Simulate the v5 end-state: no v6 row, no secondary indexes.
+        # Simulate the v5 end-state: no v6+ row, no secondary indexes.
         conn.execute("DROP INDEX IF EXISTS idx_chunks_document_id")
         conn.execute("DROP INDEX IF EXISTS idx_source_ledger_path")
         conn.execute("DROP INDEX IF EXISTS idx_documents_path")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '6'")
+        conn.execute("DROP INDEX IF EXISTS idx_chunks_qdrant_point")
+        conn.execute("DROP INDEX IF EXISTS idx_chunks_embedding_model")
+        conn.execute("DELETE FROM schema_migrations WHERE version IN ('6', '7')")
         conn.commit()
         fts_count_before = conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0]
 
@@ -614,18 +616,85 @@ def test_initialize_upgrades_v5_db_to_v6_with_secondary_indexes(tmp_path) -> Non
             "idx_chunks_document_id",
             "idx_source_ledger_path",
             "idx_documents_path",
+            "idx_chunks_qdrant_point",
         } <= indexes
         versions = {
             row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
         }
-        # v5 stays recorded (its FTS backfill is NOT re-run) and v6 is added.
+        # v5 stays recorded (its FTS backfill is NOT re-run) and the current
+        # schema version (v7, which also creates the v6 indexes) is added.
         assert "5" in versions
-        assert "6" in versions
+        assert "7" in versions
         assert conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0] == fts_count_before
 
         # Idempotent: a second initialize keeps everything stable.
         initialize_schema(conn)
         assert conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0] == fts_count_before
+        versions_again = {
+            row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
+        }
+        assert versions_again == versions
+
+
+def test_initialize_upgrades_v6_db_to_v7_with_point_id_index(tmp_path) -> None:
+    """A v6 database gains idx_chunks_qdrant_point on the next
+    initialize_schema, without any FTS rebuild, and the upgrade is
+    idempotent."""
+    from truenex_memory.store.sqlite import connect, initialize_schema
+
+    db_path = tmp_path / "memory.db"
+    with connect(db_path) as conn:
+        initialize_schema(conn)
+        conn.execute(
+            """
+            INSERT INTO documents (
+                id, project_id, path, filename, content_hash,
+                last_indexed_at, created_at, updated_at
+            ) VALUES ('doc_1', 'default', 'docs/a.md', 'a.md', 'h',
+                      'now', 'now', 'now')
+            """
+        )
+        conn.execute(
+            """
+            INSERT INTO chunks (
+                id, document_id, chunk_index, heading_path, content,
+                content_hash, token_count, created_at, updated_at
+            ) VALUES ('doc_1_chunk_0', 'doc_1', 0, NULL, 'alpha content',
+                      'ch', 2, 'now', 'now')
+            """
+        )
+        conn.commit()
+        # Simulate the v6 end-state: v6 row recorded, no v7 row, no
+        # point-id/model indexes.
+        conn.execute("DROP INDEX IF EXISTS idx_chunks_qdrant_point")
+        conn.execute("DROP INDEX IF EXISTS idx_chunks_embedding_model")
+        conn.execute("DELETE FROM schema_migrations WHERE version = '7'")
+        conn.execute(
+            "INSERT OR REPLACE INTO schema_migrations(version, applied_at) "
+            "VALUES ('6', datetime('now'))"
+        )
+        conn.commit()
+        fts_count_before = conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0]
+
+    with connect(db_path) as conn:
+        initialize_schema(conn)
+        indexes = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'index'"
+            ).fetchall()
+        }
+        assert "idx_chunks_qdrant_point" in indexes
+        assert "idx_chunks_embedding_model" in indexes
+        versions = {
+            row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
+        }
+        assert {"5", "6", "7"} <= versions
+        # No FTS rebuild happened.
+        assert conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0] == fts_count_before
+
+        # Idempotent: a second initialize keeps everything stable.
+        initialize_schema(conn)
         versions_again = {
             row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
         }

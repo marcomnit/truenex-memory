@@ -9,7 +9,7 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = "6"
+SCHEMA_VERSION = "7"
 # Schema version that introduced the chunks_fts external-content index and
 # its backfill.  The FTS rebuild must trigger only when THIS version's work
 # is pending, not on every later version bump (an index-only migration
@@ -187,6 +187,14 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_chunks_document_id ON chunks(document_id);
         CREATE INDEX IF NOT EXISTS idx_source_ledger_path ON source_ledger(source_path_or_alias);
         CREATE INDEX IF NOT EXISTS idx_documents_path ON documents(path);
+        -- Schema v7: dense-search hydration resolves chunks by
+        -- qdrant_point_id in batches; without this index each lookup is a
+        -- full table scan on large stores. idx_chunks_embedding_model is a
+        -- covering index for the per-search cache-validation aggregate
+        -- (COUNT, MAX(updated_at) by model): without it the aggregate
+        -- touches every embedded row (measured: seconds per query).
+        CREATE INDEX IF NOT EXISTS idx_chunks_qdrant_point ON chunks(qdrant_point_id);
+        CREATE INDEX IF NOT EXISTS idx_chunks_embedding_model ON chunks(embedding_model, updated_at);
         """
     )
     _ensure_column(conn, "chunks", "embedding_model", "TEXT")

@@ -106,13 +106,32 @@ def _tokens(text: str) -> list[str]:
     return [token.lower() for token in re.findall(r"\w+", text, flags=re.UNICODE)]
 
 
+def sentence_transformers_model_name(model_name: str = TARGET_EMBEDDING_MODEL) -> str:
+    """Persisted identifier for a sentence-transformers model.
+
+    Name-only: lets callers (e.g. the reindex dry-run) know the persisted
+    model name WITHOUT instantiating the model (no download).
+    """
+
+    return f"sentence-transformers:{model_name}"
+
+
 class SentenceTransformerEmbedder:
     """Semantic embedder using sentence-transformers (optional dependency).
 
-    Falls back to HashingEmbedder if sentence-transformers is not installed.
+    Defaults to ``intfloat/multilingual-e5-base`` (768 dimensions). The e5
+    family REQUIRES asymmetric prefixes: queries are embedded as
+    ``"query: <text>"`` and documents as ``"passage: <text>"`` (the
+    HashingEmbedder already mimicked them). The generic ``embed()`` keeps
+    no prefix for backwards compatibility.
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+    def __init__(
+        self,
+        model_name: str = TARGET_EMBEDDING_MODEL,
+        *,
+        device: str | None = None,
+    ) -> None:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
@@ -120,8 +139,16 @@ class SentenceTransformerEmbedder:
                 "sentence-transformers is required for semantic embeddings. "
                 "Install with: pip install truenex-memory[semantic]"
             ) from exc
-        self._model = SentenceTransformer(model_name)
-        dim = self._model.get_sentence_embedding_dimension() or DEFAULT_EMBEDDING_DIMENSIONS
+        if device is None:
+            device = _default_device()
+        self._model = SentenceTransformer(model_name, device=device)
+        self._device = device
+        # sentence-transformers >= 5.x renamed get_sentence_embedding_dimension
+        # to get_embedding_dimension; support both.
+        get_dim = getattr(self._model, "get_embedding_dimension", None) or getattr(
+            self._model, "get_sentence_embedding_dimension"
+        )
+        dim = get_dim() or DEFAULT_EMBEDDING_DIMENSIONS
         self._metadata = EmbedderMetadata(
             backend="sentence-transformers",
             model_name=model_name,
@@ -135,18 +162,98 @@ class SentenceTransformerEmbedder:
     def metadata(self) -> EmbedderMetadata:
         return self._metadata
 
+    @property
+    def model_name(self) -> str:
+        """Stable persisted identifier for vectors written by this backend.
+
+        Persisted in ``chunks.embedding_model``; it must uniquely identify
+        backend+model so vectors from other backends (e.g. hashing, 384d)
+        are never mixed with this model's query vectors (768d).
+        """
+
+        return sentence_transformers_model_name(self.metadata.model_name)
+
+    @property
+    def dimensions(self) -> int:
+        return self.metadata.dimensions
+
+    @property
+    def device(self) -> str:
+        return self._device
+
     def embed(self, text: str) -> list[float]:
         _validate_text(text)
         return self._model.encode(text, convert_to_numpy=True).tolist()
 
     def embed_query(self, text: str) -> list[float]:
-        return self.embed(text)
+        _validate_text(text)
+        return self._model.encode(f"query: {text}", convert_to_numpy=True).tolist()
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         for text in texts:
             _validate_text(text)
-        embeddings = self._model.encode(texts, convert_to_numpy=True, show_progress_bar=False)
+        embeddings = self._model.encode(
+            [f"passage: {text}" for text in texts],
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        )
         return [emb.tolist() for emb in embeddings]
+
+
+def _default_device() -> str:
+    """Pick "cuda" when a GPU is visible to torch, else "cpu"."""
+
+    try:
+        import torch
+
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except ImportError:
+        return "cpu"
+
+
+EMBEDDER_ENV_VAR = "TRUENEX_EMBEDDER"
+EMBEDDER_CHOICES = ("hashing", "e5", "auto")
+
+
+def embedder_from_env() -> HashingEmbedder | SentenceTransformerEmbedder:
+    """Select the active embedder from the TRUENEX_EMBEDDER env var.
+
+    - ``hashing`` (default): HashingEmbedder — current production behavior,
+      no downloads, no semantic ranker;
+    - ``e5``: SentenceTransformerEmbedder with intfloat/multilingual-e5-base
+      (downloads ~1.1GB on first use, GPU if available);
+    - ``auto``: e5 when sentence-transformers is importable, otherwise
+      HashingEmbedder with a logged warning.
+
+    Unknown values fall back to ``hashing`` with a logged warning.
+    """
+
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+    choice = os.environ.get(EMBEDDER_ENV_VAR, "hashing").strip().lower()
+    if choice == "hashing":
+        return HashingEmbedder()
+    if choice == "e5":
+        return SentenceTransformerEmbedder()
+    if choice == "auto":
+        try:
+            return SentenceTransformerEmbedder()
+        except ImportError:
+            logger.warning(
+                "%s=auto but sentence-transformers is not installed; "
+                "falling back to HashingEmbedder",
+                EMBEDDER_ENV_VAR,
+            )
+            return HashingEmbedder()
+    logger.warning(
+        "invalid %s value %r (expected one of %s); falling back to HashingEmbedder",
+        EMBEDDER_ENV_VAR,
+        choice,
+        EMBEDDER_CHOICES,
+    )
+    return HashingEmbedder()
 
 
 def _normalize(vector: list[float]) -> list[float]:

@@ -102,6 +102,8 @@ curl "http://localhost:8000/api/project-graph?project_name=NOME_PROGETTO"
 | Variabile | Default | Descrizione |
 |-----------|---------|-------------|
 | `TRUENEX_PROJECT_ROOT` | `.` | Root del progetto corrente per CLI |
+| `TRUENEX_EMBEDDER` | `hashing` | Embedder attivo: `hashing` (default, comportamento attuale), `e5` (SentenceTransformerEmbedder multilingual-e5-base, attiva il ranker denso RRF), `auto` (e5 se sentence-transformers importabile, altrimenti hashing con warning) |
+| `TRUENEX_DENSE` | `on` | `off` per disattivare il ranker denso/vector index senza cambiare embedder (case-insensitive; utile su macchine piccole, durante il reindex, o per debug) |
 
 ---
 

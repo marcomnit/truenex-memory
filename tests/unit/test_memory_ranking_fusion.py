@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from truenex_memory.core.chunker import chunk_text
 from truenex_memory.store.models import SearchHit
 from truenex_memory.store.repository import MemoryRepository
@@ -410,3 +412,177 @@ def test_fusion_gate_constant_is_shared_single_source() -> None:
     assert repository.MEMORY_FUSION_MIN_OVERLAP is fusion.MEMORY_FUSION_MIN_OVERLAP
     assert global_search.MEMORY_FUSION_MIN_OVERLAP is fusion.MEMORY_FUSION_MIN_OVERLAP
     assert 0.0 < fusion.MEMORY_FUSION_MIN_OVERLAP <= 1.0
+
+
+class _StubSemanticEmbedder:
+    """Deterministic semantic embedder stub (const vector, no downloads).
+
+    model_name does NOT start with "hashing-fallback:", so the dense RRF
+    ranker is active for this backend. Vectors are unit const: every chunk
+    is a perfect dense match (cosine 1.0) for any query."""
+
+    def __init__(self, dimensions: int = 8) -> None:
+        self._dimensions = dimensions
+
+    @property
+    def model_name(self) -> str:
+        return f"stub-semantic:test-e5-{self._dimensions}d"
+
+    @property
+    def dimensions(self) -> int:
+        return self._dimensions
+
+    def embed(self, text: str) -> list[float]:
+        return [1.0] + [0.0] * (self._dimensions - 1)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed(f"query: {text}")
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed(f"passage: {text}") for text in texts]
+
+
+def test_fuse_ranked_hits_dense_third_ranker_unit() -> None:
+    """Three-ranker RRF: a chunk found by BOTH lexical and dense sums its
+    contributions and beats a lexical-only chunk; a dense-only chunk does
+    not beat a strong memory; the dense weight 0.9 is respected."""
+    from truenex_memory.store.repository import (
+        CHUNK_SOURCE_WEIGHT,
+        DENSE_SOURCE_WEIGHT,
+        MEMORY_SOURCE_WEIGHT,
+        RRF_K,
+        _fuse_ranked_hits,
+    )
+
+    memories = [_hit("mem strong", memory_type="decision", score=1.0, document_id="mem_1")]
+    lexical = [
+        _hit("chunk both", score=380.0, source_path="docs/a.md", content="both body"),
+        _hit("chunk lex only", score=120.0, source_path="docs/b.md", content="lex body"),
+    ]
+    dense = [
+        # Same identity as "chunk both" (same type, path, title, content).
+        _hit("chunk both", score=0.95, source_path="docs/a.md", content="both body"),
+        _hit("chunk dense only", score=0.90, source_path="docs/c.md", content="dense body"),
+    ]
+
+    fused = _fuse_ranked_hits(memories, lexical, dense)
+
+    by_title = {hit.title: hit for hit in fused}
+    # Corroborated chunk: lexical rank 1 + dense rank 1.
+    assert by_title["chunk both"].score == round(
+        CHUNK_SOURCE_WEIGHT / (RRF_K + 1) + DENSE_SOURCE_WEIGHT / (RRF_K + 1), 6
+    )
+    # Dense-only chunk carries exactly the dense weight at its rank.
+    assert by_title["chunk dense only"].score == round(DENSE_SOURCE_WEIGHT / (RRF_K + 2), 6)
+    # Summed lexical+dense beats lexical-only.
+    assert by_title["chunk both"].score > by_title["chunk lex only"].score
+    # A dense-ONLY chunk never beats the strong memory at rank 1 of its own
+    # list (0.9 < 1.5): the dense ranker supports, it does not overwhelm.
+    assert by_title["mem strong"].score > by_title["chunk dense only"].score
+    assert by_title["mem strong"].score == round(MEMORY_SOURCE_WEIGHT / (RRF_K + 1), 6)
+    # The corroborated chunk (lexical + dense) CAN outrank the memory:
+    # contribution summing for true duplicates is inherent to RRF and
+    # already documented for mirrored copies.
+    assert fused[0].title == "chunk both"
+    # Two-list calls keep working unchanged (dense optional).
+    two_lists = _fuse_ranked_hits(memories, lexical)
+    assert all(hit.title != "chunk dense only" for hit in two_lists)
+
+
+def test_dense_ranker_surfaces_semantic_only_chunk(tmp_path: Path) -> None:
+    """Integration: with a semantic embedder active, the dense ranker runs
+    on EVERY search (not only when lexical is empty). A chunk with zero
+    query tokens surfaces via the dense list; a chunk found by both
+    rankers is corroborated and ranks first."""
+    from truenex_memory.store.repository import DENSE_SOURCE_WEIGHT
+
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
+    lex_doc = tmp_path / "lex.md"
+    lex_doc.write_text("alpha beta gamma delta procedura.", encoding="utf-8")
+    repository.upsert_document(lex_doc, "docs/lex.md", chunk_text(lex_doc.read_text()))
+    dense_doc = tmp_path / "dense.md"
+    dense_doc.write_text("zzz yyy xxx www vvv.", encoding="utf-8")
+    repository.upsert_document(dense_doc, "docs/dense.md", chunk_text(dense_doc.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=10)
+
+    assert DENSE_SOURCE_WEIGHT == 0.9
+    paths = [hit.source_path for hit in hits]
+    assert any(path and path.endswith("lex.md") for path in paths)
+    assert any(path and path.endswith("dense.md") for path in paths), (
+        "the dense-only chunk must surface through the dense RRF ranker"
+    )
+    # The corroborated chunk (lexical rank 1 + dense) ranks first.
+    assert hits[0].source_path.endswith("lex.md")
+
+
+def test_hashing_embedder_keeps_dense_ranker_disabled(tmp_path: Path) -> None:
+    """With the hashing fallback embedder the dense ranker stays OFF:
+    hashing vectors are noise and must not join every fusion (legacy
+    fallback on empty lexical is unchanged)."""
+    from truenex_memory.core.embedder import HashingEmbedder
+
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=HashingEmbedder())
+    assert not repository._dense_ranker_enabled()
+    stub_repo = MemoryRepository(tmp_path / "memory2.db", embedder=_StubSemanticEmbedder())
+    assert stub_repo._dense_ranker_enabled()
+
+
+def test_truenex_dense_env_killswitch_disables_dense_ranker(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """TRUENEX_DENSE=off (case-insensitive) disables the dense ranker even
+    with a semantic embedder active, without changing the embedder."""
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
+    monkeypatch.setenv("TRUENEX_DENSE", "off")
+    assert not repository._dense_ranker_enabled()
+    monkeypatch.setenv("TRUENEX_DENSE", "OFF")
+    assert not repository._dense_ranker_enabled()
+    monkeypatch.setenv("TRUENEX_DENSE", "on")
+    assert repository._dense_ranker_enabled()
+    monkeypatch.delenv("TRUENEX_DENSE")
+    assert repository._dense_ranker_enabled()
+
+
+def test_dense_ranker_never_mixes_vector_dimensions(tmp_path: Path) -> None:
+    """Cross-dimension safety: chunks embedded with the hashing model (384d)
+    must NEVER be cosine-compared with a semantic query vector (768d) —
+    _sqlite_vector_matches filters by embedding_model, so with no vectors
+    for the active model the dense list is empty (no crash, no mixing)."""
+    from truenex_memory.core.embedder import HashingEmbedder
+    from truenex_memory.store.repository import _sqlite_vector_matches
+    from truenex_memory.store.sqlite import connect
+
+    # Index with the hashing embedder: vectors are 384d under
+    # "hashing-fallback:intfloat/multilingual-e5-base".
+    hashing_repo = MemoryRepository(tmp_path / "memory.db", embedder=HashingEmbedder())
+    doc = tmp_path / "doc.md"
+    doc.write_text("alpha beta gamma delta procedura completa.", encoding="utf-8")
+    hashing_repo.upsert_document(doc, "docs/doc.md", chunk_text(doc.read_text()))
+
+    semantic_repo = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
+    hits = semantic_repo.search("alpha beta gamma delta", top_k=5)
+    # Lexical fusion still works; dense contributed nothing (no stub-model
+    # vectors) and no 384d vector was compared with the 8d query vector.
+    assert hits
+    assert hits[0].source_path.endswith("doc.md")
+
+    conn = connect(tmp_path / "memory.db")
+    try:
+        matches = _sqlite_vector_matches(
+            conn,
+            _StubSemanticEmbedder().embed_query("alpha"),
+            10,
+            embedding_model=_StubSemanticEmbedder().model_name,
+        )
+        assert matches == [], "hashing-model vectors must be filtered out by model name"
+    finally:
+        conn.close()
+
+
+def test_cosine_returns_zero_for_mismatched_dimensions() -> None:
+    """Last-resort guard: cosine between vectors of different length is 0,
+    never an implicit zip-truncated similarity."""
+    from truenex_memory.retrieval.semantic import _cosine
+
+    assert _cosine([1.0] * 384, [1.0] * 768) == 0.0

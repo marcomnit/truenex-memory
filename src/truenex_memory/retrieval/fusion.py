@@ -30,6 +30,12 @@ RRF_K = 60
 # within their own ranking they must outrank document chunks.
 MEMORY_SOURCE_WEIGHT = 1.5
 CHUNK_SOURCE_WEIGHT = 1.0
+# Dense (semantic) chunk candidates support the lexical ones but must not
+# overwhelm them: at equal position within their own ranking they score
+# slightly below a lexical chunk. Used only by the MCP path
+# (`MemoryRepository.search`), where the dense ranker is active when the
+# configured embedder is not the hashing fallback.
+DENSE_SOURCE_WEIGHT = 0.9
 
 # Relevance gate on memory hits BEFORE fusion, expressed as the minimum
 # token-overlap ratio (fraction of query tokens covered by the memory,

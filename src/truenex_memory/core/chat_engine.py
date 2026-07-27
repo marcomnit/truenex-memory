@@ -136,13 +136,13 @@ def _infer_project_hint(query: str, catalog_path: Path) -> str | None:
 def _search_global_db(query: str, top_k: int = 15) -> list[dict[str, Any]]:
     """Semantic search against the global SQLite DB (unfiltered)."""
     from truenex_memory.store.repository import MemoryRepository
-    from truenex_memory.core.embedder import HashingEmbedder
+    from truenex_memory.core.embedder import embedder_from_env
 
     _, db_path = _get_global_paths()
     if not db_path.exists():
         return []
 
-    embedder = HashingEmbedder()
+    embedder = embedder_from_env()
     repo = MemoryRepository(db_path, embedder=embedder)
     hits = repo.search(query, top_k=top_k)
     return [
@@ -170,17 +170,14 @@ def _search_project_chunks(
     otherwise falls back to BM25.
     """
     from truenex_memory.store.repository import MemoryRepository
-    from truenex_memory.core.embedder import HashingEmbedder, SentenceTransformerEmbedder
+    from truenex_memory.core.embedder import embedder_from_env
 
     _, db_path = _get_global_paths()
     if not db_path.exists():
         return []
 
-    # Try semantic embedder first, fallback to hashing
-    try:
-        embedder = SentenceTransformerEmbedder()
-    except ImportError:
-        embedder = HashingEmbedder()
+    # Embedder selected via the TRUENEX_EMBEDDER env var (hashing default).
+    embedder = embedder_from_env()
 
     repo = MemoryRepository(db_path, embedder=embedder)
     hits = repo.search(query, top_k=50)

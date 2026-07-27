@@ -61,6 +61,10 @@ from truenex_memory.ingestion.global_search import (
     build_global_search,
     format_global_search_report,
 )
+from truenex_memory.ingestion.reindex_embeddings import (
+    DEFAULT_REINDEX_BATCH_SIZE,
+    reindex_embeddings,
+)
 from truenex_memory.ingestion.global_status import (
     build_global_status,
     format_status_report,
@@ -1436,6 +1440,103 @@ def global_search(
         typer.echo(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     else:
         typer.echo(format_global_search_report(report))
+
+
+@global_app.command("reindex-embeddings")
+def global_reindex_embeddings(
+    home: Path = typer.Option(
+        Path.home(),
+        "--home",
+        help="User home directory for default paths.",
+    ),
+    db: Path | None = typer.Option(
+        None,
+        "--db",
+        help="Path to the SQLite database (default: <home>/.truenex-memory/truenex_memory.db).",
+    ),
+    limit: int | None = typer.Option(
+        None,
+        "--limit",
+        min=1,
+        help="Process at most N chunks (for tests and partial runs).",
+    ),
+    batch_size: int = typer.Option(
+        DEFAULT_REINDEX_BATCH_SIZE,
+        "--batch-size",
+        min=1,
+        help="Chunks embedded and committed per batch.",
+    ),
+    device: str | None = typer.Option(
+        None,
+        "--device",
+        help="Torch device for the embedder (default: cuda if available, else cpu).",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="Actually run the re-embedding. Default is a dry-run that only counts.",
+    ),
+) -> None:
+    """Re-embed chunks with the semantic embedder (intfloat/multilingual-e5-base).
+
+    Resumable: chunks already carrying the active embedding_model are
+    skipped and each batch is committed separately, so interrupting and
+    re-launching continues from where the previous run stopped. Without
+    --yes it only prints the counts (to reindex / already current).
+
+    Operational note: every committed batch bumps chunks.updated_at, which
+    invalidates the dense vector index cache. With the dense ranker active
+    (TRUENEX_EMBEDDER=e5 and TRUENEX_DENSE not off), any search during the
+    reindex window pays a full matrix reload (~45s per query on the live
+    store, measured). Recommended: run the reindex in a quiet window or
+    with TRUENEX_DENSE=off.
+
+    The final performance re-measurement (median/p95, dense ON vs OFF on
+    the full live store) will be run post-reindex via
+    scripts/eval_retrieval.py — Kimi owns that step.
+    """
+    from truenex_memory.core.embedder import (
+        SentenceTransformerEmbedder,
+        sentence_transformers_model_name,
+    )
+    from truenex_memory.ingestion.reindex_embeddings import ModelNameOnlyEmbedder
+
+    db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
+    if not db_path.exists():
+        raise typer.BadParameter(f"database not found: {db_path}")
+
+    if not yes:
+        # Dry-run: count only — resolve the persisted model name WITHOUT
+        # instantiating the model (no ~1.1GB download for two counters).
+        embedder: ModelNameOnlyEmbedder | SentenceTransformerEmbedder = (
+            ModelNameOnlyEmbedder(sentence_transformers_model_name())
+        )
+    else:
+        embedder = SentenceTransformerEmbedder(device=device)
+    report = reindex_embeddings(
+        db_path,
+        embedder=embedder,
+        batch_size=batch_size,
+        limit=limit,
+        dry_run=not yes,
+        device=getattr(embedder, "device", None) if yes else None,
+    )
+    summary = report.to_dict()
+    typer.echo(json.dumps(summary, indent=2, sort_keys=True))
+    if report.dry_run:
+        typer.echo(
+            f"\nDry-run: {report.to_reindex} chunks to re-embed "
+            f"({report.already_current} already current). Re-run with --yes to execute."
+        )
+    else:
+        typer.echo(
+            f"\nProcessed {report.processed} chunks in {report.elapsed_s:.1f}s "
+            f"({report.chunks_per_second} chunks/s) on device {report.device}."
+        )
+        if report.errors:
+            typer.echo("Errors (run is resumable, re-launch to continue):")
+            for error in report.errors:
+                typer.echo(f"  - {error}")
 
 
 @auto_app.command("run")

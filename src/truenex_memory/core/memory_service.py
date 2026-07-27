@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 
 from truenex_memory.core.config import ensure_project_dirs, resolve_project_config
+from truenex_memory.core.embedder import embedder_from_env
 from truenex_memory.core.indexer import index_path
-from truenex_memory.retrieval.semantic import HashingEmbedder
 from truenex_memory.store.models import MemoryNode, RetrievalLog, SearchHit
 from truenex_memory.store.qdrant_store import QdrantVectorStore, VectorStoreUnavailable
 from truenex_memory.store.repository import MemoryRepository
@@ -18,7 +18,10 @@ class MemoryService:
 
     def __init__(self, project_root: Path | str = ".") -> None:
         self.config = resolve_project_config(project_root)
-        self.embedder = HashingEmbedder()
+        # Embedder selected via the TRUENEX_EMBEDDER env var: "hashing"
+        # (default, current production behavior), "e5" (semantic, activates
+        # the dense RRF ranker) or "auto". See core.embedder.embedder_from_env.
+        self.embedder = embedder_from_env()
         self.vector_store_status: dict[str, object] = {
             "backend": self.config.vector_backend,
             "active_backend": "sqlite",

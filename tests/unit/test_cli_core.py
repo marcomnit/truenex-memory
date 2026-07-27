@@ -130,7 +130,7 @@ def test_cli_migrate_status_and_apply() -> None:
         applied = json.loads(result.stdout)
         assert applied["applied"] is True
         assert applied["previous_version"] == "0"
-        assert applied["current_version"] == "6"
+        assert applied["current_version"] == "7"
         assert Path(applied["backup_path"]).exists()
 
         result = runner.invoke(app, ["migrate", "apply", "--json"])
