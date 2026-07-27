@@ -31,6 +31,24 @@ RRF_K = 60
 MEMORY_SOURCE_WEIGHT = 1.5
 CHUNK_SOURCE_WEIGHT = 1.0
 
+# Relevance gate on memory hits BEFORE fusion, expressed as the minimum
+# token-overlap ratio (fraction of query tokens covered by the memory,
+# 0.0-1.0).  RRF merges by rank and ignores raw scores, so without this
+# gate ANY memory matching a single query token enters the fused ranking
+# with the 1.5 source weight: a memory at rank 32 (1.5/(60+32) ~= 0.0163)
+# still beats the best document chunk (1.0/61 ~= 0.0164).  On a store with
+# thousands of active memories, broad topical queries match 30+ weak
+# memories and every document chunk is pushed out of top_k (measured on
+# the live store, eval baseline 2026-07-27: top-40 all memories, target
+# chunks at fused rank 35-38).  The memory source is the only one whose
+# raw score has a direct interpretation (fraction of query tokens
+# covered), so it is the right place for a relevance gate: memories below
+# the threshold are not "first-class curated knowledge", they are noise.
+# Chosen empirically on the live store (see docs/eval/): 0.5 frees
+# document targets for broad topical queries while every curated memory
+# recall case (overlap 1.0) keeps rank 1.
+MEMORY_FUSION_MIN_OVERLAP = 0.5
+
 
 def reciprocal_rank_fusion(
     weighted_lists: Iterable[tuple[float, Sequence[T]]],

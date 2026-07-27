@@ -17,6 +17,7 @@ from truenex_memory.ingestion.global_search import (
 )
 from truenex_memory.retrieval.fusion import (
     CHUNK_SOURCE_WEIGHT,
+    MEMORY_FUSION_MIN_OVERLAP,
     MEMORY_SOURCE_WEIGHT,
     RRF_K,
     reciprocal_rank_fusion,
@@ -202,12 +203,103 @@ def test_kind_filter_single_source_degenerates_to_source_order(tmp_path: Path) -
 
 def test_rrf_constants_parity_with_repository() -> None:
     """The RRF constants duplicated in store.repository (MCP path) and
-    retrieval.fusion (CLI path) must stay aligned."""
+    retrieval.fusion (CLI path) must stay aligned. The pre-fusion memory
+    relevance gate is NOT duplicated: both paths import it from
+    retrieval.fusion (single source)."""
     from truenex_memory.store import repository
 
     assert repository.RRF_K == RRF_K
     assert repository.MEMORY_SOURCE_WEIGHT == MEMORY_SOURCE_WEIGHT
     assert repository.CHUNK_SOURCE_WEIGHT == CHUNK_SOURCE_WEIGHT
+    assert repository.MEMORY_FUSION_MIN_OVERLAP is MEMORY_FUSION_MIN_OVERLAP
+
+
+def test_memory_gate_excludes_weak_memories_and_chunks_rise(tmp_path: Path) -> None:
+    """Same pre-fusion gate as the MCP path: a memory whose overlap ratio
+    (here scaled 0-10) is below MEMORY_FUSION_MIN_OVERLAP must not enter
+    the fusion, so document chunks surface instead."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    # Query has 4 tokens; the memory covers only "alpha" -> overlap 2.5/10.
+    repository.add_memory("Nota rapida su alpha e basta.", memory_type="note", title="weak alpha")
+    _index_doc(
+        repository,
+        tmp_path,
+        "docs/quattro.md",
+        "alpha beta gamma delta: procedura completa del tutto.",
+    )
+
+    report = build_global_search(tmp_path / "memory.db", "alpha beta gamma delta", top_k=5)
+
+    assert report.results, "search must return results"
+    assert all(hit.kind == "document_chunk" for hit in report.results), (
+        "weak memory (overlap 0.25 < gate) must be excluded from fusion"
+    )
+
+
+def test_memory_gate_keeps_strong_memories_first(tmp_path: Path) -> None:
+    """A memory at or above the gate keeps first-class status and outranks
+    chunks at equal position in its own ranking."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    repository.add_memory(
+        "Decisione: alpha beta gamma delta approvate tutte.",
+        memory_type="decision",
+        title="strong decision",
+    )
+    _index_doc(
+        repository,
+        tmp_path,
+        "docs/quattro.md",
+        "alpha beta gamma delta: procedura completa del tutto.",
+    )
+
+    report = build_global_search(tmp_path / "memory.db", "alpha beta gamma delta", top_k=5)
+
+    assert report.results, "search must return results"
+    assert report.results[0].kind == "memory_node"
+    assert any(hit.kind == "document_chunk" for hit in report.results)
+
+
+def test_memory_gate_boundary_is_inclusive(tmp_path: Path) -> None:
+    """Boundary on the 0-10 score scale: a memory with overlap ratio exactly
+    MEMORY_FUSION_MIN_OVERLAP (score == gate * 10.0) passes the gate."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    # Query has 4 tokens; the memory covers exactly 2 -> score 5.0/10.
+    repository.add_memory(
+        "Nota su alpha beta e nient'altro.", memory_type="note", title="boundary"
+    )
+    _index_doc(
+        repository,
+        tmp_path,
+        "docs/quattro.md",
+        "alpha beta gamma delta: procedura completa del tutto.",
+    )
+
+    assert 2 / 4 == MEMORY_FUSION_MIN_OVERLAP, (
+        "test premise: the crafted memory must sit exactly on the gate boundary"
+    )
+    report = build_global_search(tmp_path / "memory.db", "alpha beta gamma delta", top_k=5)
+
+    assert report.results, "search must return results"
+    assert report.results[0].kind == "memory_node", (
+        "a memory exactly at the gate boundary must be included (>= is inclusive)"
+    )
+
+
+def test_weak_memory_as_only_lexical_evidence_is_kept(tmp_path: Path) -> None:
+    """Conditional gate: with no chunk hits the gate is skipped — a weak
+    memory that is the only lexical evidence must be kept, not discarded."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    # Weak memory: covers 1 of 4 query tokens -> score 2.5/10 < gate.
+    repository.add_memory("Nota rapida su alpha e basta.", memory_type="note", title="weak alpha")
+    # Document with NO query token: no chunk hits at all.
+    _index_doc(repository, tmp_path, "docs/altro.md", "zzz yyy xxx www vvv.")
+
+    report = build_global_search(tmp_path / "memory.db", "alpha beta gamma delta", top_k=5)
+
+    assert report.results, "search must return results"
+    assert report.results[0].kind == "memory_node", (
+        "with no chunk evidence the weak memory must be kept (gate skipped)"
+    )
 
 
 def test_json_report_marks_rrf_score_scale(tmp_path: Path) -> None:

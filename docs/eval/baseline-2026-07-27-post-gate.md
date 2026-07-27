@@ -1,0 +1,73 @@
+# Retrieval evaluation report
+
+- DB: `C:\Users\marco\.truenex-memory\truenex_memory.db`
+- Eval set version: 1
+- Cases: 25
+
+## Aggregate metrics
+
+| metric | value |
+|---|---|
+| hit@1 | 0.68 |
+| hit@k | 0.88 |
+| MRR | 0.743 |
+| absent pass rate (3 cases) | 1.0 |
+| mean query time (s) | 0.768 |
+
+## By category
+
+| category | cases | hit@1 | hit@k | MRR |
+|---|---|---|---|---|
+| bug-report | 6 | 0.6667 | 1.0 | 0.7708 |
+| memory-recall | 14 | 0.8571 | 0.9286 | 0.8929 |
+| real-logs | 5 | 0.2 | 0.6 | 0.29 |
+
+## Per-case results
+
+| id | category | hit@1 | hit@k | rank | absent | time (s) | query | note |
+|---|---|---|---|---|---|---|---|---|
+| m01 | memory-recall | 1 | 1 | 1 | - | 0.52 | Sospetta gotta o infiammazione prostatica per disturbi minzionali liev |  |
+| m02 | memory-recall | 1 | 1 | 1 | - | 0.84 | abbandonare Paperclip come orchestratore operativo e costruire un orch |  |
+| m03 | memory-recall | 1 | 1 | 1 | - | 0.76 | convergere su Vulkan come unico backend GPU per Windows e Linux, lasci |  |
+| m04 | memory-recall | 1 | 1 | 1 | - | 1.81 | llama-cpp-sys-2 0.1.146 CMake build for vulkan-shaders-gen cannot find |  |
+| m05 | memory-recall | 1 | 1 | 1 | - | 0.56 | Presidio anti-allucinazione SOAP completo ma NON committato working tr |  |
+| m06 | memory-recall | 1 | 1 | 1 | - | 0.51 | NVIDIA GeForce RTX 3050 Laptop GPU 3962 MiB VRAM macchina di terze par |  |
+| m07 | memory-recall | 1 | 1 | 1 | - | 0.75 | Bug di ereditarietà auth quando si consulta DeepSeek da dentro Claude  |  |
+| m08 | memory-recall | 1 | 1 | 1 | - | 0.94 | Milestone FOUNDATION completata creato nuovo repository locale separat |  |
+| m09 | memory-recall | 1 | 1 | 1 | - | 1.50 | 2026-07-24-ux-flow-and-verifiability-roadmap.md oggetto visita aggregh |  |
+| m10 | memory-recall | 1 | 1 | 1 | - | 1.25 | CUDA_VISIBLE_DEVICES=0 prompt corto 130.6 tok/s TTFT 0.122s prompt lun |  |
+| i01 | memory-recall | 1 | 1 | 1 | - | 0.53 | perché abbiamo deciso di abbandonare Paperclip come orchestratore oper | overlap intermedio misurato 0.5455 (parafrasi) — verifica ch |
+| i02 | memory-recall | 1 | 1 | 1 | - | 0.54 | perché il team ha deciso di convergere su Vulkan come backend unico gr | overlap intermedio misurato 0.5385 (parafrasi) — verifica ch |
+| i03 | memory-recall | 0 | 1 | 2 | - | 0.90 | quando è stata completata la milestone FOUNDATION del repository truen | overlap intermedio misurato 0.6364 (parafrasi) — verifica ch |
+| i04 | memory-recall | 0 | 0 | MISS | - | 0.53 | perché abbiamo deciso insieme di abbandonare Paperclip come orchestrat | overlap misurato 0.4615 — deliberatamente SOTTO soglia: sond |
+| b01-path | bug-report | 0 | 1 | 8 | - | 0.46 | MedDesk vault backup import GPU offload allucinazioni SOAP | Caso fallito pre-fix (rank 7, sotto inquinamento lessicale). |
+| b01-section | bug-report | 0 | 1 | 2 | - | 0.45 | MedDesk vault backup import GPU offload allucinazioni SOAP | semantic-dependent — limite lessicale noto (problema 2 del b |
+| b02 | bug-report | 1 | 1 | 1 | - | 0.46 | patient_external_ids idempotenza re-import sovrascrive correzioni manu | Decisione utente su contratto import GPU + 5 bug MedDesk. |
+| b03 | bug-report | 1 | 1 | 1 | ok | 1.17 | un backup che non hai mai provato a ripristinare non è un backup è un  | Query naturale guidata da stopword; steamui era #1 pre-fix ( |
+| b04 | bug-report | 1 | 1 | 1 | ok | 1.09 | un backup che non hai mai provato a ripristinare | Variante corta: quasi solo parole funzionali, caso limite pe |
+| b05 | bug-report | 1 | 1 | 1 | ok | 0.26 | sovrascrive correzioni manuali | 3 parole; doc ECM contiene 'manuali' e competeva col target. |
+| r01 | real-logs | 0 | 0 | MISS | - | 0.32 | MedDesk visita medica SOAP workflow UX design briefing nota | label proposta — da validare |
+| r02 | real-logs | 0 | 1 | 5 | - | 1.27 | MedDesk Windows tauri dev llama-cpp-sys-2 CMake build failure local ta | label proposta — da validare |
+| r03 | real-logs | 1 | 1 | 1 | - | 0.74 | Truenex recursive multi-agent orchestrator design durable workflows ag | label proposta — da validare |
+| r04 | real-logs | 0 | 1 | 4 | - | 0.65 | test di installazione GPU discreta VRAM insufficiente offload parziale | label proposta — da validare |
+| r05 | real-logs | 0 | 0 | MISS | - | 0.40 | MedPsy-4B modello estrazione clinica second reader prompt medico | label proposta — da validare |
+
+## Failure analysis (top 3 hits per failed case)
+
+### i04 — perché abbiamo deciso insieme di abbandonare Paperclip come orchestratore operat
+
+1. [document_chunk] score=0.016393 `D:\Project_sw\ProjectPy\AI_Agent\docs\ANALISI_REFACTOR_TASK_ENGINE_CONVERSAZIONALE.md` — Analisi Refactor Task Engine Conversazionale > Scopo
+2. [document_chunk] score=0.016129 `cumenti\SOFWARE\TRUENEX-ENGINE\docs\cursor_chat\cursor_perdita_dello_storico_delle_chat.md` — Lazy import di unstructured (sarà disponibile dopo build container)
+3. [document_chunk] score=0.015873 `Project_sw\ProjectPy\AI_Agent\docs\analisi_rinomina_file_inesistente_spostato_sbagliato.md` — Analisi: rinomina file inesistente → sistema sposta file sbagliato > Perché è su
+
+### r01 — MedDesk visita medica SOAP workflow UX design briefing nota
+
+1. [note] score=0.02459 `` — MedDesk — roadmap UX post-collaudo (2026-07-24). Documento in docs/unified/04-ru
+2. [note] score=0.024194 `` — MedDesk — Due difetti gravi di sicurezza clinica trovati il 2026-07-26, entrambi
+3. [decision] score=0.02381 `` — MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat
+
+### r05 — MedPsy-4B modello estrazione clinica second reader prompt medico
+
+1. [decision] score=0.02459 `` — MedDesk — Presidio anti-allucinazione SOAP: completo ma NON committato al 2026-0
+2. [document_chunk] score=0.016393 `oject_sw\ProjectPy\truenex-local-QVAC_MedPsy\_STORICO_RECUPERATO\20260722_1804_3c9b414e.md` — Conversazione 3c9b414e-4e70-4b91-b4bc-f8f350e6e120 > 🤖 CLAUDE  ·  2026-07-22 16:
+3. [document_chunk] score=0.016129 `oject_sw\ProjectPy\truenex-local-QVAC_MedPsy\_STORICO_RECUPERATO\20260722_1804_3c9b414e.md` — Conversazione 3c9b414e-4e70-4b91-b4bc-f8f350e6e120 > 🧑 UTENTE  ·  2026-07-22 16:

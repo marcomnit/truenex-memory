@@ -9,6 +9,7 @@ import sqlite3
 
 from truenex_memory.retrieval.fusion import (
     CHUNK_SOURCE_WEIGHT,
+    MEMORY_FUSION_MIN_OVERLAP,
     MEMORY_SOURCE_WEIGHT,
     reciprocal_rank_fusion,
 )
@@ -168,6 +169,22 @@ def build_global_search(
         # by rank (RRF), never by raw score.
         memory_hits = [hit for hit in memory_hits if _is_searchable_source_path(hit.source_path)]
         chunk_hits = [hit for hit in chunk_hits if _is_searchable_source_path(hit.source_path)]
+        # Same pre-fusion memory relevance gate as the MCP path
+        # (`MemoryRepository.search`): RRF ignores raw scores, so without a
+        # gate a long tail of single-token memories saturates the fused
+        # top_k and hides every document chunk. Memory scores here are the
+        # overlap ratio scaled 0-10, hence the *10.0.
+        # The gate applies only when chunk evidence exists: a weak memory
+        # that is the ONLY lexical evidence must be kept, not discarded.
+        # Known divergence from the MCP path: `_search_memory_nodes` here
+        # matches tokens against title+content+source_path, while the MCP
+        # `_search_memories` matches only title+content — a memory can pass
+        # the gate on this CLI path and fail it on the MCP path
+        # (pre-existing divergence, known note).
+        if chunk_hits:
+            memory_hits = [
+                hit for hit in memory_hits if hit.score >= MEMORY_FUSION_MIN_OVERLAP * 10.0
+            ]
         fused = reciprocal_rank_fusion(
             [
                 (MEMORY_SOURCE_WEIGHT, memory_hits),

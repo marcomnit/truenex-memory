@@ -15,6 +15,7 @@ import uuid
 logger = logging.getLogger(__name__)
 
 from truenex_memory.core.chunker import TextChunk, content_hash
+from truenex_memory.retrieval.fusion import MEMORY_FUSION_MIN_OVERLAP
 from truenex_memory.retrieval.semantic import Embedder, VectorMatch, VectorPoint, VectorStore, chunk_point_id
 from truenex_memory.store.qdrant_store import VectorSearchHit
 from truenex_memory.store.models import MemoryNode, RetrievalLog, SearchHit, VALID_STATUSES
@@ -33,6 +34,9 @@ EXPORT_TABLES = ("documents", "chunks", "memory_nodes", "edges", "retrieval_logs
 # These values are duplicated in truenex_memory.retrieval.fusion (used by
 # the CLI `global search` path); the two copies MUST stay aligned — a
 # parity test in tests/unit/test_global_search_fusion.py enforces it.
+# MEMORY_FUSION_MIN_OVERLAP (the pre-fusion memory relevance gate) is NOT
+# duplicated: it is imported from truenex_memory.retrieval.fusion, the
+# single source for it.
 # RRF_K is the standard rank-smoothing constant (Cormack et al., 2009): it
 # damps the influence of top ranks so rank 1 does not dominate rank 5.
 RRF_K = 60
@@ -259,6 +263,24 @@ class MemoryRepository:
             # merged by rank (RRF), never by raw score.
             memory_hits = [hit for hit in memory_hits if _is_searchable_source_path(hit.source_path)]
             chunk_hits = [hit for hit in chunk_hits if _is_searchable_source_path(hit.source_path)]
+            # Relevance gate on memories BEFORE fusion: RRF ignores raw
+            # scores, so any memory matching a single query token would
+            # enter the fused ranking with the 1.5 source weight and a long
+            # tail of weak memories would push every document chunk out of
+            # top_k. The memory raw score IS interpretable (fraction of
+            # query tokens covered), so memories below the threshold are
+            # noise, not evidence.
+            # The gate applies ONLY when chunk evidence exists: it exists to
+            # free strong documents from the weak-memory tail, but when a
+            # weak memory is the ONLY lexical evidence it must be kept —
+            # the dense fallback with HashingEmbedder would be noise on a
+            # non-RRF score scale. Consequently the semantic fallback below
+            # sees the POST-gate lists and triggers only on genuinely zero
+            # lexical hits.
+            if chunk_hits:
+                memory_hits = [
+                    hit for hit in memory_hits if hit.score >= MEMORY_FUSION_MIN_OVERLAP
+                ]
             if not memory_hits and not chunk_hits:
                 hits = self._search_semantic_chunks(conn, query, top_k)
                 hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]

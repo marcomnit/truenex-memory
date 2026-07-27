@@ -235,3 +235,178 @@ def test_memory_survives_many_competing_chunks_regression(tmp_path: Path) -> Non
     assert hits[0].memory_type == "decision"
     assert memory_id is not None  # the memory was written and is retrievable
     assert "auspicio" in hits[0].content
+
+
+class _ConstEmbedder:
+    """Embedder stub: every text maps to the same unit vector, so any chunk
+    is a perfect dense match (cosine 1.0) for any query. Used to test the
+    semantic fallback branch deterministically."""
+
+    @property
+    def model_name(self) -> str:
+        return "const-embedder-test"
+
+    def embed(self, text: str) -> list[float]:
+        return [1.0, 0.0, 0.0, 0.0]
+
+
+def test_weak_memory_below_gate_is_excluded_and_chunks_rise(tmp_path: Path) -> None:
+    """Pre-fusion relevance gate: a memory covering less than
+    MEMORY_FUSION_MIN_OVERLAP of the query tokens is noise and must NOT
+    enter the fused ranking — with the 1.5 source weight even a rank-1 weak
+    memory would otherwise outrank every document chunk."""
+    from truenex_memory.retrieval.fusion import MEMORY_FUSION_MIN_OVERLAP
+
+    repository = MemoryRepository(tmp_path / "memory.db")
+    # Query has 4 tokens; the memory covers only "alpha" -> overlap 0.25.
+    weak_memory = repository.add_memory(
+        "Nota rapida su alpha e basta.", memory_type="note", title="weak alpha"
+    )
+    doc_path = tmp_path / "quattro.md"
+    doc_path.write_text(
+        "alpha beta gamma delta: procedura completa del tutto.", encoding="utf-8"
+    )
+    repository.upsert_document(doc_path, "docs/quattro.md", chunk_text(doc_path.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=5)
+
+    assert hits, "search must return results"
+    assert 0.25 < MEMORY_FUSION_MIN_OVERLAP
+    memory_hits = [hit for hit in hits if hit.memory_type == "note"]
+    assert not memory_hits, (
+        f"weak memory {weak_memory} (overlap 0.25 < gate) must be excluded "
+        "from fusion, not merely outranked"
+    )
+    assert hits[0].memory_type == "document_chunk"
+
+
+def test_strong_memory_above_gate_still_wins(tmp_path: Path) -> None:
+    """A memory covering at least MEMORY_FUSION_MIN_OVERLAP of the query
+    tokens keeps its first-class status and outranks chunks at equal
+    position."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    repository.add_memory(
+        "Decisione: alpha beta gamma delta approvate tutte.",
+        memory_type="decision",
+        title="strong decision",
+    )
+    doc_path = tmp_path / "quattro.md"
+    doc_path.write_text(
+        "alpha beta gamma delta: procedura completa del tutto.", encoding="utf-8"
+    )
+    repository.upsert_document(doc_path, "docs/quattro.md", chunk_text(doc_path.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=5)
+
+    assert hits, "search must return results"
+    assert hits[0].memory_type == "decision"
+    assert any(hit.memory_type == "document_chunk" for hit in hits)
+
+
+def test_weak_memory_as_only_lexical_evidence_is_kept(tmp_path: Path) -> None:
+    """Conditional gate: the relevance gate exists to free strong documents
+    from the weak-memory tail. When a weak memory is the ONLY lexical
+    evidence (no chunk hits), it must be KEPT — the dense fallback with a
+    hashing embedder would be noise on a non-RRF score scale."""
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=_ConstEmbedder())
+    # Weak memory: covers 1 of 4 query tokens -> overlap 0.25 < gate.
+    repository.add_memory("Nota rapida su alpha e basta.", memory_type="note")
+    # Document with NO query token: no lexical chunk hit. With the const
+    # embedder every chunk is a perfect dense match, so if the dense
+    # fallback wrongly fired the chunk would win — the memory surfacing
+    # proves the gate was skipped and the fallback did NOT run.
+    doc_path = tmp_path / "denso.md"
+    doc_path.write_text("zzz yyy xxx www vvv.", encoding="utf-8")
+    repository.upsert_document(doc_path, "docs/denso.md", chunk_text(doc_path.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=5)
+
+    assert hits, "search must return results"
+    assert hits[0].memory_type == "note", (
+        "with no chunk evidence the weak memory is the only lexical signal "
+        "and must be kept (gate skipped)"
+    )
+    assert "alpha" in hits[0].content
+
+
+def test_semantic_fallback_triggers_only_on_zero_lexical_hits(tmp_path: Path) -> None:
+    """The dense fallback fires when lexical search — AFTER the conditional
+    gate — produced genuinely nothing: no memories at all, no chunk hits."""
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=_ConstEmbedder())
+    doc_path = tmp_path / "denso.md"
+    doc_path.write_text("zzz yyy xxx www vvv.", encoding="utf-8")
+    repository.upsert_document(doc_path, "docs/denso.md", chunk_text(doc_path.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=5)
+
+    assert hits, "the semantic fallback must run on genuinely zero lexical hits"
+    assert hits[0].memory_type == "document_chunk"
+    assert "zzz" in hits[0].content
+
+
+def test_gate_boundary_overlap_is_inclusive(tmp_path: Path) -> None:
+    """Boundary: a memory whose overlap ratio equals exactly
+    MEMORY_FUSION_MIN_OVERLAP passes the gate (>= is inclusive)."""
+    from truenex_memory.retrieval.fusion import MEMORY_FUSION_MIN_OVERLAP
+
+    repository = MemoryRepository(tmp_path / "memory.db")
+    # Query has 4 tokens; the memory covers exactly 2 -> overlap 0.5.
+    repository.add_memory(
+        "Nota su alpha beta e nient'altro.", memory_type="note", title="boundary"
+    )
+    doc_path = tmp_path / "quattro.md"
+    doc_path.write_text(
+        "alpha beta gamma delta: procedura completa del tutto.", encoding="utf-8"
+    )
+    repository.upsert_document(doc_path, "docs/quattro.md", chunk_text(doc_path.read_text()))
+
+    overlap = 2 / 4
+    assert overlap == MEMORY_FUSION_MIN_OVERLAP, (
+        "test premise: the crafted memory must sit exactly on the gate boundary"
+    )
+    hits = repository.search("alpha beta gamma delta", top_k=5)
+
+    assert hits, "search must return results"
+    assert hits[0].memory_type == "note", (
+        "a memory exactly at the gate boundary must be included (>= is "
+        "inclusive) and keeps first-class status over chunks"
+    )
+
+
+def test_gate_applies_with_include_inactive(tmp_path: Path) -> None:
+    """include_inactive=True: an inactive memory ABOVE the gate still enters
+    the fusion (the gate filters on relevance, not on status)."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    memory_id = repository.add_memory(
+        "Decisione: alpha beta gamma delta approvate tutte.",
+        memory_type="decision",
+        title="inactive strong",
+    )
+    repository.set_memory_status(memory_id, "obsolete")
+    doc_path = tmp_path / "quattro.md"
+    doc_path.write_text(
+        "alpha beta gamma delta: procedura completa del tutto.", encoding="utf-8"
+    )
+    repository.upsert_document(doc_path, "docs/quattro.md", chunk_text(doc_path.read_text()))
+
+    hits = repository.search("alpha beta gamma delta", top_k=5, include_inactive=True)
+
+    assert hits, "search must return results"
+    assert hits[0].memory_type == "decision"
+    assert hits[0].status == "obsolete", (
+        "the inactive memory above the gate must enter fusion when "
+        "include_inactive=True"
+    )
+
+
+def test_fusion_gate_constant_is_shared_single_source() -> None:
+    """MEMORY_FUSION_MIN_OVERLAP lives in retrieval.fusion only and is
+    imported (not duplicated) by the MCP path and the CLI global-search
+    path, so both paths apply the same gate."""
+    from truenex_memory.ingestion import global_search
+    from truenex_memory.retrieval import fusion
+    from truenex_memory.store import repository
+
+    assert repository.MEMORY_FUSION_MIN_OVERLAP is fusion.MEMORY_FUSION_MIN_OVERLAP
+    assert global_search.MEMORY_FUSION_MIN_OVERLAP is fusion.MEMORY_FUSION_MIN_OVERLAP
+    assert 0.0 < fusion.MEMORY_FUSION_MIN_OVERLAP <= 1.0
