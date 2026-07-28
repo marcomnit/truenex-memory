@@ -1,0 +1,5669 @@
+{
+  "note": "sweep offline su candidate list catturate dal live (fase A); fusione reale",
+  "sweeps": [
+    {
+      "threshold": 0.0,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.3631
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4707
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.7,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.3631
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4707
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.75,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.3631
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4707
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.8,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.3631
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4707
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.85,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2857,
+          "hit@k": 0.6429,
+          "mrr": 0.4048
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.36,
+          "hit@k": 0.76,
+          "mrr": 0.494
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.86,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 10,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7667
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.3571,
+          "hit@k": 0.6429,
+          "mrr": 0.4583
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.4,
+          "hit@k": 0.76,
+          "mrr": 0.524
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.87,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 7,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7738
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.4286,
+          "hit@k": 0.7857,
+          "mrr": 0.5595
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.3167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.44,
+          "hit@k": 0.8,
+          "mrr": 0.5624
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.88,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7407
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.5714,
+          "hit@k": 0.8571,
+          "mrr": 0.7024
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.56,
+          "hit@k": 0.8,
+          "mrr": 0.6511
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.89,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.6429,
+          "hit@k": 0.8571,
+          "mrr": 0.75
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.6,
+          "hit@k": 0.8,
+          "mrr": 0.685
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.9,
+      "topn": null,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.7857,
+          "hit@k": 0.9286,
+          "mrr": 0.8357
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.6,
+          "mrr": 0.44
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.68,
+          "hit@k": 0.88,
+          "mrr": 0.741
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.0,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4744
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.7,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4744
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.75,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4744
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.8,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.76,
+          "mrr": 0.4744
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.85,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2857,
+          "hit@k": 0.6429,
+          "mrr": 0.4048
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.36,
+          "hit@k": 0.76,
+          "mrr": 0.4944
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.86,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.3571,
+          "hit@k": 0.6429,
+          "mrr": 0.4583
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.8,
+          "mrr": 0.4167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.4,
+          "hit@k": 0.76,
+          "mrr": 0.5244
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.87,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 7,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7738
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.4286,
+          "hit@k": 0.7857,
+          "mrr": 0.5595
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.3167
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.44,
+          "hit@k": 0.8,
+          "mrr": 0.5624
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.88,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7407
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.5714,
+          "hit@k": 0.8571,
+          "mrr": 0.7024
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.56,
+          "hit@k": 0.8,
+          "mrr": 0.6511
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.89,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.6429,
+          "hit@k": 0.8571,
+          "mrr": 0.75
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.6,
+          "hit@k": 0.8,
+          "mrr": 0.685
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.9,
+      "topn": 30,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.7857,
+          "hit@k": 0.9286,
+          "mrr": 0.8357
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.6,
+          "mrr": 0.44
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.68,
+          "hit@k": 0.88,
+          "mrr": 0.741
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.0,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.72,
+          "mrr": 0.4711
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.7,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.72,
+          "mrr": 0.4711
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.75,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.72,
+          "mrr": 0.4711
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.8,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2143,
+          "hit@k": 0.6429,
+          "mrr": 0.369
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.32,
+          "hit@k": 0.72,
+          "mrr": 0.4711
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.85,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.2857,
+          "hit@k": 0.6429,
+          "mrr": 0.4048
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.36,
+          "hit@k": 0.72,
+          "mrr": 0.4911
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.86,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7685
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.3571,
+          "hit@k": 0.6429,
+          "mrr": 0.4583
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.6,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.4,
+          "hit@k": 0.72,
+          "mrr": 0.5211
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.87,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 4,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 7,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7738
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.4286,
+          "hit@k": 0.7857,
+          "mrr": 0.5595
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.2,
+          "hit@k": 0.4,
+          "mrr": 0.2667
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.44,
+          "hit@k": 0.76,
+          "mrr": 0.5524
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.88,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 9,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 3,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7407
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.5714,
+          "hit@k": 0.8571,
+          "mrr": 0.7024
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.56,
+          "hit@k": 0.8,
+          "mrr": 0.6511
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.89,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.6429,
+          "hit@k": 0.8571,
+          "mrr": 0.75
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.4,
+          "mrr": 0.4
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.6,
+          "hit@k": 0.8,
+          "mrr": 0.685
+        },
+        "absent_ok": "3/3"
+      }
+    },
+    {
+      "threshold": 0.9,
+      "topn": 20,
+      "per_case": [
+        {
+          "id": "m01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m03",
+          "category": "memory-recall",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "m04",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m05",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m06",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m07",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m08",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m09",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "m10",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i01",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i02",
+          "category": "memory-recall",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "i03",
+          "category": "memory-recall",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "i04",
+          "category": "memory-recall",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-path",
+          "category": "bug-report",
+          "rank": 8,
+          "absent_ok": null
+        },
+        {
+          "id": "b01-section",
+          "category": "bug-report",
+          "rank": 2,
+          "absent_ok": null
+        },
+        {
+          "id": "b02",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "b03",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b04",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "b05",
+          "category": "bug-report",
+          "rank": 1,
+          "absent_ok": true
+        },
+        {
+          "id": "r01",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        },
+        {
+          "id": "r02",
+          "category": "real-logs",
+          "rank": 5,
+          "absent_ok": null
+        },
+        {
+          "id": "r03",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r04",
+          "category": "real-logs",
+          "rank": 1,
+          "absent_ok": null
+        },
+        {
+          "id": "r05",
+          "category": "real-logs",
+          "rank": null,
+          "absent_ok": null
+        }
+      ],
+      "agg": {
+        "bug-report": {
+          "n": 6,
+          "hit@1": 0.6667,
+          "hit@k": 1.0,
+          "mrr": 0.7708
+        },
+        "memory-recall": {
+          "n": 14,
+          "hit@1": 0.7857,
+          "hit@k": 0.9286,
+          "mrr": 0.8357
+        },
+        "real-logs": {
+          "n": 5,
+          "hit@1": 0.4,
+          "hit@k": 0.6,
+          "mrr": 0.44
+        },
+        "TOTALE": {
+          "n": 25,
+          "hit@1": 0.68,
+          "hit@k": 0.88,
+          "mrr": 0.741
+        },
+        "absent_ok": "3/3"
+      }
+    }
+  ],
+  "evidence": {
+    "m03": {
+      "dense_top5": [
+        0.9281,
+        0.9281,
+        0.917,
+        0.917,
+        0.9095
+      ],
+      "target_in_dense": null
+    },
+    "m04": {
+      "dense_top5": [
+        0.8862,
+        0.885,
+        0.885,
+        0.8844,
+        0.8844
+      ],
+      "target_in_dense": null
+    },
+    "m05": {
+      "dense_top5": [
+        0.8568,
+        0.8531,
+        0.8525,
+        0.8517,
+        0.8509
+      ],
+      "target_in_dense": null
+    },
+    "m06": {
+      "dense_top5": [
+        0.8706,
+        0.8701,
+        0.8699,
+        0.8691,
+        0.8674
+      ],
+      "target_in_dense": null
+    },
+    "m07": {
+      "dense_top5": [
+        0.8962,
+        0.8904,
+        0.8858,
+        0.8836,
+        0.8807
+      ],
+      "target_in_dense": null
+    },
+    "m09": {
+      "dense_top5": [
+        0.8677,
+        0.8635,
+        0.857,
+        0.8565,
+        0.8545
+      ],
+      "target_in_dense": null
+    },
+    "m10": {
+      "dense_top5": [
+        0.8858,
+        0.8858,
+        0.869,
+        0.8663,
+        0.8647
+      ],
+      "target_in_dense": null
+    },
+    "i01": {
+      "dense_top5": [
+        0.8443,
+        0.8424,
+        0.8388,
+        0.8387,
+        0.8383
+      ],
+      "target_in_dense": null
+    },
+    "i02": {
+      "dense_top5": [
+        0.8901,
+        0.8901,
+        0.8798,
+        0.8798,
+        0.8739
+      ],
+      "target_in_dense": null
+    },
+    "i04": {
+      "dense_top5": [
+        0.8449,
+        0.8435,
+        0.8418,
+        0.8399,
+        0.8396
+      ],
+      "target_in_dense": null
+    },
+    "b01-path": {
+      "dense_top5": [
+        0.8814,
+        0.8767,
+        0.874,
+        0.8738,
+        0.8738
+      ],
+      "target_in_dense": {
+        "rank": 4,
+        "cosine": 0.8738
+      }
+    },
+    "b01-section": {
+      "dense_top5": [
+        0.8814,
+        0.8767,
+        0.874,
+        0.8738,
+        0.8738
+      ],
+      "target_in_dense": null
+    },
+    "r01": {
+      "dense_top5": [
+        0.8757,
+        0.8757,
+        0.8745,
+        0.873,
+        0.8711
+      ],
+      "target_in_dense": {
+        "rank": 11,
+        "cosine": 0.8672
+      }
+    },
+    "r02": {
+      "dense_top5": [
+        0.9234,
+        0.897,
+        0.8869,
+        0.8854,
+        0.8852
+      ],
+      "target_in_dense": {
+        "rank": 28,
+        "cosine": 0.8769
+      }
+    },
+    "r04": {
+      "dense_top5": [
+        0.9094,
+        0.891,
+        0.8891,
+        0.8878,
+        0.8878
+      ],
+      "target_in_dense": {
+        "rank": 1,
+        "cosine": 0.9094
+      }
+    },
+    "r05": {
+      "dense_top5": [
+        0.9094,
+        0.8905,
+        0.8885,
+        0.882,
+        0.8802
+      ],
+      "target_in_dense": null
+    }
+  }
+}

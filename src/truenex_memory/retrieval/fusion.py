@@ -55,6 +55,24 @@ DENSE_SOURCE_WEIGHT = 0.9
 # recall case (overlap 1.0) keeps rank 1.
 MEMORY_FUSION_MIN_OVERLAP = 0.5
 
+# Relevance gate on DENSE candidates BEFORE fusion, expressed as the
+# minimum cosine similarity (0.0-1.0) against the query vector. Symmetric
+# to MEMORY_FUSION_MIN_OVERLAP: RRF ignores raw scores, so without this
+# gate EVERY dense neighbour enters the fused ranking with the 0.9 source
+# weight, and on ~478k embedded chunks every query has "plausible but
+# irrelevant" neighbours (measured on the live store, eval 2026-07-27:
+# the chunks that buried memory-recall targets sit at cosine 0.84-0.93).
+# The e5 vectors are L2-normalized, so the cosine IS interpretable.
+# Chosen empirically (docs/eval/gate-sweep-2026-07-27.json): the "good"
+# dense targets (real-logs r01/r02 at 0.867-0.877) and the "bad" ones
+# overlap in the 0.85-0.90 band, so no threshold recovers the long-tail
+# wins without re-introducing the memory-recall regressions; 0.90 is the
+# lowest threshold that restores FULL parity with the dense-OFF baseline
+# on every aggregate metric (memory-recall 13/14, real-logs 3/5, total
+# hit@k 0.88, hit@1 0.68, absent 3/3) while still letting near-exact
+# semantic matches corroborate the lexical ranking.
+DENSE_FUSION_MIN_COSINE = 0.90
+
 
 def reciprocal_rank_fusion(
     weighted_lists: Iterable[tuple[float, Sequence[T]]],

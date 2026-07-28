@@ -544,6 +544,92 @@ def test_truenex_dense_env_killswitch_disables_dense_ranker(
     assert repository._dense_ranker_enabled()
 
 
+def _repo_with_lexical_chunk(tmp_path: Path) -> MemoryRepository:
+    """Repo with a semantic embedder stub and one lexically matching chunk,
+    so search() takes the RRF branch (never the legacy dense fallback)."""
+    repository = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
+    doc = tmp_path / "lex.md"
+    text = (
+        "Rotazione chiavi MedDesk ogni novanta giorni secondo policy di "
+        "sicurezza concordata con il team clinico."
+    )
+    doc.write_text(text, encoding="utf-8")
+    repository.upsert_document(doc, "lex.md", chunk_text(text))
+    return repository
+
+
+def _dense_candidate(score: float) -> SearchHit:
+    return _hit(
+        "dense-candidate",
+        score=score,
+        source_path="docs/dense-only.md",
+        document_id="dense-doc-1",
+        content="contenuto trovato solo dal ranker semantico",
+    )
+
+
+def test_dense_cosine_gate_excludes_below_threshold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A dense candidate with cosine below DENSE_FUSION_MIN_COSINE must NOT
+    enter the fusion: plausible-but-irrelevant neighbours (measured on the
+    live store at cosine 0.84-0.93) buried memory targets when ungated."""
+    from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
+
+    repository = _repo_with_lexical_chunk(tmp_path)
+    below = _dense_candidate(round(DENSE_FUSION_MIN_COSINE - 0.01, 4))
+    monkeypatch.setattr(
+        repository, "_search_semantic_chunks", lambda conn, query, top_k: [below]
+    )
+    hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
+    assert hits, "the lexical chunk must still be returned"
+    assert all(hit.source_path != "docs/dense-only.md" for hit in hits), (
+        "the below-threshold dense candidate must be filtered before fusion"
+    )
+
+
+def test_dense_cosine_gate_includes_above_threshold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A dense candidate with cosine above the threshold enters the fusion
+    as a third RRF ranker."""
+    from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
+
+    repository = _repo_with_lexical_chunk(tmp_path)
+    above = _dense_candidate(round(DENSE_FUSION_MIN_COSINE + 0.01, 4))
+    monkeypatch.setattr(
+        repository, "_search_semantic_chunks", lambda conn, query, top_k: [above]
+    )
+    hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
+    assert any(hit.source_path == "docs/dense-only.md" for hit in hits)
+
+
+def test_dense_cosine_gate_boundary_is_inclusive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """score == DENSE_FUSION_MIN_COSINE passes the gate (>= semantics,
+    symmetric to MEMORY_FUSION_MIN_OVERLAP)."""
+    from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
+
+    repository = _repo_with_lexical_chunk(tmp_path)
+    boundary = _dense_candidate(DENSE_FUSION_MIN_COSINE)
+    monkeypatch.setattr(
+        repository, "_search_semantic_chunks", lambda conn, query, top_k: [boundary]
+    )
+    hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
+    assert any(hit.source_path == "docs/dense-only.md" for hit in hits)
+
+
+def test_dense_cosine_gate_constant_is_shared() -> None:
+    """repository must import the threshold from retrieval.fusion (single
+    source of truth, like the other fusion constants)."""
+    from truenex_memory.retrieval import fusion
+    from truenex_memory.store import repository
+
+    assert repository.DENSE_FUSION_MIN_COSINE is fusion.DENSE_FUSION_MIN_COSINE
+    assert fusion.DENSE_FUSION_MIN_COSINE == 0.90
+
+
 def test_dense_ranker_never_mixes_vector_dimensions(tmp_path: Path) -> None:
     """Cross-dimension safety: chunks embedded with the hashing model (384d)
     must NEVER be cosine-compared with a semantic query vector (768d) —

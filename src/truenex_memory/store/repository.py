@@ -15,7 +15,11 @@ import uuid
 logger = logging.getLogger(__name__)
 
 from truenex_memory.core.chunker import TextChunk, content_hash
-from truenex_memory.retrieval.fusion import DENSE_SOURCE_WEIGHT, MEMORY_FUSION_MIN_OVERLAP
+from truenex_memory.retrieval.fusion import (
+    DENSE_FUSION_MIN_COSINE,
+    DENSE_SOURCE_WEIGHT,
+    MEMORY_FUSION_MIN_OVERLAP,
+)
 from truenex_memory.retrieval.semantic import Embedder, VectorMatch, VectorPoint, VectorStore, chunk_point_id
 from truenex_memory.store.qdrant_store import VectorSearchHit
 from truenex_memory.store.models import MemoryNode, RetrievalLog, SearchHit, VALID_STATUSES
@@ -308,11 +312,26 @@ class MemoryRepository:
                 dense_hits = [
                     hit for hit in dense_hits if _is_searchable_source_path(hit.source_path)
                 ]
+                # Relevance gate on dense candidates BEFORE fusion,
+                # symmetric to the memory gate above: on ~478k embedded
+                # chunks every query has "plausible but irrelevant" dense
+                # neighbours (cosine 0.84-0.93 measured) and RRF would let
+                # them bury the lexical/memory targets (memory-recall
+                # hit@k 0.93 -> 0.64 ungated, eval 2026-07-27). The e5
+                # cosine is interpretable; only near-exact semantic
+                # matches (>= DENSE_FUSION_MIN_COSINE) corroborate.
+                dense_hits = [
+                    hit for hit in dense_hits if hit.score >= DENSE_FUSION_MIN_COSINE
+                ]
             if not memory_hits and not chunk_hits and not dense_hits:
                 # Legacy fallback (extrema ratio): no lexical hits AND no
                 # dense candidates — e.g. hashing embedder with its own
                 # vectors, or a semantic model with no vectors yet. Kept for
                 # backwards compatibility with pre-RRF dense behavior.
+                # NOTE: the DENSE_FUSION_MIN_COSINE gate intentionally does
+                # NOT apply on this path: it exists to preserve the pre-RRF
+                # behavior with the hashing embedder, whose scores are not
+                # cosines (a 0.90 threshold would always zero it out).
                 hits = self._search_semantic_chunks(conn, query, top_k)
                 hits = [hit for hit in hits if _is_searchable_source_path(hit.source_path)]
                 hits.sort(key=lambda item: item.score, reverse=True)

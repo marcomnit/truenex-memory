@@ -1,0 +1,1221 @@
+{
+  "eval_set_version": 1,
+  "db_path": "C:\\Users\\marco\\.truenex-memory\\truenex_memory.db",
+  "case_count": 25,
+  "results": [
+    {
+      "case_id": "m01",
+      "category": "memory-recall",
+      "query": "Sospetta gotta o infiammazione prostatica per disturbi minzionali lievi",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 6.487250599981053,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "f5008e87-8906-4827-b9b1-0b7117a9cb1b.jsonl::exchange_221",
+          "source_path": "C:\\Users\\marco\\.claude\\projects\\D--Project-sw-ProjectPy-truenex-memory\\f5008e87-8906-4827-b9b1-0b7117a9cb1b.jsonl::exchange_221",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "f5008e87-8906-4827-b9b1-0b7117a9cb1b.jsonl::exchange_222",
+          "source_path": "C:\\Users\\marco\\.claude\\projects\\D--Project-sw-ProjectPy-truenex-memory\\f5008e87-8906-4827-b9b1-0b7117a9cb1b.jsonl::exchange_222",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Protocollo Benchmark `ctx-size` / `parallel` > Come leggere i risultati > Configurazione sospetta",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\BENCHMARK_CTX_PARALLEL_PROTOCOL_2026-03-28.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Posta ###",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_ApiFineTune_Chat\\output_txt\\ASST FBF SACCO V9.1(2).txt",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "m02",
+      "category": "memory-recall",
+      "query": "abbandonare Paperclip come orchestratore operativo e costruire un orchestratore multi-agente Truenex",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 8.982168599992292,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "Decisione Marco 2026-07-26: abbandonare Paperclip come orchestratore operativo e",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "Truenex Orchestrator: valutazione architetturale 2026-07-26. Non clonare Papercl",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "Naming del nuovo orchestratore locale multi-agente Truenex: Marco ha respinto es",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "decision",
+          "title": "Vincolo di naming aggiunto da Marco per il nuovo orchestratore multi-agente: il ",
+          "source_path": null,
+          "score": 0.023438
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.023077
+        }
+      ]
+    },
+    {
+      "case_id": "m03",
+      "category": "memory-recall",
+      "query": "convergere su Vulkan come unico backend GPU per Windows e Linux, lasciare Metal su macOS",
+      "top_k": 5,
+      "rank": 5,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "reciprocal_rank": 0.2,
+      "absent_ok": null,
+      "elapsed_s": 8.352340299985372,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "Benchmark CUDA vs Vulkan — conclusione e raccomandazione > 4. Conclusione",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-17-cuda-vs-vulkan-benchmark.md",
+          "score": 0.031148
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "QVAC MedPsy — Accelerazione Hardware (GPU) e Correzione Trascrizioni ASR > PARTE A — Accelerazione GPU > A.3 Considerazi",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\runtime\\tauri-app\\docs\\reviews\\2026-07-15-gpu-acceleration-and-asr-correction.md",
+          "score": 0.030159
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "GPU Build Runbook — QVAC MedDesk > Direzione presa",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\02-architettura-tecnica\\GPU-BUILD-RUNBOOK.md",
+          "score": 0.029231
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Build con accelerazione GPU",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\02-architettura-tecnica\\BUILD-GPU.md",
+          "score": 0.028139
+        },
+        {
+          "memory_type": "decision",
+          "title": "Decisione preliminare backend GPU (2026-07-17): convergere su Vulkan come unico ",
+          "source_path": null,
+          "score": 0.02459
+        }
+      ]
+    },
+    {
+      "case_id": "m04",
+      "category": "memory-recall",
+      "query": "llama-cpp-sys-2 0.1.146 CMake build for vulkan-shaders-gen cannot find a C/C++ compiler",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 20.67263549999916,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "note",
+          "title": "Vulkan SDK 1.3.296.0 installed at D:\\VulkanSDK\\1.3.296.0. Full `cargo check --fe",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "CMakeLists.txt",
+          "source_path": "C:\\Users\\marco\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\llama-cpp-sys-2-0.1.146\\llama.cpp\\ggml\\src\\ggml-vulkan\\CMakeLists.txt",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "CMakeLists.txt",
+          "source_path": "C:\\Users\\marco\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\llama-cpp-sys-2-0.1.146\\llama.cpp\\ggml\\src\\ggml-vulkan\\vulkan-shaders\\CMakeLists.txt",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "CMakeLists.txt",
+          "source_path": "D:\\repos\\llama-cpp-python\\vendor\\llama.cpp\\ggml\\src\\ggml-vulkan\\CMakeLists.txt",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "CMakeLists.txt",
+          "source_path": "D:\\repos\\llama-cpp-python\\vendor\\llama.cpp\\ggml\\src\\ggml-vulkan\\vulkan-shaders\\CMakeLists.txt",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "m05",
+      "category": "memory-recall",
+      "query": "Presidio anti-allucinazione SOAP completo ma NON committato working tree non tracciata",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 6.296918200008804,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Presidio anti-allucinazione SOAP: completo ma NON committato al 2026-0",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Architettura e regole anti-allucinazione — TrueNex Agent > 6. Configurazione consigliata (contesto minimo ma limitato)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\AGENT_ARCHITETTURA_ANTI_ALLUCINAZIONE.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.5 — test di installazione sul campo, GPU discreta da 4 GB > Difetti e osservazioni, in ordine di gravità",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-25-field-test-vulkan-4gb.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Todo — Anti-allucinazione e contesto > 3. Anti-allucinazione: dati da tool, non inventati",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\TODO_ANTI_ALLUCINAZIONE_E_CONTESTO.md",
+          "score": 0.015873
+        }
+      ]
+    },
+    {
+      "case_id": "m06",
+      "category": "memory-recall",
+      "query": "NVIDIA GeForce RTX 3050 Laptop GPU 3962 MiB VRAM macchina di terze parti utente lucam",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 5.7059479000163265,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "note",
+          "title": "MedDesk — Test di installazione sul campo v0.1.5, 2026-07-25. GPU discreta da 4 ",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.5 — test di installazione sul campo, GPU discreta da 4 GB",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-25-field-test-vulkan-4gb.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.5 — test di installazione sul campo, GPU discreta da 4 GB > Risultati superati",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-25-field-test-vulkan-4gb.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "test_integration_20260305_204034.json",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\results\\test_integration_20260305_204034.json",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "test_integration_20260305_204034.json",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\results\\test_integration_20260305_204034.json",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "m07",
+      "category": "memory-recall",
+      "query": "Bug di ereditarietà auth quando si consulta DeepSeek da dentro Claude Code 401 Authentication Fails",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 8.65735379999387,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk / claude-ds — Bug di ereditarietà auth quando si consulta DeepSeek da de",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Agent Workflow — Progetti Marco > Ruoli",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\00-meta\\AGENTS.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "il mio primo programma Python.py > Strada 1 — dentro l'app (UI)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260725_1159_e27aae29.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Piano di Lavoro — SOP_AI_SERVICE > 4. Piano operativo #103 (ai-analysis-service) > 4.2 Checklist (da aggiornare man mano",
+          "source_path": "D:\\Project_sw\\CURSOR-SSH\\SOP_AI_SERVICE\\docs\\piano_di_lavoro.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "3) Chat con JWT > 4. Cosa deve fare l’applicativo AI_Agent (modifiche lato vostro)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\COMUNICAZIONE_AI_AGENT_INTEGRAZIONE.md",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "m08",
+      "category": "memory-recall",
+      "query": "Milestone FOUNDATION completata creato nuovo repository locale separato truenex-ordo 32 file 28 Markdown",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 10.359566500002984,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "TRUENEX ORDO â€” Milestone FOUNDATION completata il 2026-07-26. Creato nuovo rep",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Custom exceptions per gestione retry",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\cursor_chat\\cursor_perdita_dello_storico_delle_chat.md",
+          "score": 0.019705
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Custom exceptions per gestione retry",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\cursor_chat\\cursor_perdita_dello_storico_delle_chat.md",
+          "score": 0.018265
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Riscansiona euristicamente la home per trovare nuovi agenti > 7. Risultato implementazione > Note post-implementazione",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-memory\\docs\\ticket-agent-discovery-refactor.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Handoff Switch Modelli Graduale 2026-04-26 > Stato reale consolidato",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\HANDOFF_SWITCH_MODELLI_GRADUALE_2026-04-26.md",
+          "score": 0.016129
+        }
+      ]
+    },
+    {
+      "case_id": "m09",
+      "category": "memory-recall",
+      "query": "2026-07-24-ux-flow-and-verifiability-roadmap.md oggetto visita aggreghi gli output scaletta a 3 gradini",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 17.709081299981335,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "note",
+          "title": "MedDesk — roadmap UX post-collaudo (2026-07-24). Documento in docs/unified/04-ru",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Roadmap UX — flusso visita e verificabilità AI (2026-07-24) > Scaletta a 3 gradini (priorità)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\plans\\2026-07-24-ux-flow-and-verifiability-roadmap.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Roadmap UX — flusso visita e verificabilità AI (2026-07-24) > Scaletta a 3 gradini (priorità)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\plans\\2026-07-24-ux-flow-and-verifiability-roadmap.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Roadmap UX — flusso visita e verificabilità AI (2026-07-24) > Diagnosi di fondo (3 tesi + correzione verificata)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\plans\\2026-07-24-ux-flow-and-verifiability-roadmap.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice della documentazione unificata > Navigazione rapida",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\index.md",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "m10",
+      "category": "memory-recall",
+      "query": "CUDA_VISIBLE_DEVICES=0 prompt corto 130.6 tok/s TTFT 0.122s prompt lungo RAG 125.5",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 14.37518890001229,
+      "note": "",
+      "top_hits": [
+        {
+          "memory_type": "note",
+          "title": "Benchmark CUDA vs Vulkan (2026-07-18): run CUDA completate con CUDA_VISIBLE_DEVI",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Benchmark CUDA vs Vulkan — conclusione e raccomandazione > 3. Risultati > 3.1 Ripetizione benchmark 3× con prompt corto ",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-17-cuda-vs-vulkan-benchmark.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Conversazione 1f0d2df4-6328-48bf-b35d-b178a26b4de1 > 🧑 UTENTE  ·  2026-07-23 21:49",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260723_2350_1f0d2df4.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "📚 RAG Features e Tecniche - Documento Completo > 7. SYNTHESIS > 7.2 Synthesis Decision",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\RAG_FEATURES_TECHNIQUES_COMPLETE.md",
+          "score": 0.015625
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Prosegue con l'indicizzazione anche se la collection non esiste > 🔧 **FIX IMMEDIATO: Prompt GEST più Vincolante**",
+          "source_path": "D:\\Project_sw\\CURSOR_CHAT\\cursor_riprendere_discussione_su_autent.md",
+          "score": 0.015444
+        }
+      ]
+    },
+    {
+      "case_id": "i01",
+      "category": "memory-recall",
+      "query": "perché abbiamo deciso di abbandonare Paperclip come orchestratore operativo del sistema",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 5.680602199980058,
+      "note": "overlap intermedio misurato 0.5455 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "Decisione Marco 2026-07-26: abbandonare Paperclip come orchestratore operativo e",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Analisi: rinomina file inesistente → sistema sposta file sbagliato > Perché è successo",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\analisi_rinomina_file_inesistente_spostato_sbagliato.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Desktop path (OneDrive) e risposta in JSON — causa e fix > 2. Perché usa `C:\\Users\\marco\\Desktop` invece di OneDrive\\Des",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\DUAL_MODEL_DESKTOP_E_JSON_RISPOSTA.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "call_00_uhWHlPaJx8PqA7zwKkhwZQVJ.txt",
+          "source_path": "C:\\Users\\marco\\.claude\\projects\\C--Users-marco\\263f4966-5704-41de-8659-4d883c52fc27\\tool-results\\call_00_uhWHlPaJx8PqA7zwKkhwZQVJ.txt",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "steambootstrapper_italian.txt",
+          "source_path": "D:\\Program Files (x86)\\Steam\\public\\steambootstrapper_italian.txt",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "i02",
+      "category": "memory-recall",
+      "query": "perché il team ha deciso di convergere su Vulkan come backend unico grafico",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 6.162129100004677,
+      "note": "overlap intermedio misurato 0.5385 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "Decisione preliminare backend GPU (2026-07-17): convergere su Vulkan come unico ",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Benchmark CUDA vs Vulkan — conclusione e raccomandazione > 4. Conclusione",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-17-cuda-vs-vulkan-benchmark.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Benchmark CUDA vs Vulkan — conclusione e raccomandazione",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-17-cuda-vs-vulkan-benchmark.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Benchmark CUDA vs Vulkan — conclusione e raccomandazione > 6. Prossimi passi consigliati, in ordine",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-17-cuda-vs-vulkan-benchmark.md",
+          "score": 0.015385
+        }
+      ]
+    },
+    {
+      "case_id": "i03",
+      "category": "memory-recall",
+      "query": "quando è stata completata la milestone FOUNDATION del repository truenex-ordo",
+      "top_k": 5,
+      "rank": 2,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "reciprocal_rank": 0.5,
+      "absent_ok": null,
+      "elapsed_s": 10.481641299993498,
+      "note": "overlap intermedio misurato 0.6364 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "NOTA: La gestione di Departments e Positions è stata spostata in admin_org_api.py",
+          "source_path": "D:\\Project_sw\\CURSOR_CHAT\\cursor_riprendere_discussione_su_autent.md",
+          "score": 0.16275
+        },
+        {
+          "memory_type": "decision",
+          "title": "TRUENEX ORDO â€” Milestone FOUNDATION completata il 2026-07-26. Creato nuovo rep",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "note",
+          "title": "PROPOSTA DI AVVIO â€” Truenex Ordo. Prima milestone suggerita: fondazione del pr",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "note",
+          "title": "TRUENEX ORDO â€” Diagnosi claude-ds-review 2026-07-26. Non Ã¨ emerso un problema",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.023438
+        }
+      ]
+    },
+    {
+      "case_id": "i04",
+      "category": "memory-recall",
+      "query": "perché abbiamo deciso insieme di abbandonare Paperclip come orchestratore operativo del sistema intero",
+      "top_k": 5,
+      "rank": null,
+      "hit_at_1": false,
+      "hit_at_k": false,
+      "reciprocal_rank": 0.0,
+      "absent_ok": null,
+      "elapsed_s": 5.799985200021183,
+      "note": "overlap misurato 0.4615 — deliberatamente SOTTO soglia: sonda del tradeoff del gate, atteso rosso by design",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "Analisi Refactor Task Engine Conversazionale > Scopo",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\ANALISI_REFACTOR_TASK_ENGINE_CONVERSAZIONALE.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Lazy import di unstructured (sarà disponibile dopo build container)",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\cursor_chat\\cursor_perdita_dello_storico_delle_chat.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Analisi: rinomina file inesistente → sistema sposta file sbagliato > Perché è successo",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_Agent\\docs\\analisi_rinomina_file_inesistente_spostato_sbagliato.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Phase A Processor Alignment Spec - 2026-03-20 > Decisioni di design > Decisione 3 - `documents.pages`",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\PHASE_A_PROCESSOR_ALIGNMENT_SPEC_2026-03-20.md",
+          "score": 0.015625
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Perdita dello storico delle chat > 3️⃣ Nuova helper `_parsing_heartbeat` da aggiungere nella classe",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\cursor_chat\\cursor_perdita_dello_storico_delle_chat.md",
+          "score": 0.015385
+        }
+      ]
+    },
+    {
+      "case_id": "b01-path",
+      "category": "bug-report",
+      "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
+      "top_k": 10,
+      "rank": 8,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "reciprocal_rank": 0.125,
+      "absent_ok": null,
+      "elapsed_s": 6.524497200007318,
+      "note": "Caso fallito pre-fix (rank 7, sotto inquinamento lessicale). Post-gate il documento entra nel top-10.",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Archivio clinico (vault): stato verificato, piano di lavoro concordato",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat",
+          "source_path": null,
+          "score": 0.023438
+        },
+        {
+          "memory_type": "decision",
+          "title": "Truenex Memory — sessione fix retrieval del 2026-07-26 (sessione Kimi, workflow ",
+          "source_path": null,
+          "score": 0.023077
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice dei duplicati",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\DUPLICATES_INDEX.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice della documentazione unificata > Navigazione rapida",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\index.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "TrueNex MedDesk — Roadmap > ✅ Stato attuale (implementato e testato)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\runtime\\tauri-app\\ROADMAP.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "TrueNex MedDesk — Technical Handoff Document > 4. Architecture > 4.7 Frontend Routing",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\Technical-Handoff.md",
+          "score": 0.015385
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.2 — collaudo E2E del flusso clinico sul PC di sviluppo > Scopo",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-24-e2e-clinical-workflow-dev-pc.md",
+          "score": 0.014925
+        }
+      ]
+    },
+    {
+      "case_id": "b01-section",
+      "category": "bug-report",
+      "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
+      "top_k": 10,
+      "rank": 2,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "reciprocal_rank": 0.5,
+      "absent_ok": null,
+      "elapsed_s": 5.9829577000055,
+      "note": "semantic-dependent — limite lessicale noto (problema 2 del bug doc), atteso rosso fino alla fase embedder",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Archivio clinico (vault): stato verificato, piano di lavoro concordato",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat",
+          "source_path": null,
+          "score": 0.023438
+        },
+        {
+          "memory_type": "decision",
+          "title": "Truenex Memory — sessione fix retrieval del 2026-07-26 (sessione Kimi, workflow ",
+          "source_path": null,
+          "score": 0.023077
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice dei duplicati",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\DUPLICATES_INDEX.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice della documentazione unificata > Navigazione rapida",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\index.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "TrueNex MedDesk — Roadmap > ✅ Stato attuale (implementato e testato)",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\runtime\\tauri-app\\ROADMAP.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "TrueNex MedDesk — Technical Handoff Document > 4. Architecture > 4.7 Frontend Routing",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\Technical-Handoff.md",
+          "score": 0.015385
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.2 — collaudo E2E del flusso clinico sul PC di sviluppo > Scopo",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-24-e2e-clinical-workflow-dev-pc.md",
+          "score": 0.014925
+        }
+      ]
+    },
+    {
+      "case_id": "b02",
+      "category": "bug-report",
+      "query": "patient_external_ids idempotenza re-import sovrascrive correzioni manuali",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 5.260354800004279,
+      "note": "Decisione utente su contratto import GPU + 5 bug MedDesk.",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Truenex Memory v1 - Piano Fondativo Completo > 14. Testing Strategy > 14.2 Quality Gates Per Fase > Fase 3 - Auto Memory",
+          "source_path": "C:\\tmp\\TRUENEX_MEMORY_PLAN.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "- Generazione report dettagliato > **Test Manuali Rapidi**",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_ApiFineTune_Chat\\docs\\SERVIZI_LLM_STANDALONE.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Test singoli > **Test Manuali con curl**",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_ApiFineTune_Chat\\docs\\SERVIZI_LLM_STANDALONE.md",
+          "score": 0.015625
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "📚 DOMANDE RELATIVE AI DOCUMENTI CARICATI > 📄 accordo-stato-regioni-del-2-febbraio-2017-in-materia-di-ecm-allegato-a.pdf ",
+          "source_path": "C:\\Users\\marco\\OneDrive\\Documenti\\SOFWARE\\TRUENEX-ENGINE\\docs\\domande_relative_a_documenti_caricati.md",
+          "score": 0.015152
+        }
+      ]
+    },
+    {
+      "case_id": "b03",
+      "category": "bug-report",
+      "query": "un backup che non hai mai provato a ripristinare non è un backup è un auspicio",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": true,
+      "elapsed_s": 13.74401970001054,
+      "note": "Query naturale guidata da stopword; steamui era #1 pre-fix (inquinamento lessicale).",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Archivio clinico (vault): stato verificato, piano di lavoro concordato",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Backup verificato dell'archivio clinico: implementato il 2026-07-26. F",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "note",
+          "title": "TASK: Spostare disco WSL2 Docker (66 GB ext4.vhdx) da C:\\Users\\marco\\AppData\\Loc",
+          "source_path": null,
+          "score": 0.023438
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.023077
+        }
+      ]
+    },
+    {
+      "case_id": "b04",
+      "category": "bug-report",
+      "query": "un backup che non hai mai provato a ripristinare",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": true,
+      "elapsed_s": 12.7815967000206,
+      "note": "Variante corta: quasi solo parole funzionali, caso limite per retrieval lessicale.",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Archivio clinico (vault): stato verificato, piano di lavoro concordato",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Backup verificato dell'archivio clinico: implementato il 2026-07-26. F",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "note",
+          "title": "TASK: Spostare disco WSL2 Docker (66 GB ext4.vhdx) da C:\\Users\\marco\\AppData\\Loc",
+          "source_path": null,
+          "score": 0.023438
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.023077
+        }
+      ]
+    },
+    {
+      "case_id": "b05",
+      "category": "bug-report",
+      "query": "sovrascrive correzioni manuali",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": true,
+      "elapsed_s": 3.7816923999926075,
+      "note": "3 parole; doc ECM contiene 'manuali' e competeva col target.",
+      "top_hits": [
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "============================================================================",
+          "source_path": "D:\\Project_sw\\CURSOR_CHAT\\cursor_riprendere_discussione_su_autent.md",
+          "score": 0.019868
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Truenex Memory v1 - Piano Fondativo Completo > 14. Testing Strategy > 14.2 Quality Gates Per Fase > Fase 3 - Auto Memory",
+          "source_path": "C:\\tmp\\TRUENEX_MEMORY_PLAN.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "- Generazione report dettagliato > **Test Manuali Rapidi**",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_ApiFineTune_Chat\\docs\\SERVIZI_LLM_STANDALONE.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Test singoli > **Test Manuali con curl**",
+          "source_path": "D:\\Project_sw\\ProjectPy\\AI_ApiFineTune_Chat\\docs\\SERVIZI_LLM_STANDALONE.md",
+          "score": 0.015625
+        }
+      ]
+    },
+    {
+      "case_id": "r01",
+      "category": "real-logs",
+      "query": "MedDesk visita medica SOAP workflow UX design briefing nota",
+      "top_k": 5,
+      "rank": null,
+      "hit_at_1": false,
+      "hit_at_k": false,
+      "reciprocal_rank": 0.0,
+      "absent_ok": null,
+      "elapsed_s": 3.9014146999979857,
+      "note": "label proposta — da validare",
+      "top_hits": [
+        {
+          "memory_type": "note",
+          "title": "MedDesk — roadmap UX post-collaudo (2026-07-24). Documento in docs/unified/04-ru",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "note",
+          "title": "MedDesk — Due difetti gravi di sicurezza clinica trovati il 2026-07-26, entrambi",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — RISOLTO il 2026-07-26: le allucinazioni del briefing venivano riciclat",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice dei duplicati",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\DUPLICATES_INDEX.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Indice della documentazione unificata > Navigazione rapida",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\index.md",
+          "score": 0.016129
+        }
+      ]
+    },
+    {
+      "case_id": "r02",
+      "category": "real-logs",
+      "query": "MedDesk Windows tauri dev llama-cpp-sys-2 CMake build failure local target D:\\truenex-target Vulkan Ninja",
+      "top_k": 5,
+      "rank": 5,
+      "hit_at_1": false,
+      "hit_at_k": true,
+      "reciprocal_rank": 0.2,
+      "absent_ok": null,
+      "elapsed_s": 14.044734099996276,
+      "note": "label proposta — da validare",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "Conversazione 0ab9183f-2979-4a33-9663-ec10895bbd18 > 🧑 UTENTE  ·  2026-07-24 07:52",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260724_0957_0ab9183f.md",
+          "score": 0.031148
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk (truenex-local-QVAC_MedPsy) — sessione 2026-07-23, hardening release v0.",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "Runtime GPU fix: implemented Option B — GPU backends are now optional Cargo feat",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "note",
+          "title": "Vulkan SDK 1.3.296.0 installed at D:\\VulkanSDK\\1.3.296.0. Full `cargo check --fe",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Build con accelerazione GPU > Windows — Vulkan > Build",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\runtime\\tauri-app\\docs\\BUILD-GPU.md",
+          "score": 0.016129
+        }
+      ]
+    },
+    {
+      "case_id": "r03",
+      "category": "real-logs",
+      "query": "Truenex recursive multi-agent orchestrator design durable workflows agent hierarchy company organization runtime",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 8.270922800002154,
+      "note": "label proposta — da validare",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "Recursive Orchestrator Design",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-memory\\docs\\recursive-orchestrator-design.md",
+          "score": 0.016393
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "test_semantic2.json",
+          "source_path": "D:\\tmp\\test_semantic2.json",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "test_response3.json",
+          "source_path": "D:\\tmp\\test_response3.json",
+          "score": 0.015625
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Linux / macOS: > 🛠️ CLI Reference > Less common commands",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-memory\\README.md",
+          "score": 0.015385
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "test_response3.json",
+          "source_path": "D:\\tmp\\test_response3.json",
+          "score": 0.015152
+        }
+      ]
+    },
+    {
+      "case_id": "r04",
+      "category": "real-logs",
+      "query": "test di installazione GPU discreta VRAM insufficiente offload parziale ResourceManager binario",
+      "top_k": 5,
+      "rank": 1,
+      "hit_at_1": true,
+      "hit_at_k": true,
+      "reciprocal_rank": 1.0,
+      "absent_ok": null,
+      "elapsed_s": 7.064216700004181,
+      "note": "label proposta — da validare",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.5 — test di installazione sul campo, GPU discreta da 4 GB > Matrice dei test di installazione, aggiornata",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-25-field-test-vulkan-4gb.md",
+          "score": 0.031148
+        },
+        {
+          "memory_type": "note",
+          "title": "MedDesk — Test di installazione sul campo v0.1.5, 2026-07-25. GPU discreta da 4 ",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Consulenza DeepSeek (deepseek-v4-pro) del 2026-07-26 su offload GPU pa",
+          "source_path": null,
+          "score": 0.024194
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Stato alla fine della sessione del 2026-07-26. RIPRENDERE DA QUI.",
+          "source_path": null,
+          "score": 0.02381
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "MedDesk v0.1.5 — test di installazione sul campo, GPU discreta da 4 GB > Azioni aperte",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\docs\\unified\\04-runtime-tauri\\reviews\\2026-07-25-field-test-vulkan-4gb.md",
+          "score": 0.016129
+        }
+      ]
+    },
+    {
+      "case_id": "r05",
+      "category": "real-logs",
+      "query": "MedPsy-4B modello estrazione clinica second reader prompt medico",
+      "top_k": 5,
+      "rank": null,
+      "hit_at_1": false,
+      "hit_at_k": false,
+      "reciprocal_rank": 0.0,
+      "absent_ok": null,
+      "elapsed_s": 4.796829699975206,
+      "note": "label proposta — da validare",
+      "top_hits": [
+        {
+          "memory_type": "document_chunk",
+          "title": "Conversazione 3c9b414e-4e70-4b91-b4bc-f8f350e6e120 > 🤖 CLAUDE  ·  2026-07-22 16:03",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260722_1804_3c9b414e.md",
+          "score": 0.031148
+        },
+        {
+          "memory_type": "decision",
+          "title": "MedDesk — Presidio anti-allucinazione SOAP: completo ma NON committato al 2026-0",
+          "source_path": null,
+          "score": 0.02459
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Conversazione 3c9b414e-4e70-4b91-b4bc-f8f350e6e120 > 🧑 UTENTE  ·  2026-07-22 16:03",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260722_1804_3c9b414e.md",
+          "score": 0.016129
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "QVAC MedPsy — Accelerazione Hardware (GPU) e Correzione Trascrizioni ASR > PARTE B — Correzione delle trascrizioni ASR: ",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\runtime\\tauri-app\\docs\\reviews\\2026-07-15-gpu-acceleration-and-asr-correction.md",
+          "score": 0.015873
+        },
+        {
+          "memory_type": "document_chunk",
+          "title": "Conversazione ef527b4b-b77b-482b-92bd-3a1faf0ea998 > Question 4: Is the \"second reader\" prompt design optimal for MedPsy",
+          "source_path": "D:\\Project_sw\\ProjectPy\\truenex-local-QVAC_MedPsy\\_STORICO_RECUPERATO\\20260722_1759_ef527b4b.md",
+          "score": 0.015385
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "cases": 25,
+    "hit_at_1": 0.68,
+    "hit_at_k": 0.88,
+    "mrr": 0.741,
+    "mean_query_time_s": 8.875,
+    "absent_pass_rate": 1.0,
+    "absent_cases": 3,
+    "by_category": {
+      "bug-report": {
+        "cases": 6,
+        "hit_at_1": 0.6667,
+        "hit_at_k": 1.0,
+        "mrr": 0.7708
+      },
+      "memory-recall": {
+        "cases": 14,
+        "hit_at_1": 0.7857,
+        "hit_at_k": 0.9286,
+        "mrr": 0.8357
+      },
+      "real-logs": {
+        "cases": 5,
+        "hit_at_1": 0.4,
+        "hit_at_k": 0.6,
+        "mrr": 0.44
+      }
+    }
+  }
+}
