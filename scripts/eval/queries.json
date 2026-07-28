@@ -160,7 +160,7 @@
       "query": "MedDesk visita medica SOAP workflow UX design briefing nota",
       "top_k": 5,
       "expected": [{ "path_contains": "2026-07-24-ux-flow-and-verifiability-roadmap.md" }],
-      "note": "label proposta — da validare"
+      "note": "label validata dall'owner il 2026-07-28; la memoria che cita il doc arriva al rank 1 (informazione servita anche in caso di MISS del file)"
     },
     {
       "id": "r02",
@@ -168,7 +168,7 @@
       "query": "MedDesk Windows tauri dev llama-cpp-sys-2 CMake build failure local target D:\\truenex-target Vulkan Ninja",
       "top_k": 5,
       "expected": [{ "path_contains": "tauri-app\\docs\\BUILD-GPU.md" }],
-      "note": "label proposta — da validare"
+      "note": "label validata dall'owner il 2026-07-28"
     },
     {
       "id": "r03",
@@ -191,8 +191,8 @@
       "category": "real-logs",
       "query": "MedPsy-4B modello estrazione clinica second reader prompt medico",
       "top_k": 5,
-      "expected": [{ "path_contains": "models.md" }],
-      "note": "label proposta — da validare"
+      "expected": [{ "path_contains": "02-architettura-tecnica\\models.md" }],
+      "note": "label validata dall'owner il 2026-07-28 (specificato: docs/unified/02-architettura-tecnica/models.md)"
     }
   ]
 }
