@@ -308,6 +308,7 @@ python -m compileall -q src
 - **v0.2.0** — Stabilization: public package build, release artifacts, expanded docs, test coverage >80%.
 - **v0.3.0** — Ecosystem: plugin system, custom embedders, multi-project merge workflows.
 - **v0.4.0** — Persistent FTS5 search, schema v5 migration, faster exact retrieval, and hardened multi-PC updates.
+- **v0.5.0** — Hybrid RRF retrieval (memories + chunks), optional e5 semantic ranker with cosine-gated fusion, persistent memmap vector cache, and ledger purge tooling.
 
 See the full roadmap in [ROADMAP.md](ROADMAP.md).
 

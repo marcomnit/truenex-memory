@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-28
+
+### Added
+
+- Reciprocal Rank Fusion (RRF) of memory and chunk rankings: curated memories are first-class evidence and exact memory recalls rank first again instead of being buried under BM25 chunk scores.
+- Retrieval evaluation harness (`scripts/eval_retrieval.py` with the 25-case eval set `scripts/eval/queries.json`): hit@1, hit@k, MRR and expected-absent metrics, with dated reports under `docs/eval/`.
+- Optional semantic ranker (opt-in via `TRUENEX_EMBEDDER=e5`): multilingual-e5-base embeddings act as a third RRF ranker, with asymmetric query/passage prefixes, the `global reindex-embeddings` CLI command (resumable, dry-run by default), database schema v7, and an in-process numpy vector index (one BLAS matvec over ~479k vectors, GPU-accelerated encoding).
+- Persistent memmap cache for the vector index (`~/.truenex-memory/vector_cache/`): process cold-start drops from a ~150s JSON rebuild to a ~0.1s memmap open, with a `MAX(updated_at)`-stamped sidecar for validation and atomic, best-effort writes.
+- `purge-missing` maintenance for ledger entries whose files disappeared; agent worktrees are excluded from source discovery.
+- `TRUENEX_DENSE=off` kill-switch to disable the dense ranker without changing the configured embedder.
+
+### Changed
+
+- Relevance gates before fusion (RRF merges by rank and ignores raw scores): memories below `MEMORY_FUSION_MIN_OVERLAP = 0.5` token-overlap and dense candidates below `DENSE_FUSION_MIN_COSINE = 0.90` cosine are filtered as noise. Both thresholds were tuned empirically on the eval set (memory-recall hit@k 0.93 and overall hit@k 0.88 preserved, expected-absent 3/3).
+- Dense candidate fetching applies the cosine gate before row hydration (`min_score` pre-filter): the dominant dense cost (~1.4s under disk pressure) drops to tens of milliseconds when no candidate passes the gate.
+- The CLI global search path uses the same RRF fusion as the MCP search path.
+- Agent-session source boost lowered to 0.5.
+- Database schema v6 (secondary indexes) and v7 (`qdrant_point_id` and `(embedding_model, updated_at)` covering indexes); purge deletes are batched to keep write locks short.
+
+### Fixed
+
+- A long tail of weak single-token memories no longer pushes every relevant document chunk out of the fused top_k.
+
+### Upgrade notes
+
+- Run `truenex-mem migrate apply` to upgrade the database schema to v7 (a backup is taken automatically before migrating).
+- The e5 semantic ranker is strictly opt-in: without `TRUENEX_EMBEDDER=e5` production behavior is unchanged (hashing embedder, dense ranker off). To enable it, re-embed once with `truenex-mem global reindex-embeddings --yes` (GPU recommended, ~43 min for ~479k chunks). On NVIDIA GPUs the per-query encoding costs ~61ms; on CPU-only machines consider leaving the dense ranker disabled.
+
 ## [0.4.0] — 2026-07-17
 
 ### Added
