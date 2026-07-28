@@ -579,7 +579,7 @@ def test_dense_cosine_gate_excludes_below_threshold(
     repository = _repo_with_lexical_chunk(tmp_path)
     below = _dense_candidate(round(DENSE_FUSION_MIN_COSINE - 0.01, 4))
     monkeypatch.setattr(
-        repository, "_search_semantic_chunks", lambda conn, query, top_k: [below]
+        repository, "_search_semantic_chunks", lambda conn, query, top_k, **kw: [below]
     )
     hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
     assert hits, "the lexical chunk must still be returned"
@@ -598,7 +598,7 @@ def test_dense_cosine_gate_includes_above_threshold(
     repository = _repo_with_lexical_chunk(tmp_path)
     above = _dense_candidate(round(DENSE_FUSION_MIN_COSINE + 0.01, 4))
     monkeypatch.setattr(
-        repository, "_search_semantic_chunks", lambda conn, query, top_k: [above]
+        repository, "_search_semantic_chunks", lambda conn, query, top_k, **kw: [above]
     )
     hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
     assert any(hit.source_path == "docs/dense-only.md" for hit in hits)
@@ -614,7 +614,7 @@ def test_dense_cosine_gate_boundary_is_inclusive(
     repository = _repo_with_lexical_chunk(tmp_path)
     boundary = _dense_candidate(DENSE_FUSION_MIN_COSINE)
     monkeypatch.setattr(
-        repository, "_search_semantic_chunks", lambda conn, query, top_k: [boundary]
+        repository, "_search_semantic_chunks", lambda conn, query, top_k, **kw: [boundary]
     )
     hits = repository.search("rotazione chiavi MedDesk novanta giorni", top_k=10)
     assert any(hit.source_path == "docs/dense-only.md" for hit in hits)
@@ -628,6 +628,51 @@ def test_dense_cosine_gate_constant_is_shared() -> None:
 
     assert repository.DENSE_FUSION_MIN_COSINE is fusion.DENSE_FUSION_MIN_COSINE
     assert fusion.DENSE_FUSION_MIN_COSINE == 0.90
+
+
+def test_min_score_prefilter_skips_hydration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """_search_semantic_chunks(min_score=...) filters VectorMatch BEFORE
+    hydration: when every candidate is below the threshold, hydration is
+    never called (it is the dominant dense cost, ~1.4s under load)."""
+    from truenex_memory.store import repository as repo_module
+    from truenex_memory.store.sqlite import connect
+
+    repository = _repo_with_lexical_chunk(tmp_path)
+    monkeypatch.setattr(
+        repo_module,
+        "_hydrate_chunks_by_point_ids",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("hydration must be skipped")),
+    )
+    # The stub embedder produces cosine 1.0 for every indexed chunk; a
+    # min_score above 1.0 filters everything before hydration.
+    conn = connect(repository.db_path)
+    try:
+        hits = repository._search_semantic_chunks(conn, "rotazione chiavi", 10, min_score=1.1)
+    finally:
+        conn.close()
+    assert hits == []
+
+
+def test_min_score_prefilter_identical_to_post_gate(tmp_path: Path) -> None:
+    """Equivalence: pre-hydration min_score and post-hydration gate produce
+    the same dense list (same threshold on the same rounded cosines)."""
+    from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
+    from truenex_memory.store.sqlite import connect
+
+    repository = _repo_with_lexical_chunk(tmp_path)
+    conn = connect(repository.db_path)
+    try:
+        prefiltered = repository._search_semantic_chunks(
+            conn, "rotazione chiavi", 10, min_score=DENSE_FUSION_MIN_COSINE
+        )
+        unfiltered = repository._search_semantic_chunks(conn, "rotazione chiavi", 10)
+    finally:
+        conn.close()
+    post_gated = [h for h in unfiltered if h.score >= DENSE_FUSION_MIN_COSINE]
+    assert [h.source_path for h in prefiltered] == [h.source_path for h in post_gated]
+    assert [h.score for h in prefiltered] == [h.score for h in post_gated]
 
 
 def test_dense_ranker_never_mixes_vector_dimensions(tmp_path: Path) -> None:

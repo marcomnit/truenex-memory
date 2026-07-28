@@ -140,6 +140,7 @@ if "on" in phases:
     log(f"[on] search e2e e5-GPU gated (n={len(times)}): {pct(times)} ms")
 
 if "prof" in phases:
+    from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE  # noqa: E402
     from truenex_memory.retrieval.vector_index import get_index, search_index  # noqa: E402
     from truenex_memory.store.repository import _hydrate_chunks_by_point_ids  # noqa: E402
     from truenex_memory.store.sqlite import connect  # noqa: E402
@@ -150,10 +151,14 @@ if "prof" in phases:
             t0 = time.perf_counter(); qv = embedder.embed_query(q); t_e = time.perf_counter() - t0
             t0 = time.perf_counter(); entry = get_index(DB, conn, embedder.model_name); t_g = time.perf_counter() - t0
             t0 = time.perf_counter(); matches = search_index(entry, qv, 100); t_m = time.perf_counter() - t0
+            above = [m for m in matches if m.score >= DENSE_FUSION_MIN_COSINE]
             t0 = time.perf_counter(); _hydrate_chunks_by_point_ids(conn, [m.point_id for m in matches]); t_h = time.perf_counter() - t0
+            t0 = time.perf_counter(); _hydrate_chunks_by_point_ids(conn, [m.point_id for m in above]); t_hg = time.perf_counter() - t0
             t0 = time.perf_counter(); repo_on._search_semantic_chunks(conn, q, 100); t_s = time.perf_counter() - t0
+            t0 = time.perf_counter(); repo_on._search_semantic_chunks(conn, q, 100, min_score=DENSE_FUSION_MIN_COSINE); t_sg = time.perf_counter() - t0
             log(f"[prof] {q[:35]!r} rep{rep}: embed={t_e*1000:.0f} validazione={t_g*1000:.1f} "
-                f"matvec={t_m*1000:.0f} hydration={t_h*1000:.0f} semantic_tot={t_s*1000:.0f} ms")
+                f"matvec={t_m*1000:.0f} hydra100={t_h*1000:.0f} hydra_gated({len(above)})={t_hg*1000:.0f} "
+                f"semantic100={t_s*1000:.0f} semantic_gated={t_sg*1000:.0f} ms")
     conn.close()
 
 log("=== fine ===")

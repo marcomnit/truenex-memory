@@ -1,10 +1,28 @@
-"""In-process dense vector index backed by numpy.
+"""In-process dense vector index backed by numpy, with persistent memmap cache.
 
 A per-process cache keyed ``(db_path, embedding_model)`` holds the model's
 chunk vectors as a single float32 matrix, so dense retrieval is one BLAS
 matrix-vector product instead of a Python loop over hundreds of thousands
 of JSON rows (measured: the Python full-scan does not scale to ~478k x
 768d).
+
+The index is built LAZILY on the first dense search of the process (the
+only caller is ``MemoryRepository._search_semantic_chunks``) — never at
+MCP server startup. To make that first build effectively free, the matrix
+is persisted under ``<db_parent>/vector_cache/<sanitized_model>.npy`` (+
+``.json`` sidecar with the point_id mapping and the validity stamp): the
+next process opens it with ``np.load(mmap_mode="r")`` instead of
+re-parsing ~478k JSON rows from SQLite (~150s measured). The memmap open
+itself measures ~0.1s; on top of that the sidecar JSON parse (~19 MB,
+478k point_ids) costs an estimated 100-300 ms once per process, and the
+matrix pages are read on demand (first matvec pages the matrix in
+through the OS page cache; process RSS stays low until then). The
+sidecar is valid only when its ``max_updated_at``
+equals the current ``MAX(updated_at)`` of the model's chunks; anything
+else triggers a full rebuild + atomic cache rewrite (temp file +
+``os.replace``). A reader holding an old memmap can make the replace fail
+on Windows: the write is best-effort, a warning is logged, and the slow
+build result is still returned — cache failures never crash search.
 
 Invalidation criterion (cheap and robust): the cache entry is keyed by
 ``MAX(updated_at)`` of the model's chunks, re-checked per search with ONE
@@ -16,7 +34,10 @@ chunk). An exact ``COUNT(*)`` was rejected: on ~85k embedded rows it
 scans the whole index range (~1s per query, measured). The DB file
 ``st_mtime`` is NOT usable either: ``search()`` itself writes
 ``retrieval_logs`` on every call, so mtime invalidates after every query
-(measured: full rebuild per search).
+(measured: full rebuild per search). Known limitation (inherited by the
+persistent cache): deleting a chunk that does NOT hold the max
+``updated_at`` leaves the stamp unchanged, so a stale point_id may
+survive — hydration simply skips the missing row, never crashes.
 
 Operational note: reindex_embeddings bumps ``updated_at`` on every
 committed batch, so each batch invalidates this cache. With the dense
@@ -25,16 +46,20 @@ reload (~45s per query on the live store, measured) — run the reindex in
 a quiet window or with TRUENEX_DENSE=off.
 
 RAM: N vectors x D dims x 4 bytes (float32). On the live store (~478k x
-768d) that is ~1.5 GB; the allocated megabytes are logged after load. If
-numpy is not importable, callers must fall back to the legacy Python scan
-(``_sqlite_vector_matches``) — a one-time warning is logged here.
+768d) that is ~1.5 GB; the allocated megabytes are logged after a slow
+build. If numpy is not importable, callers must fall back to the legacy
+Python scan (``_sqlite_vector_matches``) — a one-time warning is logged
+here.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 import sqlite3
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,6 +76,7 @@ except ImportError:  # pragma: no cover - exercised via monkeypatch in tests
     NUMPY_AVAILABLE = False
 
 _LOAD_BATCH = 10_000
+_CACHE_DIR_NAME = "vector_cache"
 
 
 @dataclass
@@ -61,6 +87,7 @@ class VectorIndexEntry:
     max_updated_at: str | None
     point_ids: list[str]
     matrix: "np.ndarray"  # float32, shape (N, D), rows L2-normalized
+    from_memmap: bool = False  # True when backed by the persistent npy cache
 
 
 # (db_path, embedding_model) -> entry
@@ -93,6 +120,145 @@ def _model_max_updated(conn: sqlite3.Connection, embedding_model: str) -> str | 
     return row[0]
 
 
+def _sanitize_model_name(embedding_model: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", embedding_model)
+
+
+def _persistent_cache_paths(db_path: Path, embedding_model: str) -> tuple[Path, Path]:
+    """``(<npy matrix>, <json sidecar>)`` for the model's persistent cache."""
+
+    cache_dir = Path(db_path).parent / _CACHE_DIR_NAME
+    safe = _sanitize_model_name(embedding_model)
+    return cache_dir / f"{safe}.npy", cache_dir / f"{safe}.json"
+
+
+def _load_persistent_cache(
+    db_path: Path, embedding_model: str, max_updated: str
+) -> VectorIndexEntry | None:
+    """Open the persisted matrix as a read-only memmap when the sidecar is
+    valid (same model, same MAX(updated_at) stamp, consistent shape).
+
+    Returns None on a stale/missing sidecar (silent — a rebuild follows)
+    and on ANY read error (warning — cache failures must never crash
+    search; the caller falls back to the slow build).
+    """
+
+    matrix_path, sidecar_path = _persistent_cache_paths(db_path, embedding_model)
+    try:
+        sidecar = json.loads(sidecar_path.read_text(encoding="utf-8"))
+        if sidecar.get("embedding_model") != embedding_model:
+            return None
+        if sidecar.get("max_updated_at") != max_updated:
+            logger.info(
+                "persistent vector cache stale for %s (sidecar stamp %r, current %r): rebuilding",
+                embedding_model,
+                sidecar.get("max_updated_at"),
+                max_updated,
+            )
+            return None
+        point_ids = [str(point_id) for point_id in sidecar["point_ids"]]
+        vector_count = int(sidecar["vector_count"])
+        dims = int(sidecar["dims"])
+        if vector_count != len(point_ids) or vector_count < 1 or dims < 1:
+            return None
+        matrix = np.load(matrix_path, mmap_mode="r")
+        if matrix.shape != (vector_count, dims):
+            return None
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        logger.warning(
+            "persistent vector cache unreadable for %s, falling back to slow build: %s",
+            embedding_model,
+            exc,
+        )
+        return None
+    logger.info(
+        "dense vector index opened from persistent memmap cache: model=%s vectors=%d dims=%d",
+        embedding_model,
+        vector_count,
+        dims,
+    )
+    return VectorIndexEntry(
+        vector_count=vector_count,
+        max_updated_at=max_updated,
+        point_ids=point_ids,
+        matrix=matrix,
+        from_memmap=True,
+    )
+
+
+def _sweep_stale_tmp_files(cache_dir: Path, *, max_age_s: float = 3600.0) -> int:
+    """Best-effort GC of orphaned ``*.{pid}.tmp`` files in the cache dir.
+
+    A writer crashed mid-save leaves its temp files behind (a matrix tmp
+    is ~1.5 GB on the live store). Only files OLDER than ``max_age_s``
+    (mtime) are removed: a concurrent active writer's tmp is recent, so
+    the age guard prevents deleting it out from under the writer. Sweep
+    failures never propagate — this runs inside the cache write path.
+    """
+
+    removed = 0
+    try:
+        cutoff = time.time() - max_age_s
+        for tmp in cache_dir.glob("*.tmp"):
+            try:
+                if tmp.stat().st_mtime < cutoff:
+                    tmp.unlink()
+                    removed += 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    if removed:
+        logger.info("persistent vector cache GC: removed %d stale tmp file(s)", removed)
+    return removed
+
+
+def _save_persistent_cache(
+    db_path: Path, embedding_model: str, entry: VectorIndexEntry
+) -> None:
+    """Persist the built matrix + sidecar (temp file + atomic replace).
+
+    Best-effort: a concurrent reader's memmap can make ``os.replace``
+    fail on Windows; a warning is logged and the slow-build entry is
+    still used — the next rebuild retries the write.
+    """
+
+    matrix_path, sidecar_path = _persistent_cache_paths(db_path, embedding_model)
+    tmp_matrix = matrix_path.with_name(f"{matrix_path.name}.{os.getpid()}.tmp")
+    tmp_sidecar = sidecar_path.with_name(f"{sidecar_path.name}.{os.getpid()}.tmp")
+    try:
+        matrix_path.parent.mkdir(parents=True, exist_ok=True)
+        _sweep_stale_tmp_files(matrix_path.parent)
+        with open(tmp_matrix, "wb") as handle:
+            np.save(handle, np.asarray(entry.matrix, dtype=np.float32))
+        sidecar = {
+            "embedding_model": embedding_model,
+            "vector_count": entry.vector_count,
+            "dims": int(entry.matrix.shape[1]),
+            "max_updated_at": entry.max_updated_at,
+            "point_ids": entry.point_ids,
+        }
+        tmp_sidecar.write_text(json.dumps(sidecar), encoding="utf-8")
+        os.replace(tmp_matrix, matrix_path)
+        os.replace(tmp_sidecar, sidecar_path)
+        logger.info(
+            "persistent vector cache written: %s (%d vectors)",
+            matrix_path,
+            entry.vector_count,
+        )
+    except OSError as exc:
+        logger.warning(
+            "persistent vector cache write failed for %s (best-effort, slow build still used): %s",
+            embedding_model,
+            exc,
+        )
+        for tmp in (tmp_matrix, tmp_sidecar):
+            try:
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def get_index(
     db_path: Path,
     conn: sqlite3.Connection,
@@ -118,13 +284,24 @@ def get_index(
     max_updated = _model_max_updated(conn, embedding_model)
     if max_updated is None:
         _CACHE.pop(key, None)
+        # No vectors for this model: drop any stale persistent cache so a
+        # later re-embed cannot resurrect an orphaned file.
+        for path in _persistent_cache_paths(db_path, embedding_model):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
         return None
 
     cached = _CACHE.get(key)
     if cached is not None and cached.max_updated_at == max_updated:
         return cached
 
-    entry = _build_index(conn, embedding_model, max_updated)
+    entry = _load_persistent_cache(db_path, embedding_model, max_updated)
+    if entry is None:
+        entry = _build_index(conn, embedding_model, max_updated)
+        if entry is not None:
+            _save_persistent_cache(db_path, embedding_model, entry)
     if entry is not None:
         _CACHE[key] = entry
     return entry

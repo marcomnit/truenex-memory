@@ -307,7 +307,10 @@ class MemoryRepository:
             dense_hits: list[SearchHit] = []
             if self._dense_ranker_enabled():
                 dense_hits = self._search_semantic_chunks(
-                    conn, query, max(top_k * 20, 100)
+                    conn,
+                    query,
+                    max(top_k * 20, 100),
+                    min_score=DENSE_FUSION_MIN_COSINE,
                 )
                 dense_hits = [
                     hit for hit in dense_hits if _is_searchable_source_path(hit.source_path)
@@ -320,6 +323,10 @@ class MemoryRepository:
                 # hit@k 0.93 -> 0.64 ungated, eval 2026-07-27). The e5
                 # cosine is interpretable; only near-exact semantic
                 # matches (>= DENSE_FUSION_MIN_COSINE) corroborate.
+                # Intentionally REDUNDANT with the pre-hydration
+                # min_score filter in _search_semantic_chunks (same
+                # threshold, same scores): defense in depth at zero cost,
+                # in case a future caller skips the pre-filter.
                 dense_hits = [
                     hit for hit in dense_hits if hit.score >= DENSE_FUSION_MIN_COSINE
                 ]
@@ -545,6 +552,8 @@ class MemoryRepository:
         conn: sqlite3.Connection,
         query: str,
         top_k: int,
+        *,
+        min_score: float | None = None,
     ) -> list[SearchHit]:
         if self.embedder is None:
             return []
@@ -575,6 +584,15 @@ class MemoryRepository:
                 top_k,
                 embedding_model=self.embedder.model_name,
             )
+        if min_score is not None:
+            # Pre-hydration relevance gate: same threshold, same rounded
+            # cosine scores as the post-hydration DENSE_FUSION_MIN_COSINE
+            # filter in search(), so the final list is IDENTICAL — but
+            # rows that would be discarded anyway are never fetched.
+            # Hydrating ~100 sparse chunk rows from the ~10GB store is the
+            # dominant dense cost (~1.4s under disk pressure, measured);
+            # with the 0.90 gate the survivors are typically 0-5.
+            matches = [match for match in matches if match.score >= min_score]
         if not matches:
             return []
 
