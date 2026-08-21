@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import re
 import sqlite3
 import json
 
@@ -29,6 +30,12 @@ class ProjectContextReport:
     catalog_server_aliases: list[dict[str, object]] = field(default_factory=list)
 
     ledger_entries: list[dict[str, object]] = field(default_factory=list)
+    # Number of matching ledger rows before `limit` truncation, so a
+    # truncated `ledger` is visible to callers instead of looking complete.
+    ledger_total: int = 0
+    # Names this project is actually referred to by, inferred from its
+    # own memories. Exposed so a wrong inference is visible, not silent.
+    derived_aliases: list[str] = field(default_factory=list)
     indexed_documents: list[dict[str, object]] = field(default_factory=list)
     indexed_chunks: list[dict[str, object]] = field(default_factory=list)
     memory_nodes: list[dict[str, object]] = field(default_factory=list)
@@ -51,6 +58,8 @@ class ProjectContextReport:
                 "server_aliases": self.catalog_server_aliases,
             },
             "ledger": self.ledger_entries,
+            "ledger_total": self.ledger_total,
+            "derived_aliases": self.derived_aliases,
             "indexed": {
                 "documents": self.indexed_documents,
                 "chunks": self.indexed_chunks,
@@ -122,9 +131,20 @@ def build_project_context(
 
     if ambiguous:
         report.ambiguous_candidates = ambiguous
+        # List paths, not names: the names are precisely what collided, so
+        # repeating them ("truenex-engine, TRUENEX-ENGINE") told the caller
+        # nothing it could act on. Re-query with a path to disambiguate.
+        wanted = project_query.strip().lower()
+        paths = [
+            str(entry.get("path_or_alias"))
+            for entry in confirmed
+            if entry.get("source_type") == "project_root"
+            and str(entry.get("project_name") or "").strip().lower() == wanted
+        ]
+        detail = "; ".join(paths[:10]) if paths else ", ".join(ambiguous[:10])
         report.warnings.append(
             f"Ambiguous project query '{project_query}' matches {len(ambiguous)} "
-            f"candidates: {', '.join(ambiguous[:10])}"
+            f"candidates. Re-query with one of these paths: {detail}"
         )
         # Still return what we can, but mark unresolved
         return report
@@ -150,9 +170,9 @@ def build_project_context(
             report.warnings.append(f"Database exists but cannot be opened: {db_path}")
         else:
             try:
-                _read_ledger_for_project(conn, report, matched_roots)
+                _read_ledger_for_project(conn, report, matched_roots, limit)
                 _read_indexed_for_project(conn, report, matched_roots, limit)
-                _read_memory_nodes_for_project(conn, report, limit)
+                _read_memory_nodes_for_project(conn, report, limit, matched_roots)
             except sqlite3.DatabaseError:
                 report.warnings.append(f"Database exists but cannot be read: {db_path}")
             finally:
@@ -164,6 +184,26 @@ def build_project_context(
 
 
 # ── Internal: resolution ──────────────────────────────────────────────
+
+def _looks_like_file(path_or_alias: object) -> bool:
+    """True when a catalog path points at a file rather than a directory.
+
+    Checked on disk when possible, and by extension otherwise so the
+    judgement still holds for a path that has since been removed.
+    """
+    if not path_or_alias:
+        return False
+    text = str(path_or_alias)
+    candidate = Path(text)
+    try:
+        if candidate.is_file():
+            return True
+        if candidate.is_dir():
+            return False
+    except OSError:
+        pass
+    return bool(candidate.suffix) and len(candidate.suffix) <= 6
+
 
 def _resolve_project(
     query: str,
@@ -182,8 +222,16 @@ def _resolve_project(
     """
     query_lower = query.strip().lower()
 
-    # Separate entries by source_type
-    roots = [e for e in confirmed_entries if e.get("source_type") == "project_root"]
+    # Separate entries by source_type. A `project_root` whose path is a
+    # single file is a discovery artifact, not a project: the catalog holds
+    # entries for `...\skills\truenex-engine\SKILL.md` and
+    # `...\bookmarks_15_05_26.html`. Letting those compete on name made
+    # "truenex-engine" ambiguous between the real project, an SSH mirror
+    # of it, and a Markdown file.
+    roots = [
+        e for e in confirmed_entries
+        if e.get("source_type") == "project_root" and not _looks_like_file(e.get("path_or_alias"))
+    ]
     docs = [e for e in confirmed_entries if e.get("source_type") == "document"]
     servers = [e for e in confirmed_entries if e.get("source_type") == "server_alias"]
 
@@ -192,22 +240,36 @@ def _resolve_project(
         r for r in roots
         if r.get("project_name") and str(r["project_name"]).strip().lower() == query_lower
     ]
-    if len(name_matches) == 1:
+    if name_matches:
+        # Several roots sharing one project name are the same project held
+        # in more than one place — a mirror, an SSH copy, a -dev clone.
+        # Refusing to resolve was the wrong call: it left "truenex-engine"
+        # unanswerable while both roots plainly belonged to it. Merge them
+        # and say so; every root stays visible in catalog.roots, so a wrong
+        # merge is inspectable rather than hidden.
         root_entry = name_matches[0]
         project_name_val = root_entry.get("project_name")
-        related_docs = _find_related_docs(root_entry, docs)
-        related_servers = _find_related_servers(root_entry, servers)
+        related_docs: list[dict] = []
+        related_servers: list[dict] = []
+        for entry in name_matches:
+            related_docs.extend(_find_related_docs(entry, docs))
+            related_servers.extend(_find_related_servers(entry, servers))
+        if len(name_matches) > 1:
+            joined = "; ".join(str(r.get("path_or_alias")) for r in name_matches)
+            notes = (
+                f"matched project_name='{project_name_val}' across "
+                f"{len(name_matches)} roots: {joined}"
+            )
+        else:
+            notes = f"matched project_name='{project_name_val}'"
         return (
             _serialize_entries(name_matches),
             _serialize_entries(related_docs),
             _serialize_entries(related_servers),
             "exact_name",
-            f"matched project_name='{project_name_val}'",
+            notes,
             [],
         )
-    if len(name_matches) > 1:
-        candidates = [str(r.get("project_name", r.get("path_or_alias", "?"))) for r in name_matches]
-        return [], [], [], None, None, candidates
 
     # Phase 2a: exact full path/alias match
     path_matches = []
@@ -374,6 +436,7 @@ def _read_ledger_for_project(
     conn: sqlite3.Connection,
     report: ProjectContextReport,
     matched_roots: list[dict[str, object]],
+    limit: int | None = None,
 ) -> None:
     if not _table_exists(conn, "source_ledger"):
         report.warnings.append("source_ledger table not found in database")
@@ -422,7 +485,14 @@ def _read_ledger_for_project(
                 matching.append(_ledger_row_to_dict(row))
                 break
 
-    report.ledger_entries = matching
+    # Rows arrive ordered by updated_at DESC, so a plain slice keeps the
+    # most recent entries. Unbounded, this list dominated the JSON/MCP
+    # payload (measured: 129,686 of 162,003 characters for one project,
+    # even when the caller passed limit=3) while the text formatter
+    # already capped its own output at 10 — so only machine consumers
+    # paid the cost.
+    report.ledger_total = len(matching)
+    report.ledger_entries = matching if limit is None else matching[:limit]
 
 
 def _ledger_row_to_dict(row: sqlite3.Row) -> dict[str, object]:
@@ -582,6 +652,37 @@ def _strip_ingestion_metadata(text: str) -> str:
     return text
 
 
+# A curated memory IS the answer to "what is the state of this project",
+# so truncating it to a chunk-sized excerpt turned this report into an
+# index that always needed a second call. Chunks stay short — they are
+# pointers into files that can be read in full — while memories get room
+# to actually say something. Measured: the MedDesk resume note is 5,852
+# characters, and the six most substantial notes of a project total under
+# 9,000, which is negligible against the ~226,000 tokens of reading the
+# project's documentation instead.
+_MEMORY_CONTENT_CHARS = 6000
+
+
+def _memory_row_to_dict(
+    row: sqlite3.Row, limit_chars: int = _MEMORY_CONTENT_CHARS
+) -> dict[str, object]:
+    """Render one memory node, keeping enough content to be useful."""
+    content = str(row["content"] or "")
+    truncated = len(content) > limit_chars
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "memory_type": row["memory_type"],
+        "status": row["status"],
+        "confidence": row["confidence"],
+        "content": content[:limit_chars],
+        "content_chars": len(content),
+        "truncated": truncated,
+        "source_path": row["source_path"],
+        "created_at": row["created_at"],
+    }
+
+
 def _chunk_row_to_dict(row: sqlite3.Row, limit_chars: int = 400) -> dict[str, object]:
     content = _strip_ingestion_metadata(str(row["content"] or ""))
     truncated = False
@@ -601,41 +702,225 @@ def _chunk_row_to_dict(row: sqlite3.Row, limit_chars: int = 400) -> dict[str, ob
     }
 
 
+# A term must appear in at least this share of the memories that cite the
+# project's path to be considered one of its names, and be at least this
+# many times more concentrated there than across the store as a whole.
+# Measured on truenex-local-QVAC_MedPsy: "MedDesk" appears in 26 of the 41
+# citing memories (0.63) against 124 of 682 store-wide (0.18), a ratio of
+# 3.5; "TrueNex" appears in 0.46 of both, a ratio of 1.0. A threshold of 2
+# separates the product name from the organisation name.
+# Below this many citing memories the statistics are noise: with three
+# samples any term in one of them shows a 0.33 share and looks
+# significant. Measured: truenex-promoter has too few citing notes and
+# yielded "sessione", an ordinary Italian word, as an alias.
+_ALIAS_MIN_CITING = 10
+_ALIAS_MIN_SHARE = 0.2
+_ALIAS_MIN_CONCENTRATION = 2.0
+_ALIAS_PATTERN = re.compile(r"\b[A-Z][A-Za-z]{3,}\b")
+
+
+# A path token that appears in more than this share of all memories is an
+# organisation or platform name, not a project identifier. Measured:
+# "truenex" appears in 46% of memories and "local" in 21%, while "qvac" is
+# at 5% and "medpsy" at 7%. Seeding on the common ones dilutes the citing
+# set until the real product name falls below the concentration threshold.
+_SEED_MAX_SHARE = 0.15
+
+
+def _term_share(conn: sqlite3.Connection, term: str, total: int) -> float:
+    """Share of searchable memories mentioning *term*."""
+    count = conn.execute(
+        "SELECT COUNT(*) FROM memory_nodes "
+        "WHERE status IN ('active', 'unverified') "
+        "AND LOWER(title || ' ' || content) LIKE ?",
+        (f"%{term}%",),
+    ).fetchone()[0]
+    return count / total if total else 0.0
+
+
+def _distinctive_terms(
+    conn: sqlite3.Connection,
+    root_paths: list[str],
+    project_name: str | None,
+    total: int,
+) -> set[str]:
+    """The parts of a project's path that actually identify it.
+
+    Prefers the whole directory basename, which is the most specific
+    handle available, and falls back to individual tokens that are rare
+    enough store-wide to mean something.
+    """
+    candidates: list[str] = []
+    for path in root_paths:
+        basename = re.split(r"[\\/]", path.rstrip("\\/"))[-1]
+        if len(basename) > 3:
+            candidates.append(basename.lower())
+    if project_name and len(project_name) > 3:
+        candidates.append(project_name.lower())
+
+    distinctive = {
+        term for term in candidates
+        if 0 < _term_share(conn, term, total) <= _SEED_MAX_SHARE
+    }
+    if distinctive:
+        return distinctive
+
+    tokens = {
+        part.lower()
+        for source in candidates
+        for part in re.split(r"[\\/_\-\s]+", source)
+        if len(part) > 3
+    }
+    return {
+        token for token in tokens
+        if 0 < _term_share(conn, token, total) <= _SEED_MAX_SHARE
+    }
+
+
+def _derive_project_aliases(
+    conn: sqlite3.Connection,
+    root_paths: list[str],
+    project_name: str | None,
+    store_path: str = "",
+) -> set[str]:
+    """Infer the names a project is actually called by, from its memories.
+
+    A directory name and a product name rarely match: the folder is
+    `truenex-local-QVAC_MedPsy`, the memories all say "MedDesk", and no
+    algorithm can bridge that from the path alone. But the bridge is
+    already written down — memories that mention the folder also mention
+    the product — so it can be read back out instead of being configured.
+
+    Terms already present in the folder name are dropped (they add
+    nothing), and so are terms that are just as common across the whole
+    store, which is what separates a product name from an organisation
+    name.
+    """
+    searchable = "status IN ('active', 'unverified')"
+    total = conn.execute(f"SELECT COUNT(*) FROM memory_nodes WHERE {searchable}").fetchone()[0]
+    if not total:
+        return set()
+
+    seeds = _distinctive_terms(conn, root_paths, project_name, total)
+    if not seeds:
+        return set()
+
+    clauses = " OR ".join(["LOWER(title || ' ' || content) LIKE ?"] * len(seeds))
+    citing = conn.execute(
+        f"SELECT title, content FROM memory_nodes WHERE {searchable} AND ({clauses})",
+        [f"%{seed}%" for seed in sorted(seeds)],
+    ).fetchall()
+    if len(citing) < _ALIAS_MIN_CITING:
+        return set()
+
+    # Titles only. A product name is what a note is ABOUT, so it lands in
+    # the title ("MedDesk — Stato alla fine della sessione"); filesystem
+    # words land in the body, inside quoted paths. Scanning bodies too
+    # produced "users", "projectpy", "claude" and "codex" as aliases.
+    counts: dict[str, int] = {}
+    for row in citing:
+        for term in set(_ALIAS_PATTERN.findall(row["title"] or "")):
+            counts[term] = counts.get(term, 0) + 1
+
+    # Words taken from the store's own location are never product names:
+    # on this machine the store lives under C:\Users\marco, which made
+    # "marco" look like an alias for every project whose notes mention a
+    # path.
+    environment = {
+        part.lower()
+        for part in re.split(r"[\\/_\-\s.]+", store_path)
+        if len(part) > 3
+    }
+
+    aliases: set[str] = set()
+    for term, inside in counts.items():
+        lowered = term.lower()
+        if lowered in environment:
+            continue
+        if lowered in seeds or any(lowered in seed or seed in lowered for seed in seeds):
+            continue
+        share = inside / len(citing)
+        if share < _ALIAS_MIN_SHARE:
+            continue
+        overall = conn.execute(
+            f"SELECT COUNT(*) FROM memory_nodes WHERE {searchable} "
+            "AND LOWER(title) LIKE ?",
+            (f"%{lowered}%",),
+        ).fetchone()[0]
+        if not overall:
+            continue
+        if share / (overall / total) >= _ALIAS_MIN_CONCENTRATION:
+            aliases.add(lowered)
+    return aliases
+
+
 def _read_memory_nodes_for_project(
     conn: sqlite3.Connection,
     report: ProjectContextReport,
     limit: int,
+    matched_roots: list[dict[str, object]] | None = None,
 ) -> None:
     if not _table_exists(conn, "memory_nodes"):
         return
-    rows = conn.execute(
-        """
-        SELECT id, title, type AS memory_type, status, confidence, content, source_path, created_at
-        FROM memory_nodes
-        WHERE project_id = 'default'
-          AND status IN ('active', 'unverified')
-          AND (confidence IS NULL OR confidence >= 0.5)
-        ORDER BY
-          CASE status WHEN 'active' THEN 0 ELSE 1 END,
-          confidence DESC,
-          created_at DESC
-        LIMIT ?
-        """,
-        (limit,),
-    ).fetchall()
-    report.memory_nodes = [
-        {
-            "id": row["id"],
-            "title": row["title"],
-            "memory_type": row["memory_type"],
-            "status": row["status"],
-            "confidence": row["confidence"],
-            "content": str(row["content"] or "")[:400],
-            "source_path": row["source_path"],
-            "created_at": row["created_at"],
-        }
-        for row in rows
+
+    root_paths = [
+        str(root.get("path_or_alias") or "")
+        for root in (matched_roots or [])
+        if root.get("path_or_alias")
     ]
+    searchable = (
+        "status IN ('active', 'unverified') AND (confidence IS NULL OR confidence >= 0.5)"
+    )
+    total = conn.execute(
+        "SELECT COUNT(*) FROM memory_nodes WHERE status IN ('active', 'unverified')"
+    ).fetchone()[0]
+
+    # Match on identifiers only, never on the organisation name: seeding
+    # on "truenex" returned nearly the same memories for every project.
+    names = _distinctive_terms(conn, root_paths, report.project_query, total)
+    aliases = _derive_project_aliases(
+        conn, root_paths, report.project_query, report.db_path
+    )
+    report.derived_aliases = sorted(aliases)
+    terms = sorted(names | aliases)
+    if terms:
+        # Select the project's OWN memories. Previously this filtered on
+        # `project_id = 'default'`, which is the same value for every
+        # memory in the store, so the identical rows came back for every
+        # project. Order by content length: for "what is the state of this
+        # project", the substantial note is the useful answer and a
+        # 200-character status line is not — whereas confidence and date
+        # are near-uniform here and rank arbitrarily.
+        clauses = " OR ".join(["LOWER(title || ' ' || content) LIKE ?"] * len(terms))
+        rows = conn.execute(
+            f"""
+            SELECT id, title, type AS memory_type, status, confidence, content,
+                   source_path, created_at
+            FROM memory_nodes
+            WHERE {searchable} AND ({clauses})
+            ORDER BY
+              CASE status WHEN 'active' THEN 0 ELSE 1 END,
+              LENGTH(content) DESC
+            LIMIT ?
+            """,
+            [f"%{term}%" for term in terms] + [limit],
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            f"""
+            SELECT id, title, type AS memory_type, status, confidence, content,
+                   source_path, created_at
+            FROM memory_nodes
+            WHERE {searchable}
+            ORDER BY
+              CASE status WHEN 'active' THEN 0 ELSE 1 END,
+              confidence DESC,
+              created_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    report.memory_nodes = [_memory_row_to_dict(row) for row in rows]
 
 
 # ── Text formatting ───────────────────────────────────────────────────
@@ -696,7 +981,12 @@ def format_context_report(report: ProjectContextReport) -> str:
             st = str(le.get("status", "?"))
             by_status[st] = by_status.get(st, 0) + 1
         status_str = " ".join(f"{k}={v}" for k, v in sorted(by_status.items()))
-        lines.append(f"{len(report.ledger_entries)} entries: {status_str}")
+        # `ledger_entries` may be truncated by `limit`; report the true
+        # total so the count stays honest, and say so when it differs.
+        shown = len(report.ledger_entries)
+        total = report.ledger_total or shown
+        suffix = f" (showing {shown})" if total > shown else ""
+        lines.append(f"{total} entries{suffix}: {status_str}")
         for le in report.ledger_entries[:10]:
             err = le.get("error_message")
             err_str = f" ({err})" if err else ""
@@ -705,8 +995,8 @@ def format_context_report(report: ProjectContextReport) -> str:
                 f"{le.get('source_path_or_alias')} "
                 f"chunks={le.get('chunk_count')}{err_str}"
             )
-        if len(report.ledger_entries) > 10:
-            lines.append(f"  ... and {len(report.ledger_entries) - 10} more")
+        if shown > 10:
+            lines.append(f"  ... and {shown - 10} more")
     lines.append("")
 
     # Indexed

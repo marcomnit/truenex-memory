@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 from truenex_memory.core.migration import migrate_apply
 from truenex_memory.store.sqlite import connect, initialize_schema
 from truenex_memory.store.source_ledger import (
@@ -450,12 +451,11 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
 
         # Fake v1 state: remove source_ledger table, downgrade schema
         conn.execute("DROP TABLE IF EXISTS source_ledger")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '2'")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '3'")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '4'")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '5'")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '6'")
-        conn.execute("DELETE FROM schema_migrations WHERE version = '7'")
+        # Drop every recorded version, whatever the current schema is: an
+        # enumerated list silently stops downgrading the fixture the moment
+        # DB_SCHEMA_VERSION is bumped, leaving the store already current so
+        # migrate_apply reports applied=False for the wrong reason.
+        conn.execute("DELETE FROM schema_migrations")
         conn.execute("INSERT OR REPLACE INTO schema_migrations(version, applied_at) VALUES ('1', 'now')")
         conn.commit()
 
@@ -463,7 +463,7 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
     result = migrate_apply(db_path, backups_dir)
     assert result["applied"] is True
     assert result["previous_version"] == "1"
-    assert result["current_version"] == "7"
+    assert result["current_version"] == DB_SCHEMA_VERSION
 
     # Verify legacy data survives
     with connect(db_path) as conn:
@@ -482,7 +482,7 @@ def test_migrate_from_v1_legacy_preserves_existing_data_and_adds_ledger() -> Non
         ver = conn.execute(
             "SELECT version FROM schema_migrations ORDER BY CAST(version AS INTEGER) DESC LIMIT 1"
         ).fetchone()
-        assert ver["version"] == "7"
+        assert ver["version"] == DB_SCHEMA_VERSION
 
 
 def test_migrate_from_v0_legacy_creates_full_schema() -> None:
@@ -494,7 +494,7 @@ def test_migrate_from_v0_legacy_creates_full_schema() -> None:
     result = migrate_apply(db_path, backups_dir)
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "7"
+    assert result["current_version"] == DB_SCHEMA_VERSION
 
     with connect(db_path) as conn:
         tables = {

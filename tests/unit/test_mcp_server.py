@@ -69,6 +69,8 @@ def test_stdio_tool_surface_is_safe_subset_of_local_registry() -> None:
     tools = {tool["name"] for tool in response["result"]["tools"]}
     assert tools == {
         "memory_search",
+        "memory_get",
+        "memory_graph",
         "memory_add",
         "global_status",
         "global_project_context",

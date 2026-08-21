@@ -13,6 +13,7 @@ from truenex_memory.core.migration import (
     restore_backup,
 )
 from truenex_memory.store.repository import MemoryRepository
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 
 
 def _workdir(name: str) -> Path:
@@ -36,7 +37,11 @@ def test_migration_status_does_not_create_missing_database() -> None:
 
     status = migration_status(db_path)
 
-    assert status == {"current_version": "0", "latest_version": "7", "pending": True}
+    assert status == {
+        "current_version": "0",
+        "latest_version": DB_SCHEMA_VERSION,
+        "pending": True,
+    }
     assert not db_path.exists()
 
 
@@ -49,7 +54,7 @@ def test_migrate_apply_creates_schema_without_backup_for_new_database() -> None:
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "7"
+    assert result["current_version"] == DB_SCHEMA_VERSION
     assert result["backup_path"] is None
     assert db_path.exists()
     assert list(backups_dir.glob("*.db")) == []
@@ -65,7 +70,7 @@ def test_migrate_apply_backs_up_existing_database_before_schema_changes() -> Non
 
     assert result["applied"] is True
     assert result["previous_version"] == "0"
-    assert result["current_version"] == "7"
+    assert result["current_version"] == DB_SCHEMA_VERSION
     backup_path = Path(str(result["backup_path"]))
     assert backup_path.exists()
     assert backup_path.parent == backups_dir
@@ -89,7 +94,7 @@ def test_migrate_apply_is_idempotent_after_schema_is_current() -> None:
 
     assert first["applied"] is True
     assert second["applied"] is False
-    assert second["current_version"] == "7"
+    assert second["current_version"] == DB_SCHEMA_VERSION
     assert second["pending"] is False
     assert list(backups_dir.glob("*.db")) == []
 
@@ -167,7 +172,7 @@ def test_cli_migrate_status_json() -> None:
         assert result.exit_code == 0, result.stdout
         data = json.loads(result.stdout)
         assert data["current_version"] == "0"
-        assert data["latest_version"] == "7"
+        assert data["latest_version"] == DB_SCHEMA_VERSION
         assert data["pending"] is True
     finally:
         os.chdir(orig_cwd)
@@ -209,7 +214,7 @@ def test_cli_migrate_apply_json() -> None:
         data = json.loads(result.stdout)
         assert data["applied"] is True
         assert data["previous_version"] == "0"
-        assert data["current_version"] == "7"
+        assert data["current_version"] == DB_SCHEMA_VERSION
     finally:
         os.chdir(orig_cwd)
 
@@ -385,7 +390,7 @@ def test_restore_backup_reads_correct_schema_version() -> None:
     fresh_db = workdir / ".truenex-memory-restored" / "truenex_memory.db"
     result = restore_backup(fresh_db, backups_dir, backup_filename)
 
-    assert result["current_version"] == "7"
+    assert result["current_version"] == DB_SCHEMA_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -622,9 +627,9 @@ def test_initialize_upgrades_v5_db_to_v6_with_secondary_indexes(tmp_path) -> Non
             row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
         }
         # v5 stays recorded (its FTS backfill is NOT re-run) and the current
-        # schema version (v7, which also creates the v6 indexes) is added.
+        # schema version (which also creates the v6 indexes) is added.
         assert "5" in versions
-        assert "7" in versions
+        assert DB_SCHEMA_VERSION in versions
         assert conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0] == fts_count_before
 
         # Idempotent: a second initialize keeps everything stable.
@@ -689,7 +694,7 @@ def test_initialize_upgrades_v6_db_to_v7_with_point_id_index(tmp_path) -> None:
         versions = {
             row[0] for row in conn.execute("SELECT version FROM schema_migrations").fetchall()
         }
-        assert {"5", "6", "7"} <= versions
+        assert {"5", "6", DB_SCHEMA_VERSION} <= versions
         # No FTS rebuild happened.
         assert conn.execute("SELECT COUNT(*) FROM chunks_fts").fetchone()[0] == fts_count_before
 

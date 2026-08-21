@@ -1,0 +1,450 @@
+{
+ "version": 1,
+ "split": "holdout",
+ "provenance": "Claude Code instradato su DeepSeek (claude-ds-wrapper), fetta di 15 documenti",
+ "method": "Ogni caso e' stato scritto guardando UN documento reale dell'indice e formulando la domanda a cui quel documento risponde, con il vincolo esplicito di EVITARE le parole del documento. Il bersaglio e' quindi noto per costruzione e la domanda non e' stata scelta guardando cosa il sistema restituisce.",
+ "why": "I 28 casi documentali dell'insieme originale erano scritti dalla stessa persona che poi ha tarato il sistema: misuravano la sovrapposizione lessicale. Su questi casi indipendenti il sistema passa dal 71% al 7%.",
+ "frozen": true,
+ "cases": [
+  {
+   "id": "gen-deepseek-01",
+   "category": "docs-it",
+   "query": "Come faccio a far ricordare al programma un'informazione che scrivo io stesso, senza passare da una conversazione?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/commands-reference.md"
+    }
+   ],
+   "note": "Risponde alla sezione 'Memoria manuale'; evitate 'memoria' e 'manuale'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-02",
+   "category": "docs-en",
+   "query": "Is there a way to carry my notes out of the tool and bring them back later?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/commands-reference.md"
+    }
+   ],
+   "note": "Risponde alla sezione 'Import/Export'; evitate 'import' e 'export'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-03",
+   "category": "docs-it",
+   "query": "Come dovrebbe fare il programma, secondo il progetto, a decidere da solo quali scambi di messaggi vale la pena tenere?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/phase-3-auto-memory-design.md"
+    }
+   ],
+   "note": "Risponde a 'User Model'/'Scope' della registrazione automatica; evitate 'auto memory' e 'user model'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-04",
+   "category": "docs-en",
+   "query": "What happens to a pending job if the tool shuts down before it finishes?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/phase-3-auto-memory-design.md"
+    }
+   ],
+   "note": "Risponde a 'Deferred Commands'/'Ledger State Machine'; evitate 'deferred' e 'ledger'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-05",
+   "category": "docs-it",
+   "query": "Dove trovo i testi già pronti da incollare in uno strumento che crea illustrazioni per pubblicizzare il software?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/marketing/prompts-generazione.md"
+    }
+   ],
+   "note": "Risponde ai testi per le immagini promozionali; evitate 'prompt' e 'generare immagini'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-06",
+   "category": "docs-en",
+   "query": "What text should I hand to a picture-making tool to show that the product spares you from going back over your old notes?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/marketing/prompts-generazione.md"
+    }
+   ],
+   "note": "Risponde all'immagine one-liner 'Query, Don't Re-read'; evitate 'query' e 're-read'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-07",
+   "category": "docs-it",
+   "query": "Dove è descritta la modifica per non dover più scrivere a mano i percorsi delle cartelle in cui cercare gli assistenti?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/ticket-agent-discovery-refactor.md"
+    }
+   ],
+   "note": "Risponde a 'Eliminare Hardcoded AGENT_ROOTS'; evitate 'hardcoded' e 'AGENT_ROOTS'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-08",
+   "category": "docs-en",
+   "query": "If I add a new helper to the project, which list do I need to update so the system recognizes it?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/ticket-agent-discovery-refactor.md"
+    }
+   ],
+   "note": "Risponde a 'Aggiunge un agente al manifest'; evitate 'agent' e 'manifest'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-09",
+   "category": "docs-it",
+   "query": "Secondo il parere di chi ha esaminato la bozza, cosa è già disponibile nel prodotto prima di costruire la versione per computer?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/codex-review-desktop-spec.md"
+    }
+   ],
+   "note": "Risponde a 'What Already Exists (Desktop Context)'; evitate 'review' e 'desktop'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-10",
+   "category": "docs-en",
+   "query": "In the feedback on the proposed computer application, what does the person who evaluated it say is working in the product right now?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/codex-review-desktop-spec.md"
+    }
+   ],
+   "note": "Risponde a 'What Already Exists (Desktop Context)'; evitate 'review' e 'already exists'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-11",
+   "category": "docs-it",
+   "query": "Qual è il punto di ingresso del servizio web che consegna i codici per attivare il prodotto?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "license-server/main.py"
+    }
+   ],
+   "note": "Risponde all'app FastAPI del server licenze; evitate 'license' e 'FastAPI'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-12",
+   "category": "docs-en",
+   "query": "Which module inserts the first activation codes into storage when it boots up?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "license-server/main.py"
+    }
+   ],
+   "note": "Risponde a 'Pre-seeded license keys'; evitate 'pre-seeded' e 'license'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-13",
+   "category": "docs-it",
+   "query": "Come fa il prodotto a controllare da solo che il permesso d'uso sia autentico, senza collegarsi a nulla?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/licensing.py"
+    }
+   ],
+   "note": "Risponde alla verifica offline con chiave incorporata; evitate 'offline' e 'public key'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-14",
+   "category": "docs-en",
+   "query": "How does the tool validate a usage permit on its own, using only data bundled with the install?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/licensing.py"
+    }
+   ],
+   "note": "Risponde alla verifica offline con chiave incorporata; evitate 'embedded' e 'license manager'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-15",
+   "category": "docs-it",
+   "query": "Come è pensato il flusso in cui più aiutanti si rimbalzano un compito finché non raggiungono una soluzione condivisa?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/recursive-orchestrator-design.md"
+    }
+   ],
+   "note": "Risponde all'orchestrazione ricorsiva e alle strategie di convergenza; evitate 'recursive' e 'convergence'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-16",
+   "category": "docs-en",
+   "query": "What design describes several helpers handing a task back and forth until they agree on an answer?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/recursive-orchestrator-design.md"
+    }
+   ],
+   "note": "Risponde all'orchestrazione ricorsiva; evitate 'orchestrator' e 'convergence'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-17",
+   "category": "docs-it",
+   "query": "Perché, quando cambia la struttura interna dei dati, il programma non deve ricostruire da zero la ricerca su centinaia di migliaia di frammenti?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/store/sqlite.py"
+    }
+   ],
+   "note": "Risponde alla migrazione solo-indice e al backfill FTS; evitate 'reindex', 'schema' e 'FTS'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-18",
+   "category": "docs-en",
+   "query": "When the storage layout changes, how does the code avoid redoing the text lookup from scratch for hundreds of thousands of fragments?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/store/sqlite.py"
+    }
+   ],
+   "note": "Risponde alla migrazione solo-indice e al backfill FTS; evitate 'schema', 'backfill' e 'chunks'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-19",
+   "category": "docs-it",
+   "query": "Qual è il componente che espone le funzioni del sistema di memoria a un assistente esterno attraverso un protocollo comune?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/mcp/server.py"
+    }
+   ],
+   "note": "Risponde al server MCP; evitate 'MCP' e 'server'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-20",
+   "category": "docs-en",
+   "query": "Which module lets an outside assistant connect to the memory tool over the standard protocol for tool access?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/mcp/server.py"
+    }
+   ],
+   "note": "Risponde al server MCP; evitate 'MCP' e 'server'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-21",
+   "category": "docs-it",
+   "query": "Dove sta il codice che prende un dialogo esportato riga per riga in formato strutturato e lo trasforma in ricordi del sistema?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/parsers/jsonl_sessions.py"
+    }
+   ],
+   "note": "Risponde al parser delle sessioni in formato JSON Lines; evitate 'JSONL', 'session' e 'parser'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-22",
+   "category": "docs-en",
+   "query": "Which file handles a conversation log exported one record per line and turns it into stored memories?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/parsers/jsonl_sessions.py"
+    }
+   ],
+   "note": "Risponde al parser delle sessioni in formato JSON Lines; evitate 'jsonl' e 'sessions'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-23",
+   "category": "docs-it",
+   "query": "In quale file è implementato l'archivio delle fonti da cui attingere, con un identificatore che non cambia per ogni voce?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/discovery/source_catalog.py"
+    }
+   ],
+   "note": "Risponde alle voci di catalogo con id stabile; evitate 'catalog' e 'stable id'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-24",
+   "category": "docs-en",
+   "query": "Which code file maintains the inventory of data sources, giving each entry an identifier that never changes?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/discovery/source_catalog.py"
+    }
+   ],
+   "note": "Risponde alle voci di catalogo con id stabile; evitate 'source catalog' e 'stable id'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-25",
+   "category": "docs-it",
+   "query": "Come fa il sistema a produrre un riepilogo sullo stato complessivo delle fonti di dati?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_status.py"
+    }
+   ],
+   "note": "Risponde al report di stato globale; evitate 'report' e 'global status'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-26",
+   "category": "docs-en",
+   "query": "Which module assembles a summary of the overall health of the data sources?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_status.py"
+    }
+   ],
+   "note": "Risponde al report di stato globale; evitate 'report' e 'global status'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-27",
+   "category": "docs-it",
+   "query": "Quali passaggi devo seguire per proporre una modifica al progetto in modo che venga accettata?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "truenex-memory/CONTRIBUTING.md"
+    }
+   ],
+   "note": "Risponde a 'Pull Request Process'; evitate 'pull request' e 'contributing'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-28",
+   "category": "docs-en",
+   "query": "What rules should I follow about style and formatting before I offer my changes for review?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "truenex-memory/CONTRIBUTING.md"
+    }
+   ],
+   "note": "Risponde a 'Code Conventions'; evitate 'code conventions'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-29",
+   "category": "docs-it",
+   "query": "Secondo la progettazione, con che cadenza il sistema deve tornare a controllare le fonti per accorgersi di eventuali novità?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/agent-discovery-bootstrap.md"
+    }
+   ],
+   "note": "Risponde a 'Refresh Rules'; evitate 'refresh' e 'bootstrap'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-30",
+   "category": "docs-en",
+   "query": "What design explains the shared storage where data is kept regardless of which helper produced it?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/agent-discovery-bootstrap.md"
+    }
+   ],
+   "note": "Risponde a 'Global Store'; evitate 'global store'.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-31",
+   "category": "absent",
+   "query": "Come faccio a collegare il sistema al mio account Google Drive per il salvataggio automatico in cloud?",
+   "top_k": 5,
+   "expected": [],
+   "note": "Funzione di sincronizzazione cloud inventata: non esiste nel progetto.",
+   "split": "holdout",
+   "author": "deepseek"
+  },
+  {
+   "id": "gen-deepseek-32",
+   "category": "absent",
+   "query": "Is there a built-in spell checker that corrects typos in my notes before they are stored?",
+   "top_k": 5,
+   "expected": [],
+   "note": "Correttore ortografico inventato: non esiste nel progetto.",
+   "split": "holdout",
+   "author": "deepseek"
+  }
+ ]
+}

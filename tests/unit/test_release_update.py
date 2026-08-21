@@ -9,6 +9,7 @@ from truenex_memory.release.manifest import DEFAULT_MANIFEST_URL, ReleaseManifes
 from truenex_memory.release.update_check import check_for_updates, compare_versions
 from truenex_memory.release.version import get_version_info
 import truenex_memory
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 
 
 runner = CliRunner()
@@ -18,7 +19,7 @@ def test_version_info_contains_distinct_versions() -> None:
     info = get_version_info()
 
     assert info["app_version"] == truenex_memory.__version__
-    assert info["db_schema_version"] == "7"
+    assert info["db_schema_version"] == DB_SCHEMA_VERSION
     assert info["mcp_tools_version"] == "1"
     assert info["memory_export_version"] == "1"
     assert info["update_channel"] == "stable"

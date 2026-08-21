@@ -563,8 +563,12 @@ class TestIngestEngine:
         assert stats["chunks"] >= 1
 
         # Verify search finds session content (exchanges share same doc_id,
-        # last exchange overwrites, so search for any exchange content)
-        results = repo.search("docstring")
+        # last exchange overwrites, so search for any exchange content).
+        # include_sessions is required: transcript-derived content is
+        # excluded from search by default so raw dialogue cannot crowd out
+        # documentation. This test is specifically about session ingestion,
+        # so it opts back in.
+        results = repo.search("docstring", include_sessions=True)
         assert len(results) > 0
         # Source path should reference the session
         source_paths = [r.source_path for r in results]

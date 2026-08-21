@@ -55,9 +55,17 @@ class MemoryService:
         ensure_project_dirs(self.config)
         self.repository.initialize()
 
-    def add(self, content: str, *, memory_type: str = "note") -> str:
+    def add(
+        self,
+        content: str,
+        *,
+        memory_type: str = "note",
+        supersedes: str | None = None,
+    ) -> str:
         self.init_project()
-        return self.repository.add_memory(content, memory_type=memory_type)
+        return self.repository.add_memory(
+            content, memory_type=memory_type, supersedes=supersedes
+        )
 
     def index(
         self,
@@ -79,9 +87,25 @@ class MemoryService:
             extra_filenames=extra_filenames,
         )
 
-    def search(self, query: str, *, top_k: int = 5, include_inactive: bool = False) -> list[SearchHit]:
+    def search(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        include_inactive: bool = False,
+        include_sessions: bool = False,
+        scope: str | None = None,
+        diagnostics: dict | None = None,
+    ) -> list[SearchHit]:
         self.init_project()
-        return self.repository.search(query, top_k=top_k, include_inactive=include_inactive)
+        return self.repository.search(
+            query,
+            top_k=top_k,
+            include_inactive=include_inactive,
+            include_sessions=include_sessions,
+            scope=scope,
+            diagnostics=diagnostics,
+        )
 
     def list_documents(self) -> list[dict]:
         self.init_project()

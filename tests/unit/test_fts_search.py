@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 from truenex_memory.core.chunker import chunk_text
 from truenex_memory.store.repository import MemoryRepository, _search_chunks
 from truenex_memory.store.sqlite import (
@@ -50,7 +51,7 @@ def test_schema_v5_backfills_existing_chunks(tmp_path: Path) -> None:
         ).fetchone()[0]
 
     assert count == 1
-    assert version == 7
+    assert version == int(DB_SCHEMA_VERSION)
     assert repository.search("MedDesk rotation", top_k=3)[0].source_path == "docs/meddesk.md"
 
 

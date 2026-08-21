@@ -3,6 +3,7 @@
 import pytest
 
 from truenex_memory.store import SQLiteMemoryStore
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 
 
 def test_store_adds_and_searches_text() -> None:
@@ -48,4 +49,4 @@ def test_store_creates_base_schema() -> None:
         }
 
         assert "memories" in table_names
-        assert store.schema_version() == 7
+        assert store.schema_version() == int(DB_SCHEMA_VERSION)

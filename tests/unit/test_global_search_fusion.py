@@ -115,8 +115,9 @@ def test_mixed_query_returns_both_kinds_on_single_scale(tmp_path: Path) -> None:
 
 
 def test_reciprocal_rank_fusion_unit() -> None:
-    """Unit test of the generic fusion: expected order, true duplicates
-    merged and summed, distinct same-file chunks kept separate."""
+    """Unit test of the generic fusion: expected order, duplicates inside one
+    list counted once at their best rank, distinct same-file chunks kept
+    separate."""
     memories = [
         _hit("mem_1", kind="memory_node", title="mem best", score=10.0, content="m1"),
         _hit("mem_2", kind="memory_node", title="mem second", score=5.0, content="m2"),
@@ -139,17 +140,22 @@ def test_reciprocal_rank_fusion_unit() -> None:
     )
 
     by_content = {hit.content: score for score, hit in fused}
-    # Distinct same-file chunks stay distinct; the true duplicate (alpha)
-    # merges and sums ranks 1 and 3 of the chunk list.
+    # Distinct same-file chunks stay distinct. The duplicate (alpha, at
+    # ranks 1 and 3 of the SAME list) merges into one hit and is scored at
+    # its BEST rank only — it is one piece of evidence, not two. Summing it
+    # let a chat export with 60 byte-identical separator chunks accumulate
+    # ~6x any real answer's score and take rank 1 on four documentation
+    # queries; counting once recovered +3 eval cases with no regression.
     assert len(fused) == 4
-    assert by_content["alpha"] == round(
-        CHUNK_SOURCE_WEIGHT / (RRF_K + 1) + CHUNK_SOURCE_WEIGHT / (RRF_K + 3), 6
-    )
+    assert by_content["alpha"] == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
     assert by_content["beta"] == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 2), 6)
-    # Order: alpha (1/61+1/63 ≈ 0.03227) > mem_1 (1.5/61) > mem_2 (1.5/62)
-    # > beta (1/62): a true duplicate present at two ranks can outrank a
-    # rank-1 memory — inherent to RRF contribution summing.
-    assert [hit.id for _, hit in fused] == ["c1", "mem_1", "mem_2", "c2"]
+    # Order is by rank within each source, with no duplicate premium. The
+    # rank-1 memory and the rank-1 chunk now tie exactly (equal weights), so
+    # assert the tier they occupy rather than a tie-break that carries no
+    # meaning.
+    assert {hit.id for _, hit in fused[:2]} == {"mem_1", "c1"}
+    assert {hit.id for _, hit in fused[2:]} == {"mem_2", "c2"}
+    assert fused[0][0] == fused[1][0] == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
     assert all(0 < score <= RRF_SCORE_MAX for score, _ in fused)
 
     # Input order is irrelevant: each list is re-ranked by its own score.
@@ -163,7 +169,10 @@ def test_reciprocal_rank_fusion_unit() -> None:
         ),
         score_fn=lambda hit: hit.score,
     )
-    assert [hit.id for _, hit in shuffled] == ["c1", "mem_1", "mem_2", "c2"]
+    # The property under test is that input order does not matter, so compare
+    # against the unshuffled result instead of restating a literal order.
+    assert [hit.id for _, hit in shuffled] == [hit.id for _, hit in fused]
+    assert [score for score, _ in shuffled] == [score for score, _ in fused]
 
 
 def test_kind_filter_single_source_degenerates_to_source_order(tmp_path: Path) -> None:

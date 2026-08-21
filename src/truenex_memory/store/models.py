@@ -29,6 +29,10 @@ class MemoryNode:
     confidence: float | None
     created_at: str
     updated_at: str
+    # Id of the memory that replaced this one. Set together with the
+    # `superseded` status, so a retired note can always be followed to
+    # what now holds true instead of being a dead end.
+    superseded_by: str | None = None
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,11 @@ class SearchHit:
     source_id: str | None = None
     project: str | None = None
     created_at: str | None = None
+    # Set for memory-node hits only. `document_id` is the *source* document
+    # a memory was derived from and is NULL for hand-written memories, so it
+    # cannot address the memory itself — without this field a truncated
+    # memory result would be unresolvable.
+    memory_id: str | None = None
 
 
 @dataclass(frozen=True)

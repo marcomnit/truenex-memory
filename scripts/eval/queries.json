@@ -1,198 +1,694 @@
 {
-  "version": 1,
-  "cases": [
+ "version": 1,
+ "cases": [
+  {
+   "id": "m01",
+   "category": "memory-recall",
+   "query": "Sospetta gotta o infiammazione prostatica per disturbi minzionali lievi",
+   "top_k": 5,
+   "expected": [
     {
-      "id": "m01",
-      "category": "memory-recall",
-      "query": "Sospetta gotta o infiammazione prostatica per disturbi minzionali lievi",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_59510190aae848ea8992686c229eafba" }]
-    },
-    {
-      "id": "m02",
-      "category": "memory-recall",
-      "query": "abbandonare Paperclip come orchestratore operativo e costruire un orchestratore multi-agente Truenex",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_767beccde9884bd885c45b77fd17143f" }]
-    },
-    {
-      "id": "m03",
-      "category": "memory-recall",
-      "query": "convergere su Vulkan come unico backend GPU per Windows e Linux, lasciare Metal su macOS",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_404e163579bb43f580c51a85ec3b07e1" }]
-    },
-    {
-      "id": "m04",
-      "category": "memory-recall",
-      "query": "llama-cpp-sys-2 0.1.146 CMake build for vulkan-shaders-gen cannot find a C/C++ compiler",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_0631ffd499b541348ee457f30e5afe20" }]
-    },
-    {
-      "id": "m05",
-      "category": "memory-recall",
-      "query": "Presidio anti-allucinazione SOAP completo ma NON committato working tree non tracciata",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_9034e776593844e88548088542161cae" }]
-    },
-    {
-      "id": "m06",
-      "category": "memory-recall",
-      "query": "NVIDIA GeForce RTX 3050 Laptop GPU 3962 MiB VRAM macchina di terze parti utente lucam",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_20c89710489046d2a5fa0a1584e69828" }]
-    },
-    {
-      "id": "m07",
-      "category": "memory-recall",
-      "query": "Bug di ereditarietà auth quando si consulta DeepSeek da dentro Claude Code 401 Authentication Fails",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_83fe22cfbe234e5086a05352d33cf0dd" }]
-    },
-    {
-      "id": "m08",
-      "category": "memory-recall",
-      "query": "Milestone FOUNDATION completata creato nuovo repository locale separato truenex-ordo 32 file 28 Markdown",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_0ff94ae33dea4652b641719a1d3e2455" }]
-    },
-    {
-      "id": "m09",
-      "category": "memory-recall",
-      "query": "2026-07-24-ux-flow-and-verifiability-roadmap.md oggetto visita aggreghi gli output scaletta a 3 gradini",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_9b8d1447eac040d6ac49c76e13db6168" }]
-    },
-    {
-      "id": "m10",
-      "category": "memory-recall",
-      "query": "CUDA_VISIBLE_DEVICES=0 prompt corto 130.6 tok/s TTFT 0.122s prompt lungo RAG 125.5",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_17830d9d4ce945a38914051826093013" }]
-    },
-    {
-      "id": "i01",
-      "category": "memory-recall",
-      "query": "perché abbiamo deciso di abbandonare Paperclip come orchestratore operativo del sistema",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_767beccde9884bd885c45b77fd17143f" }],
-      "note": "overlap intermedio misurato 0.5455 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
-    },
-    {
-      "id": "i02",
-      "category": "memory-recall",
-      "query": "perché il team ha deciso di convergere su Vulkan come backend unico grafico",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_404e163579bb43f580c51a85ec3b07e1" }],
-      "note": "overlap intermedio misurato 0.5385 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
-    },
-    {
-      "id": "i03",
-      "category": "memory-recall",
-      "query": "quando è stata completata la milestone FOUNDATION del repository truenex-ordo",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_0ff94ae33dea4652b641719a1d3e2455" }],
-      "note": "overlap intermedio misurato 0.6364 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
-    },
-    {
-      "id": "i04",
-      "category": "memory-recall",
-      "query": "perché abbiamo deciso insieme di abbandonare Paperclip come orchestratore operativo del sistema intero",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_767beccde9884bd885c45b77fd17143f" }],
-      "note": "overlap misurato 0.4615 — deliberatamente SOTTO soglia: sonda del tradeoff del gate, atteso rosso by design"
-    },
-    {
-      "id": "b01-path",
-      "category": "bug-report",
-      "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
-      "top_k": 10,
-      "expected": [{ "path_contains": "ROADMAP.md" }],
-      "note": "Caso fallito pre-fix (rank 7, sotto inquinamento lessicale). Post-gate il documento entra nel top-10."
-    },
-    {
-      "id": "b01-section",
-      "category": "bug-report",
-      "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
-      "top_k": 10,
-      "expected": [{ "content_contains": "Utility di manutenzione" }],
-      "note": "semantic-dependent — limite lessicale noto (problema 2 del bug doc), atteso rosso fino alla fase embedder"
-    },
-    {
-      "id": "b02",
-      "category": "bug-report",
-      "query": "patient_external_ids idempotenza re-import sovrascrive correzioni manuali",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_6e02621db13544019a0912059756c049" }],
-      "note": "Decisione utente su contratto import GPU + 5 bug MedDesk."
-    },
-    {
-      "id": "b03",
-      "category": "bug-report",
-      "query": "un backup che non hai mai provato a ripristinare non è un backup è un auspicio",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_7dd1233ce38945dd85f49ff3f4401728" }],
-      "expected_absent": [{ "path_contains": "steamui_italian.txt" }],
-      "note": "Query naturale guidata da stopword; steamui era #1 pre-fix (inquinamento lessicale)."
-    },
-    {
-      "id": "b04",
-      "category": "bug-report",
-      "query": "un backup che non hai mai provato a ripristinare",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_7dd1233ce38945dd85f49ff3f4401728" }],
-      "expected_absent": [{ "path_contains": "steamui_italian.txt" }],
-      "note": "Variante corta: quasi solo parole funzionali, caso limite per retrieval lessicale."
-    },
-    {
-      "id": "b05",
-      "category": "bug-report",
-      "query": "sovrascrive correzioni manuali",
-      "top_k": 5,
-      "expected": [{ "memory_id": "mem_6e02621db13544019a0912059756c049" }],
-      "expected_absent": [{ "path_contains": "ANALISI_PROFONDA_CHUNK2_ECM.md" }],
-      "note": "3 parole; doc ECM contiene 'manuali' e competeva col target."
-    },
-    {
-      "id": "r01",
-      "category": "real-logs",
-      "query": "MedDesk visita medica SOAP workflow UX design briefing nota",
-      "top_k": 5,
-      "expected": [{ "path_contains": "2026-07-24-ux-flow-and-verifiability-roadmap.md" }],
-      "note": "label validata dall'owner il 2026-07-28; la memoria che cita il doc arriva al rank 1 (informazione servita anche in caso di MISS del file)"
-    },
-    {
-      "id": "r02",
-      "category": "real-logs",
-      "query": "MedDesk Windows tauri dev llama-cpp-sys-2 CMake build failure local target D:\\truenex-target Vulkan Ninja",
-      "top_k": 5,
-      "expected": [{ "path_contains": "tauri-app\\docs\\BUILD-GPU.md" }],
-      "note": "label validata dall'owner il 2026-07-28"
-    },
-    {
-      "id": "r03",
-      "category": "real-logs",
-      "query": "Truenex recursive multi-agent orchestrator design durable workflows agent hierarchy company organization runtime",
-      "top_k": 5,
-      "expected": [{ "path_contains": "recursive-orchestrator-design.md" }],
-      "note": "label proposta — da validare"
-    },
-    {
-      "id": "r04",
-      "category": "real-logs",
-      "query": "test di installazione GPU discreta VRAM insufficiente offload parziale ResourceManager binario",
-      "top_k": 5,
-      "expected": [{ "path_contains": "2026-07-25-field-test-vulkan-4gb.md" }],
-      "note": "label proposta — da validare"
-    },
-    {
-      "id": "r05",
-      "category": "real-logs",
-      "query": "MedPsy-4B modello estrazione clinica second reader prompt medico",
-      "top_k": 5,
-      "expected": [{ "path_contains": "02-architettura-tecnica\\models.md" }],
-      "note": "label validata dall'owner il 2026-07-28 (specificato: docs/unified/02-architettura-tecnica/models.md)"
+     "memory_id": "mem_59510190aae848ea8992686c229eafba"
     }
-  ]
+   ]
+  },
+  {
+   "id": "m02",
+   "category": "memory-recall",
+   "query": "abbandonare Paperclip come orchestratore operativo e costruire un orchestratore multi-agente Truenex",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_767beccde9884bd885c45b77fd17143f"
+    }
+   ]
+  },
+  {
+   "id": "m03",
+   "category": "memory-recall",
+   "query": "convergere su Vulkan come unico backend GPU per Windows e Linux, lasciare Metal su macOS",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_404e163579bb43f580c51a85ec3b07e1"
+    }
+   ]
+  },
+  {
+   "id": "m04",
+   "category": "memory-recall",
+   "query": "llama-cpp-sys-2 0.1.146 CMake build for vulkan-shaders-gen cannot find a C/C++ compiler",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_0631ffd499b541348ee457f30e5afe20"
+    }
+   ]
+  },
+  {
+   "id": "m05",
+   "category": "memory-recall",
+   "query": "Presidio anti-allucinazione SOAP completo ma NON committato working tree non tracciata",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_9034e776593844e88548088542161cae"
+    }
+   ]
+  },
+  {
+   "id": "m06",
+   "category": "memory-recall",
+   "query": "NVIDIA GeForce RTX 3050 Laptop GPU 3962 MiB VRAM macchina di terze parti utente lucam",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_20c89710489046d2a5fa0a1584e69828"
+    }
+   ]
+  },
+  {
+   "id": "m07",
+   "category": "memory-recall",
+   "query": "Bug di ereditarietà auth quando si consulta DeepSeek da dentro Claude Code 401 Authentication Fails",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_83fe22cfbe234e5086a05352d33cf0dd"
+    }
+   ]
+  },
+  {
+   "id": "m08",
+   "category": "memory-recall",
+   "query": "Milestone FOUNDATION completata creato nuovo repository locale separato truenex-ordo 32 file 28 Markdown",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_0ff94ae33dea4652b641719a1d3e2455"
+    }
+   ]
+  },
+  {
+   "id": "m09",
+   "category": "memory-recall",
+   "query": "2026-07-24-ux-flow-and-verifiability-roadmap.md oggetto visita aggreghi gli output scaletta a 3 gradini",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_9b8d1447eac040d6ac49c76e13db6168"
+    }
+   ]
+  },
+  {
+   "id": "m10",
+   "category": "memory-recall",
+   "query": "CUDA_VISIBLE_DEVICES=0 prompt corto 130.6 tok/s TTFT 0.122s prompt lungo RAG 125.5",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_17830d9d4ce945a38914051826093013"
+    }
+   ]
+  },
+  {
+   "id": "i01",
+   "category": "memory-recall",
+   "query": "perché abbiamo deciso di abbandonare Paperclip come orchestratore operativo del sistema",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_767beccde9884bd885c45b77fd17143f"
+    }
+   ],
+   "note": "overlap intermedio misurato 0.5455 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
+  },
+  {
+   "id": "i02",
+   "category": "memory-recall",
+   "query": "perché il team ha deciso di convergere su Vulkan come backend unico grafico",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_404e163579bb43f580c51a85ec3b07e1"
+    }
+   ],
+   "note": "overlap intermedio misurato 0.5385 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
+  },
+  {
+   "id": "i03",
+   "category": "memory-recall",
+   "query": "quando è stata completata la milestone FOUNDATION del repository truenex-ordo",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_0ff94ae33dea4652b641719a1d3e2455"
+    }
+   ],
+   "note": "overlap intermedio misurato 0.6364 (parafrasi) — verifica che la soglia 0.5 non uccida recall intermedi"
+  },
+  {
+   "id": "i04",
+   "category": "memory-recall",
+   "query": "perché abbiamo deciso insieme di abbandonare Paperclip come orchestratore operativo del sistema intero",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_767beccde9884bd885c45b77fd17143f"
+    }
+   ],
+   "note": "overlap misurato 0.4615 — deliberatamente SOTTO soglia: sonda del tradeoff del gate, atteso rosso by design"
+  },
+  {
+   "id": "b01-path",
+   "category": "bug-report",
+   "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
+   "top_k": 10,
+   "expected": [
+    {
+     "path_contains": "ROADMAP.md"
+    }
+   ],
+   "note": "Caso fallito pre-fix (rank 7, sotto inquinamento lessicale). Post-gate il documento entra nel top-10."
+  },
+  {
+   "id": "b01-section",
+   "category": "bug-report",
+   "query": "MedDesk vault backup import GPU offload allucinazioni SOAP",
+   "top_k": 10,
+   "expected": [
+    {
+     "content_contains": "Utility di manutenzione"
+    }
+   ],
+   "note": "semantic-dependent — limite lessicale noto (problema 2 del bug doc), atteso rosso fino alla fase embedder"
+  },
+  {
+   "id": "b02",
+   "category": "bug-report",
+   "query": "patient_external_ids idempotenza re-import sovrascrive correzioni manuali",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_6e02621db13544019a0912059756c049"
+    }
+   ],
+   "note": "Decisione utente su contratto import GPU + 5 bug MedDesk."
+  },
+  {
+   "id": "b03",
+   "category": "bug-report",
+   "query": "un backup che non hai mai provato a ripristinare non è un backup è un auspicio",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_7dd1233ce38945dd85f49ff3f4401728"
+    }
+   ],
+   "expected_absent": [
+    {
+     "path_contains": "steamui_italian.txt"
+    }
+   ],
+   "note": "Query naturale guidata da stopword; steamui era #1 pre-fix (inquinamento lessicale)."
+  },
+  {
+   "id": "b04",
+   "category": "bug-report",
+   "query": "un backup che non hai mai provato a ripristinare",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_7dd1233ce38945dd85f49ff3f4401728"
+    }
+   ],
+   "expected_absent": [
+    {
+     "path_contains": "steamui_italian.txt"
+    }
+   ],
+   "note": "Variante corta: quasi solo parole funzionali, caso limite per retrieval lessicale."
+  },
+  {
+   "id": "b05",
+   "category": "bug-report",
+   "query": "sovrascrive correzioni manuali",
+   "top_k": 5,
+   "expected": [
+    {
+     "memory_id": "mem_6e02621db13544019a0912059756c049"
+    }
+   ],
+   "expected_absent": [
+    {
+     "path_contains": "ANALISI_PROFONDA_CHUNK2_ECM.md"
+    }
+   ],
+   "note": "3 parole; doc ECM contiene 'manuali' e competeva col target."
+  },
+  {
+   "id": "r01",
+   "category": "real-logs",
+   "query": "MedDesk visita medica SOAP workflow UX design briefing nota",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "2026-07-24-ux-flow-and-verifiability-roadmap.md"
+    }
+   ],
+   "note": "label validata dall'owner il 2026-07-28; la memoria che cita il doc arriva al rank 1 (informazione servita anche in caso di MISS del file)"
+  },
+  {
+   "id": "r02",
+   "category": "real-logs",
+   "query": "MedDesk Windows tauri dev llama-cpp-sys-2 CMake build failure local target D:\\truenex-target Vulkan Ninja",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "tauri-app\\docs\\BUILD-GPU.md"
+    }
+   ],
+   "note": "label validata dall'owner il 2026-07-28"
+  },
+  {
+   "id": "r03",
+   "category": "real-logs",
+   "query": "Truenex recursive multi-agent orchestrator design durable workflows agent hierarchy company organization runtime",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "recursive-orchestrator-design.md"
+    }
+   ],
+   "note": "label proposta — da validare"
+  },
+  {
+   "id": "r04",
+   "category": "real-logs",
+   "query": "test di installazione GPU discreta VRAM insufficiente offload parziale ResourceManager binario",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "2026-07-25-field-test-vulkan-4gb.md"
+    }
+   ],
+   "note": "label proposta — da validare"
+  },
+  {
+   "id": "r05",
+   "category": "real-logs",
+   "query": "MedPsy-4B modello estrazione clinica second reader prompt medico",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "02-architettura-tecnica\\models.md"
+    }
+   ],
+   "note": "label validata dall'owner il 2026-07-28 (specificato: docs/unified/02-architettura-tecnica/models.md)"
+  },
+  {
+   "id": "d01",
+   "category": "docs-it",
+   "query": "come si configura il server MCP di truenex memory",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\mcp-setup.md"
+    },
+    {
+     "path_contains": "truenex-memory/README.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d01e",
+   "category": "docs-en",
+   "query": "how to configure the truenex memory MCP server",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\mcp-setup.md"
+    },
+    {
+     "path_contains": "truenex-memory/README.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d02",
+   "category": "docs-it",
+   "query": "come funziona la cache vettoriale e quando si invalida",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "retrieval\\vector_index.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d02e",
+   "category": "docs-en",
+   "query": "how the dense vector index cache is invalidated",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "retrieval\\vector_index.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d03",
+   "category": "docs-it",
+   "query": "quali sono i passi per fare una release e il bump di versione",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "bump_version.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d03e",
+   "category": "docs-en",
+   "query": "release steps and version bump",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "bump_version.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d04",
+   "category": "docs-it",
+   "query": "come funziona il reindex degli embeddings",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "ingestion\\reindex_embeddings.py"
+    },
+    {
+     "path_contains": "cli\\main.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d04e",
+   "category": "docs-en",
+   "query": "how does reindex embeddings work",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "ingestion\\reindex_embeddings.py"
+    },
+    {
+     "path_contains": "cli\\main.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d05",
+   "category": "docs-it",
+   "query": "cos'e il source ledger e a cosa serve",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "store\\source_ledger.py"
+    },
+    {
+     "path_contains": "ingestion\\global_refresh.py"
+    },
+    {
+     "path_contains": "ingestion\\global_source_health.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d05e",
+   "category": "docs-en",
+   "query": "what is the source ledger for",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "store\\source_ledger.py"
+    },
+    {
+     "path_contains": "ingestion\\global_refresh.py"
+    },
+    {
+     "path_contains": "ingestion\\global_source_health.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d06",
+   "category": "docs-it",
+   "query": "come si aggiunge una fonte confermata al catalogo globale",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\phase-3-auto-memory-design.md"
+    },
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d06e",
+   "category": "docs-en",
+   "query": "add a confirmed source to the global catalog",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\phase-3-auto-memory-design.md"
+    },
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d07",
+   "category": "docs-it",
+   "query": "come funziona la discovery degli agent",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\ticket-agent-discovery-refactor.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d07e",
+   "category": "docs-en",
+   "query": "how agent discovery works",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\ticket-agent-discovery-refactor.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d08",
+   "category": "docs-it",
+   "query": "che licenza serve per il git sync",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "cli\\git_commands.py"
+    },
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d08e",
+   "category": "docs-en",
+   "query": "which license tier is required for git sync",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "cli\\git_commands.py"
+    },
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d09",
+   "category": "docs-it",
+   "query": "come sono strutturati i chunk nel database",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "store\\sqlite.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d09e",
+   "category": "docs-en",
+   "query": "how chunks are stored in the database",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "store\\sqlite.py"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d10",
+   "category": "docs-it",
+   "query": "cosa fa il comando doctor",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d10e",
+   "category": "docs-en",
+   "query": "what does the doctor command do",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\commands-reference.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d11",
+   "category": "docs-it",
+   "query": "come si esporta e reimporta la memoria locale",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\user-guide.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d11e",
+   "category": "docs-en",
+   "query": "export and import local memory data",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\user-guide.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d12",
+   "category": "docs-it",
+   "query": "come funziona l'orchestratore ricorsivo",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\recursive-orchestrator-design.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d12e",
+   "category": "docs-en",
+   "query": "recursive orchestrator loop and convergence check",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\recursive-orchestrator-design.md"
+    }
+   ],
+   "note": "target verificato sull'indice live il 2026-08-20: il file esiste, e' indicizzato e i suoi chunk contengono i termini che definiscono la domanda"
+  },
+  {
+   "id": "d13",
+   "category": "docs-it",
+   "query": "cosa sono i memory node unverified",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\phase-3-auto-memory-design.md"
+    },
+    {
+     "path_contains": "ingestion\\global_auto_lifecycle.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d13e",
+   "category": "docs-en",
+   "query": "what are unverified memory nodes",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs\\phase-3-auto-memory-design.md"
+    },
+    {
+     "path_contains": "ingestion\\global_auto_lifecycle.py"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d14",
+   "category": "docs-it",
+   "query": "come si migrano gli schemi del database",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "core\\migration.py"
+    },
+    {
+     "path_contains": "docs\\release.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  },
+  {
+   "id": "d14e",
+   "category": "docs-en",
+   "query": "apply pending database schema migrations",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "core\\migration.py"
+    },
+    {
+     "path_contains": "docs\\release.md"
+    }
+   ],
+   "note": "target multipli: piu' file rispondono legittimamente. Allargato il 2026-08-20 dopo aver osservato quale file il recupero restituiva davvero, solo dove quel file risponde alla domanda."
+  }
+ ]
 }

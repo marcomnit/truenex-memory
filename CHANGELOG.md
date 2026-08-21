@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.5.3] — 2026-08-05
+
+### Fixed
+
+- `truenex-mem update self` now passes `--no-cache-dir` to pip. Right after a fresh release, pip's local HTTP cache could keep serving a stale index response and report "already satisfied" on the old version even though a newer one was published, forcing users to run pip manually with `--no-cache-dir`. The command now does this itself.
+
+## [0.5.2] — 2026-08-05
+
+### Note
+
+- No functional changes. Patch release to exercise the `update self` self-overwrite path (fixed in 0.5.1) against a real newer version on a live installation.
+
+## [0.5.1] — 2026-08-05
+
+### Fixed
+
+- `truenex-mem update self` on Windows failed with `WinError 32` because pip tried to overwrite the running `truenex-mem.exe` in place (a process can never overwrite its own executable image, regardless of other processes). The command now renames the running launcher stub aside before invoking pip, which frees the path for the upgrade; the rename is restored if pip fails, and stale renames from interrupted runs are swept up on the next invocation.
+
 ## [0.5.0] — 2026-07-28
 
 ### Added

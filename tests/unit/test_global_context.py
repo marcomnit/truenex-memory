@@ -253,9 +253,18 @@ def test_context_ambiguous_exact_name_matches() -> None:
 
     report = build_project_context("duplicate", catalog_path, db_path)
 
-    assert report.resolved is False
-    assert len(report.ambiguous_candidates) == 2
-    assert "Ambiguous" in "\n".join(report.warnings)
+    # Roots sharing a project_name are the same project in more than one
+    # place (a mirror, an SSH copy, a -dev clone), so they are merged
+    # rather than refused: refusing left a real project unanswerable.
+    # Every root stays in catalog_roots and the notes name them, so a
+    # wrong merge is inspectable instead of silent.
+    assert report.resolved is True
+    assert report.resolution_method == "exact_name"
+    assert len(report.catalog_roots) == 2
+    assert not report.ambiguous_candidates
+    assert "across 2 roots" in (report.resolution_notes or "")
+    assert "path-a" in (report.resolution_notes or "")
+    assert "path-b" in (report.resolution_notes or "")
 
 
 # ── Test 4b: project not found ────────────────────────────────────────
@@ -531,7 +540,7 @@ def test_context_to_dict_contains_expected_keys() -> None:
     expected_keys = {
         "project_query", "catalog_path", "db_path",
         "resolved", "resolution_method", "resolution_notes",
-        "catalog", "ledger", "indexed",
+        "catalog", "ledger", "ledger_total", "derived_aliases", "indexed",
         "memory_nodes", "ambiguous_candidates", "warnings",
     }
     assert set(d.keys()) == expected_keys

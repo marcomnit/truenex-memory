@@ -17,6 +17,21 @@ DEFAULT_EXCLUDED_DIRS = {
     ".pytest-tmp", "pytest_tmp", ".task_work", ".task3_work",
     "site-packages", "dist-info", ".conda", "conda-meta",
     "dist", "build", ".eggs", ".ruff_cache", ".coverage",
+    # Evaluation artefacts. `docs/eval/*.json` holds the harness output —
+    # which embeds every eval query and its top hits verbatim — and
+    # `scripts/eval/queries.json` is the question set itself. Indexing them
+    # contaminates the measurement: the eval scores its own answer key.
+    # Observed on 2026-08-20: after unrelated noise was removed, those
+    # baselines rose into the top 5 and displaced the true targets, which
+    # read as a quality regression caused by the cleanup.
+    "eval",
+    # Cargo/Rust build output. `target/**/.fingerprint/*.json` files are
+    # machine-generated and near-identical to each other, so they form
+    # large high-cosine clusters that crowd out real content in dense
+    # retrieval (measured: 6,202 chunks from 5,380 such files in one
+    # store). They also regenerate on every build, so excluding them at
+    # the source is the only durable fix.
+    "target", ".fingerprint",
     ".idea", ".vscode", ".history", ".DS_Store",
     # Agent worktrees (e.g. `.claude/worktrees/agent-*`) are ephemeral
     # copies of the repository: indexing them makes search return outdated
@@ -24,10 +39,22 @@ DEFAULT_EXCLUDED_DIRS = {
     # The exclusion matches ANY directory named `worktrees` at any depth,
     # not only `.claude/worktrees`.
     "worktrees",
+    # Third-party crate sources fetched by Cargo. Measured 30,824 chunks in
+    # one store — 17.5% of the whole corpus — none of it written here.
+    ".cargo",
+    # An archived copy of part of the project. Like `worktrees`, indexing it
+    # makes search return a superseded duplicate of a file that has since
+    # changed in the live tree.
+    ".archive",
 }
 
 DEFAULT_EXCLUDED_DIR_PREFIXES = (
     "task_work_", "pytest-task", "pytest-cache-files-", "venv",
+    # A leading dot defeated the bare "venv" prefix: `venv310` was excluded
+    # while `.venv310` and `.venv_client_build` were indexed in full. That
+    # is how one project contributed 12,552 chunks of site-packages and
+    # another 4,632 — third-party code, indexed as if it were ours.
+    ".venv",
 )
 
 DEFAULT_EXCLUDED_FILENAMES = frozenset({

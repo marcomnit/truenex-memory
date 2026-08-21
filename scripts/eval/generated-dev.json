@@ -1,0 +1,460 @@
+{
+ "version": 1,
+ "split": "dev",
+ "provenance": "Codex CLI (codex-wrapper), fetta di 15 documenti",
+ "method": "Ogni caso e' stato scritto guardando UN documento reale dell'indice e formulando la domanda a cui quel documento risponde, con il vincolo esplicito di EVITARE le parole del documento. Il bersaglio e' quindi noto per costruzione e la domanda non e' stata scelta guardando cosa il sistema restituisce.",
+ "why": "I 28 casi documentali dell'insieme originale erano scritti dalla stessa persona che poi ha tarato il sistema: misuravano la sovrapposizione lessicale. Su questi casi indipendenti il sistema passa dal 71% al 7%.",
+ "frozen": false,
+ "cases": [
+  {
+   "id": "gen-codex-01",
+   "category": "docs-it",
+   "query": "Perché i risultati provenienti da metodi di ricerca diversi devono essere combinati usando gli stessi parametri anche nel percorso da riga di comando?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/store/repository.py"
+    }
+   ],
+   "note": "Spiega il coordinamento dei punteggi tra classificatori diversi; ho evitato le parole RRF e fusion.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-02",
+   "category": "docs-en",
+   "query": "Which ranking parameters must remain synchronized between the database layer and the command-line search path, and how is that enforced?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/store/repository.py"
+    }
+   ],
+   "note": "Chiede della coerenza dei parametri e del controllo automatico; ho evitato Reciprocal Rank Fusion.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-03",
+   "category": "docs-it",
+   "query": "Come posso aggiornare globalmente i contenuti indicizzati e ottenere anche una rappresentazione testuale leggibile del risultato?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_refresh.py"
+    }
+   ],
+   "note": "Riguarda l'avvio dell'aggiornamento complessivo e la resa del rapporto; ho evitato refresh e Text formatting.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-04",
+   "category": "docs-en",
+   "query": "What is the main operation for rebuilding the project's stored knowledge, and how is its outcome turned into readable text?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_refresh.py"
+    }
+   ],
+   "note": "Individua l'operazione principale e la conversione del risultato in testo; ho evitato refresh e formatting.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-05",
+   "category": "docs-it",
+   "query": "Quali comandi posso usare dall'interfaccia del programma per preparare un repository, inviare modifiche, riceverne altre e controllarne lo stato?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/cli/git_commands.py"
+    }
+   ],
+   "note": "Chiede l'insieme delle operazioni Git esposte dall'interfaccia; ho evitato git init, push, pull e status.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-06",
+   "category": "docs-en",
+   "query": "Which command-line actions are available for setting up a repository, exchanging changes with its server, and inspecting its current condition?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/cli/git_commands.py"
+    }
+   ],
+   "note": "Copre le operazioni disponibili per il controllo del codice; ho evitato Git e i nomi dei sottocomandi.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-07",
+   "category": "docs-it",
+   "query": "Quali richieste HTTP posso usare per controllare il servizio, cercare contenuti, gestire memorie e vedere documenti o statistiche?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/serve.py"
+    }
+   ],
+   "note": "Richiama l'insieme delle aree dell'interfaccia web; ho evitato health, search, memory, documents e stats.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-08",
+   "category": "docs-en",
+   "query": "How does the web service organize its endpoints for availability checks, querying stored knowledge, project management, and usage information?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/serve.py"
+    }
+   ],
+   "note": "Chiede come sono raggruppate le richieste del servizio; ho evitato endpoint e i titoli delle sezioni.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-09",
+   "category": "docs-it",
+   "query": "Come viene costruito un quadro riassuntivo del progetto partendo dalle informazioni disponibili nel database?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_context.py"
+    }
+   ],
+   "note": "Riguarda la costruzione del resoconto e la lettura dei dati persistenti; ho evitato report, build e DB readers.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-10",
+   "category": "docs-en",
+   "query": "How is a project-wide overview assembled from the records that are already stored?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_context.py"
+    }
+   ],
+   "note": "Chiede il processo di composizione della panoramica dai dati salvati; ho evitato report e database.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-11",
+   "category": "docs-it",
+   "query": "Perché ciò che salvo direttamente tramite l'apposita funzione non ricompare quando provo a fare una ricerca?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/2026-07-26-memory-add-non-recuperabile.md"
+    }
+   ],
+   "note": "Descrive il comportamento delle memorie inserite manualmente; ho evitato memory_add e memory_search.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-12",
+   "category": "docs-en",
+   "query": "Why can information saved directly through the write operation never appear among search results?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/2026-07-26-memory-add-non-recuperabile.md"
+    }
+   ],
+   "note": "Chiede il motivo dell'assenza dai risultati del contenuto aggiunto manualmente; ho evitato i nomi delle due funzioni.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-13",
+   "category": "docs-it",
+   "query": "Quale struttura tecnica permetterebbe di aggiungere comprensione del significato, un nuovo archivio locale e una fase distinta per comporre il contesto?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/semantic-rag-architecture-plan.md"
+    }
+   ],
+   "note": "Riguarda il disegno futuro del recupero basato sul significato; ho evitato Semantic RAG e i nomi dei livelli.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-14",
+   "category": "docs-en",
+   "query": "What proposed design separates meaning extraction, local storage, document lookup, and assembling the context sent to the model?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/semantic-rag-architecture-plan.md"
+    }
+   ],
+   "note": "Chiede l'architettura progettata per le varie fasi del recupero; ho evitato semantic retrieval e i titoli tecnici.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-15",
+   "category": "docs-it",
+   "query": "Come devo interpretare i punteggi mostrati nei rapporti prodotti dalla ricerca globale?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_search.py"
+    }
+   ],
+   "note": "Spiega la natura dei valori esposti nei rapporti; ho evitato global search e Reciprocal Rank Fusion.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-16",
+   "category": "docs-en",
+   "query": "What do the scores in the reports generated by the broad search actually represent?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_search.py"
+    }
+   ],
+   "note": "Chiede come leggere i punteggi pubblicati nei risultati; ho evitato global search e RRF.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-17",
+   "category": "docs-it",
+   "query": "Cosa posso controllare se il comando del programma non viene trovato dopo l'installazione, oppure se l'indicizzazione include cartelle indesiderate?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/troubleshooting.md"
+    }
+   ],
+   "note": "Riunisce i principali problemi operativi documentati; ho evitato troubleshooting, truenex-mem e indexing.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-18",
+   "category": "docs-en",
+   "query": "What should I check when the installed command is unavailable or when scanning picks up dependency and metadata folders?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/troubleshooting.md"
+    }
+   ],
+   "note": "Chiede come affrontare due problemi pratici di installazione e scansione; ho evitato troubleshooting e indexing.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-19",
+   "category": "docs-it",
+   "query": "Come posso avviare localmente il componente che genera risposte usando un modello scaricato sul mio computer?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/LLM_SETUP.md"
+    }
+   ],
+   "note": "Riguarda l'avvio locale del componente linguistico e i requisiti; ho evitato LLM sidecar e quick start.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-20",
+   "category": "docs-en",
+   "query": "How do I run the local response-generation component, including the optional use of graphics hardware?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/LLM_SETUP.md"
+    }
+   ],
+   "note": "Chiede installazione, avvio e accelerazione opzionale; ho evitato LLM, sidecar, GPU e Docker Compose.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-21",
+   "category": "docs-it",
+   "query": "Dove trovo l'eseguibile del programma e come lo collego al mio agente per poterlo usare come servizio esterno?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/mcp-setup.md"
+    }
+   ],
+   "note": "Descrive la configurazione del collegamento tra programma e agente; ho evitato MCP, truenex-mem e il percorso dell'eseguibile.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-22",
+   "category": "docs-en",
+   "query": "Where can I locate the installed executable, and how do I configure an agent to launch it as an external tool?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/mcp-setup.md"
+    }
+   ],
+   "note": "Chiede la scoperta del percorso e la configurazione dell'agente; ho evitato MCP e i nomi delle applicazioni.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-23",
+   "category": "docs-it",
+   "query": "Come preparo due computer affinché possano scambiarsi il lavoro tramite un fornitore Git usando chiavi SSH?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/git-bridge-setup.md"
+    }
+   ],
+   "note": "Riguarda la sincronizzazione tra più computer e l'autenticazione; ho evitato Git Bridge e SSH key.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-24",
+   "category": "docs-en",
+   "query": "What steps let two computers exchange the same project through a code-hosting provider using key-based login?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "docs/git-bridge-setup.md"
+    }
+   ],
+   "note": "Chiede la procedura completa per collegare due macchine; ho evitato Git Bridge, sync e SSH.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-25",
+   "category": "docs-it",
+   "query": "Come viene valutato se una sorgente esterna è raggiungibile e in buone condizioni prima di usarla?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_source_health.py"
+    }
+   ],
+   "note": "Riguarda il controllo dello stato delle fonti; ho evitato global_source_health e health.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-26",
+   "category": "docs-en",
+   "query": "How does the system determine whether an external source is available and safe to use?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/global_source_health.py"
+    }
+   ],
+   "note": "Chiede il criterio per giudicare l'affidabilità di una fonte; ho evitato source health.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-27",
+   "category": "docs-it",
+   "query": "Come si eliminano in modo sicuro molti elementi dal registro senza superare il limite imposto dal motore SQL?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/ledger_purge.py"
+    }
+   ],
+   "note": "Riguarda la cancellazione a gruppi e il limite delle variabili nelle query; ho evitato ledger purge e SQLite.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-28",
+   "category": "docs-en",
+   "query": "How can a large batch of old records be removed without exceeding the database engine's parameter limit?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "src/truenex_memory/ingestion/ledger_purge.py"
+    }
+   ],
+   "note": "Chiede la strategia per rimuovere molti record rispettando il limite della query; ho evitato purge e SQLite.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-29",
+   "category": "docs-it",
+   "query": "Quali lavori sono ancora previsti per l'applicazione e quali decisioni tecniche risultano ancora da prendere?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "truenex-memory/TODO.md"
+    }
+   ],
+   "note": "Riguarda attività future, blocchi e decisioni aperte; ho evitato TODO, roadmap e milestone.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-30",
+   "category": "docs-en",
+   "query": "What upcoming product and backend work is listed, and which technical choices are still unresolved?",
+   "top_k": 5,
+   "expected": [
+    {
+     "path_contains": "truenex-memory/TODO.md"
+    }
+   ],
+   "note": "Chiede il quadro delle attività future e delle questioni aperte; ho evitato TODO, roadmap e pending.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-31",
+   "category": "absent",
+   "query": "Come posso fare in modo che il sistema traduca automaticamente ogni documento recuperato in latino prima di mostrarlo?",
+   "top_k": 5,
+   "expected": [],
+   "expected_absent": [
+    {
+     "path_contains": "automatic-latin-translation"
+    }
+   ],
+   "note": "La traduzione automatica in latino è una funzione inventata e non appartiene al progetto.",
+   "split": "dev",
+   "author": "codex"
+  },
+  {
+   "id": "gen-codex-32",
+   "category": "absent",
+   "query": "Does the project provide a built-in calendar that schedules a daily review of the five most relevant memories?",
+   "top_k": 5,
+   "expected": [],
+   "expected_absent": [
+    {
+     "path_contains": "built-in-calendar-review"
+    }
+   ],
+   "note": "Un calendario integrato per revisioni giornaliere non è descritto né previsto nei documenti forniti.",
+   "split": "dev",
+   "author": "codex"
+  }
+ ]
+}

@@ -180,10 +180,16 @@ def _search_project_chunks(
     embedder = embedder_from_env()
 
     repo = MemoryRepository(db_path, embedder=embedder)
-    hits = repo.search(query, top_k=50)
-
-    # Filter by project path
+    # Lo scope va DENTRO la ricerca, non applicato dopo: chiedere 50 candidati
+    # sull'intero corpus e poi tenere quelli del progetto spende il bacino sul
+    # resto dello store. Misurato sullo store reale: la ricerca ristretta
+    # triplica le risposte trovate su domande formulate senza le parole del
+    # documento (2/32 -> 6/32 su un insieme cieco). Il prefisso resta come
+    # controllo, perche' lo scope e' una sottostringa e puo' catturare un
+    # progetto fratello con nome piu' lungo.
     prefix = str(project_root).replace("\\", "/")
+    hits = repo.search(query, top_k=50, scope=prefix)
+
     filtered: list[dict[str, Any]] = []
     for h in hits:
         path = str(h.source_path or "").replace("\\", "/")

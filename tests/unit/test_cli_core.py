@@ -12,6 +12,7 @@ import uuid
 from typer.testing import CliRunner
 
 from truenex_memory.cli.main import app
+from truenex_memory.release.version import DB_SCHEMA_VERSION
 
 
 runner = CliRunner()
@@ -130,7 +131,7 @@ def test_cli_migrate_status_and_apply() -> None:
         applied = json.loads(result.stdout)
         assert applied["applied"] is True
         assert applied["previous_version"] == "0"
-        assert applied["current_version"] == "7"
+        assert applied["current_version"] == DB_SCHEMA_VERSION
         assert Path(applied["backup_path"]).exists()
 
         result = runner.invoke(app, ["migrate", "apply", "--json"])

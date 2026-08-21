@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
+import logging
 import sys
 import os
 from typing import Any
@@ -16,6 +17,9 @@ from truenex_memory.core.config import resolve_project_config
 from truenex_memory.core.llm_client import chat_with_llm
 from truenex_memory.core.chat_engine import gather_chat_context
 from truenex_memory.store.models import SearchHit
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_service() -> MemoryService:
@@ -285,7 +289,14 @@ def search(req: SearchRequest):
     if has_active_filter:
         fetch_k = max(req.top_k * 10, 100)
 
-    results = svc.search(req.query, top_k=fetch_k, include_inactive=include_inactive)
+    # Il progetto selezionato nell'interfaccia diventa lo scope della ricerca,
+    # non piu' solo un filtro applicato dopo: filtrare a posteriori spende il
+    # bacino di candidati sull'intero corpus e poi butta quasi tutto. Il filtro
+    # sotto resta comunque, perche' copre anche gli altri criteri.
+    scope = req.filters.project if req.filters and req.filters.project else None
+    results = svc.search(
+        req.query, top_k=fetch_k, include_inactive=include_inactive, scope=scope
+    )
     if req.filters:
         results = [r for r in results if _match_filters(r, req.filters)]
 
@@ -506,9 +517,49 @@ def project_graph(project_name: str = Query(..., description="Project name")):
                         if not project_root:
                             break
 
+        # Code-structure edges, when a graph has been built for this tree.
+        # Read from cache only, never extracted here: extraction is seconds
+        # to minutes, which an HTTP GET must not pay. Absent cache means an
+        # empty array, exactly what this endpoint returned unconditionally
+        # before — the frontend has always aggregated and weighted edges,
+        # it was simply never given any.
+        code_edges: list[dict[str, Any]] = []
+        graph_stats: dict[str, Any] = {}
+        try:
+            from truenex_memory.graph import (
+                default_cache_dirs,
+                document_edges,
+                ensure_current,
+                find_cached_graph,
+            )
+
+            cache_dirs = default_cache_dirs(svc.config.db_path)
+            cached = find_cached_graph(
+                cache_dirs, (path for _, path, _ in matched_docs)
+            )
+            if cached is not None:
+                code_edges = document_edges(
+                    cached, ((doc_id, path) for doc_id, path, _ in matched_docs)
+                )
+                # Stessa funzione di libreria del tool MCP e della CLI: la GUI
+                # non ha una politica propria sulla freschezza del grafo, e non
+                # deve averla.
+                freshness = ensure_current(cached, cache_dirs[0])
+                graph_stats = {
+                    "root": cached.root,
+                    "file_edges": len(cached.edges),
+                    "mapped_edges": len(code_edges),
+                    "stale": freshness.get("stale"),
+                    "rebuild": freshness.get("rebuild"),
+                    **cached.stats,
+                }
+        except Exception as error:  # pragma: no cover - defensive
+            logger.warning("code graph unavailable for %s: %s", project_name, error)
+
         return {
             "nodes": nodes,
-            "edges": [],
+            "edges": code_edges,
+            "code_graph": graph_stats,
             "summary": {
                 "project_name": project_name,
                 "total_files": len(nodes),

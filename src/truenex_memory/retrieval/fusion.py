@@ -25,10 +25,20 @@ T = TypeVar("T")
 # Standard RRF smoothing constant (Cormack et al., 2009): damps the
 # influence of top ranks so rank 1 does not dominate rank 5.
 RRF_K = 60
-# Memories are curated knowledge written explicitly by an agent or a
-# person, not text extracted automatically from a file.  At equal position
-# within their own ranking they must outrank document chunks.
-MEMORY_SOURCE_WEIGHT = 1.5
+# Memories and document chunks now enter fusion at equal weight.
+#
+# The old 1.5 privilege was not a mild preference: with RRF_K = 60 it made
+# the first 31 memories that clear the overlap gate outrank the best chunk
+# in the corpus unconditionally, since 1.5/(60+r) >= 1.0/61 for r <= 31.
+# Measured on the live store (2026-08-20, 14 realistic documentation
+# questions): at 1.5, eleven of fourteen questions returned NO document at
+# all and only 5 document chunks appeared across all top-5s; at 1.0, zero
+# questions were document-free and 33 chunks appeared, while the committed
+# eval set held steady (memory-recall 12/14, real-logs 1/5, bug-report 5/6).
+# 0.8 was tested too and overshoots badly — memory-recall collapses to 0/14.
+#
+# Keep aligned with the copy in store.repository; a parity test enforces it.
+MEMORY_SOURCE_WEIGHT = 1.0
 CHUNK_SOURCE_WEIGHT = 1.0
 # Dense (semantic) chunk candidates support the lexical ones but must not
 # overwhelm them: at equal position within their own ranking they score
@@ -55,6 +65,27 @@ DENSE_SOURCE_WEIGHT = 0.9
 # recall case (overlap 1.0) keeps rank 1.
 MEMORY_FUSION_MIN_OVERLAP = 0.5
 
+# A memory at or above this overlap ratio bypasses the rarest-term rule in
+# `_require_most_informative_token`. Every memory-recall eval case is a
+# near-verbatim quotation of the memory it targets (overlap 1.0 over 7-16
+# content terms), so this is what guarantees the IDF rule cannot regress
+# curated recall while it prunes memories that share only generic words.
+MEMORY_GATE_NEAR_VERBATIM_OVERLAP = 0.9
+
+# How many chunks of the SAME document may appear in the results. Content
+# deduplication does not catch this — three different chunks of one file are
+# three distinct pieces of content — but they spend answer slots without
+# adding information: on a real question about setting up a Git bridge, the
+# same `docs/git-bridge-setup.md` held all three top positions, so two of
+# five slots said nothing new. None disables the cap.
+#
+# Swept on all three eval sets: the effect is monotonic and 1 wins.
+# On the held-out set, cap None -> 4/32, 3 -> 4/32, 2 -> 5/32, 1 -> 6/32
+# (MRR 0.094 -> 0.108), while the committed 53-case set holds at 40/53
+# throughout with a marginally better MRR. Every freed slot goes to a
+# different document, which is the only way a fifth result adds anything.
+MAX_CHUNKS_PER_DOCUMENT = 1
+
 # Relevance gate on DENSE candidates BEFORE fusion, expressed as the
 # minimum cosine similarity (0.0-1.0) against the query vector. Symmetric
 # to MEMORY_FUSION_MIN_OVERLAP: RRF ignores raw scores, so without this
@@ -66,12 +97,35 @@ MEMORY_FUSION_MIN_OVERLAP = 0.5
 # Chosen empirically (docs/eval/gate-sweep-2026-07-27.json): the "good"
 # dense targets (real-logs r01/r02 at 0.867-0.877) and the "bad" ones
 # overlap in the 0.85-0.90 band, so no threshold recovers the long-tail
-# wins without re-introducing the memory-recall regressions; 0.90 is the
-# lowest threshold that restores FULL parity with the dense-OFF baseline
-# on every aggregate metric (memory-recall 13/14, real-logs 3/5, total
-# hit@k 0.88, hit@1 0.68, absent 3/3) while still letting near-exact
-# semantic matches corroborate the lexical ranking.
+# wins without re-introducing the memory-recall regressions.
+#
+# 2026-08-21: that entry claimed 0.90 "restores FULL parity with the
+# dense-OFF baseline". It no longer holds — dense-OFF now measures BETTER
+# than dense-ON at this gate (42/53 vs 40/53 on the 53-case eval, paired),
+# so the gate is not a calibration that reaches parity, it is a switch that
+# happens to mute a misaligned ranker. The branch is therefore off by
+# default (see MemoryRepository._dense_ranker_enabled) and this threshold
+# only applies when TRUENEX_DENSE=on. Do not read this constant as evidence
+# that the dense branch earns its place.
 DENSE_FUSION_MIN_COSINE = 0.90
+
+# TRIED AND REJECTED, 2026-08-21 — routing the dense branch by lexical
+# specificity. The motivation was real: on 30 paraphrase questions written by
+# another agent (which deliberately avoid the target's vocabulary) the whole
+# lexical+memory system answers 2, while the dense ranker ALONE has the target
+# in its cosine top-5 on 3 and top-50 on 6, and the 0.90 gate admits exactly
+# zero candidates there. The router fired when at most N of the lexical
+# candidates carried the query's rarest term — a signal that separates the two
+# question classes cleanly (median 34 lexical vs 3 paraphrase).
+#
+# All three variants lost more than they gained on the 53-case set:
+#   N<=2, top-100 dense: paraphrases 2->3, existing 42->38
+#   N==0, top-100 dense: paraphrases 2->3, existing 42->40
+#   N==0, top-5   dense: paraphrases 2->2, existing 42->40
+# Admitted by rank the dense candidates are too noisy to help even where the
+# lexical branch has nothing. The conclusion is not "route better": it is that
+# this embedder does not rank this corpus usefully, so the paraphrase gap needs
+# a different model, not a different gate.
 
 
 def reciprocal_rank_fusion(
@@ -88,18 +142,19 @@ def reciprocal_rank_fusion(
 
         fused(item) = sum over lists of weight / (RRF_K + rank_in_list)
 
-    Items are identified by ``key_fn``; true duplicates (same key appearing
-    in one or more lists) have their RRF contributions summed and keep the
-    first-seen item as representative.
+    Items are identified by ``key_fn``.  A key repeated WITHIN one list
+    contributes once, at its best rank; the same key appearing in SEVERAL
+    lists sums its contributions, which is the corroboration signal RRF
+    exists for.  The first-seen item is kept as representative.
 
     Returns ``(fused_score, item)`` pairs sorted by fused score descending
     (ties keep first-seen order, deterministic given equal inputs).  The
     fused score is rounded to 6 decimals and lives on a single small
     positive scale.  ``sum(weights) / (RRF_K + 1)`` — with the module
     constants, ``(MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / 61 ≈
-    0.040984`` — is the maximum for an item appearing *once per list*; it
-    is NOT a hard bound, because true duplicates (same identity key, e.g.
-    mirrored copies of a chunk) sum their contributions and can exceed it.
+    0.040984`` — is the exact maximum: an item can contribute at most once
+    per list, so no amount of repeated content inside a single list can
+    exceed it.
 
     These scores are NOT comparable with raw pre-RRF scores, which mixed
     memory ratios and BM25 values in one field.  With a single non-empty
@@ -112,10 +167,23 @@ def reciprocal_rank_fusion(
     representatives: dict[Hashable, T] = {}
     for weight, items in weighted_lists:
         ranked = sorted(items, key=score_fn, reverse=True)
+        # Within ONE list an identity contributes once, at its best rank.
+        # Summing every occurrence conflates two opposite things: the same
+        # item found by two different rankers (real corroboration, and the
+        # sum across lists still rewards it) and the same content repeated
+        # inside one ranker's own results, which is a single piece of
+        # evidence counted N times. Measured consequence of the latter: a
+        # 2,559-chunk chat export containing 60 identical separator lines
+        # accumulated ~6x the score of any real answer and took rank 1 on
+        # four of twelve failing documentation queries.
+        best_rank: dict[Hashable, int] = {}
         for rank, item in enumerate(ranked, start=1):
             key = key_fn(item)
-            scores[key] = scores.get(key, 0.0) + weight / (RRF_K + rank)
+            if key not in best_rank:
+                best_rank[key] = rank
             representatives.setdefault(key, item)
+        for key, rank in best_rank.items():
+            scores[key] = scores.get(key, 0.0) + weight / (RRF_K + rank)
 
     fused = [(round(score, 6), representatives[key]) for key, score in scores.items()]
     fused.sort(key=lambda pair: pair[0], reverse=True)

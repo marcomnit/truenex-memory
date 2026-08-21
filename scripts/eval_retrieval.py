@@ -57,7 +57,7 @@ from pathlib import Path
 # Allow running as a plain script from the repository root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from truenex_memory.retrieval.semantic import HashingEmbedder
+from truenex_memory.core.embedder import embedder_from_env
 from truenex_memory.store.models import SearchHit
 from truenex_memory.store.repository import MemoryRepository
 
@@ -105,7 +105,15 @@ def _hit_matches_expected(hit: SearchHit, expected: dict[str, str], memory_title
             return False
     path_contains = expected.get("path_contains")
     if path_contains is not None:
-        if path_contains.casefold() not in (hit.source_path or "").casefold():
+        # Separator-agnostic: the eval set is authored by hand and by other
+        # agents, so a target may be written with either slash while
+        # source_path uses the platform's. A literal substring test silently
+        # failed EVERY forward-slash target on Windows — 32 generated cases
+        # reported 0/32 while they were really 2/30 — and would fail every
+        # backslash target on Linux.
+        needle = path_contains.replace("\\", "/").casefold()
+        haystack = (hit.source_path or "").replace("\\", "/").casefold()
+        if needle not in haystack:
             return False
     content_contains = expected.get("content_contains")
     if content_contains is not None:
@@ -123,10 +131,17 @@ def _summarize_hit(hit: SearchHit) -> dict[str, object]:
     }
 
 
-def run_eval(db_path: Path, eval_set: dict[str, object]) -> dict[str, object]:
+def run_eval(
+    db_path: Path, eval_set: dict[str, object], scope: str | None = None
+) -> dict[str, object]:
     repository = MemoryRepository(
         db_path,
-        embedder=HashingEmbedder(),
+        # Honour TRUENEX_EMBEDDER so the dense ranker can actually be
+        # exercised: with a hardcoded HashingEmbedder,
+        # _dense_ranker_enabled() is always False and every dense branch
+        # (including the DENSE_FUSION_MIN_COSINE gate) is dead code here,
+        # which makes any dense tuning unmeasurable.
+        embedder=embedder_from_env(),
         project_id=os.environ.get("TRUENEX_PROJECT_ID", "default"),
     )
     cases = eval_set["cases"]
@@ -145,7 +160,7 @@ def run_eval(db_path: Path, eval_set: dict[str, object]) -> dict[str, object]:
         expected_absent = case.get("expected_absent", [])
 
         started = time.perf_counter()
-        hits = repository.search(case["query"], top_k=top_k)
+        hits = repository.search(case["query"], top_k=top_k, scope=scope)
         elapsed = time.perf_counter() - started
 
         rank = None
@@ -286,11 +301,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate Truenex Memory retrieval.")
     parser.add_argument("--db", required=True, type=Path, help="Path to the SQLite memory DB.")
     parser.add_argument("--set", required=True, type=Path, help="Eval set JSON file.")
+    parser.add_argument(
+        "--scope",
+        default=None,
+        help="Restrict document candidates to paths containing this substring.",
+    )
     parser.add_argument("--out", required=True, type=Path, help="Markdown report output path.")
     args = parser.parse_args()
 
     eval_set = json.loads(args.set.read_text(encoding="utf-8"))
-    run = run_eval(args.db, eval_set)
+    run = run_eval(args.db, eval_set, args.scope)
     run["aggregate"] = _aggregate([CaseResult(**raw) for raw in run["results"]])
 
     args.out.parent.mkdir(parents=True, exist_ok=True)

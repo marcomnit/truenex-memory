@@ -9,7 +9,12 @@ import sqlite3
 from typing import Any
 
 
-SCHEMA_VERSION = "7"
+# Single source for the schema version. It used to be declared here AND in
+# release.version, which meant bumping one and not the other left the store
+# permanently "pending": migration_status compared against one constant
+# while initialize_schema recorded the other, so `migrate apply` re-ran the
+# column upgrades on every invocation and never settled.
+from truenex_memory.release.version import DB_SCHEMA_VERSION as SCHEMA_VERSION
 # Schema version that introduced the chunks_fts external-content index and
 # its backfill.  The FTS rebuild must trigger only when THIS version's work
 # is pending, not on every later version bump (an index-only migration
@@ -87,7 +92,8 @@ def initialize_schema(conn: sqlite3.Connection) -> None:
           model_name TEXT,
           confidence REAL,
           created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
+          updated_at TEXT NOT NULL,
+          superseded_by TEXT
         );
 
         CREATE TABLE IF NOT EXISTS edges (
@@ -297,6 +303,12 @@ def apply_column_upgrades(conn: sqlite3.Connection) -> None:
     """
     upgrades = [
         "ALTER TABLE chunks ADD COLUMN source_type TEXT",
+        # Which memory replaced this one. The `superseded` status already
+        # existed but said nothing about the replacement, so a reader could
+        # see that a note was retired without being able to find what now
+        # holds true. Measured before this: 4 nodes carried the status and
+        # none could be followed to a successor.
+        "ALTER TABLE memory_nodes ADD COLUMN superseded_by TEXT",
     ]
     for sql in upgrades:
         try:

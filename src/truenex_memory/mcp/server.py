@@ -14,7 +14,7 @@ from typing import Any
 
 from truenex_memory import __version__
 from truenex_memory.mcp.tools import (
-    global_project_context, global_status, memory_add, memory_search,
+    global_project_context, global_status, memory_add, memory_get, memory_search,
     task_open, task_step_add, task_close,
 )
 
@@ -127,7 +127,11 @@ def _tool_definitions() -> list[dict[str, Any]]:
     return [
         {
             "name": "memory_search",
-            "description": "Search local Truenex Memory for project context and source-backed decisions.",
+            "description": (
+                "Search local Truenex Memory for project context and source-backed "
+                "decisions. Returns excerpts plus a document_id/memory_id per result; "
+                "call memory_get to read one in full."
+            ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -142,8 +146,95 @@ def _tool_definitions() -> list[dict[str, Any]]:
                         "maximum": 50,
                         "default": 5,
                     },
+                    "full_content": {
+                        "type": "boolean",
+                        "description": (
+                            "Return verbatim bodies instead of excerpts. Costs "
+                            "several kilobytes per call; prefer memory_get on the "
+                            "one result you actually need."
+                        ),
+                        "default": False,
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": (
+                            "Restrict document candidates to paths containing "
+                            "this substring — normally the project you are "
+                            "working in. The store holds every project at once, "
+                            "so an unscoped search competes against roughly "
+                            "eighty times more candidates than the relevant "
+                            "ones: measured on questions phrased without the "
+                            "target document's own words, scoping doubled the "
+                            "answers found (2/32 -> 4/32 on a held-out set, MRR "
+                            "0.042 -> 0.094). Omit it for genuinely "
+                            "cross-project questions; a WRONG scope makes the "
+                            "answer unreachable rather than merely worse."
+                        ),
+                    },
                 },
                 "required": ["query"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "memory_get",
+            "description": (
+                "Read one memory_search result in full, by the document_id or "
+                "memory_id that result carried."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "document_id": {
+                        "type": "string",
+                        "description": "document_id from a memory_search result.",
+                    },
+                    "memory_id": {
+                        "type": "string",
+                        "description": "memory_id from a memory_search result.",
+                    },
+                },
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "memory_graph",
+            "description": (
+                "Structural facts about one function, class or file, read from "
+                "the code graph: who calls it, what it calls, which tests "
+                "exercise it, and which docstring explains it. A different "
+                "door from memory_search — that one answers what was written "
+                "and decided, this one answers how the code is wired. The "
+                "relations are parsed from the source, so they are correct or "
+                "absent, never a plausible near-match. Requires "
+                "`truenex-mem graph build <path>` for that tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "description": (
+                            "A function name, class name or file path fragment, "
+                            "e.g. `_search_memories` or `store/repository.py`."
+                        ),
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": (
+                            "Which project's graph to consult, as a path "
+                            "fragment. Omit when only one graph is built."
+                        ),
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 12,
+                        "description": "Maximum entries per group.",
+                    },
+                },
+                "required": ["target"],
                 "additionalProperties": False,
             },
         },
@@ -156,6 +247,15 @@ def _tool_definitions() -> list[dict[str, Any]]:
                     "content": {
                         "type": "string",
                         "description": "Memory content to store locally.",
+                    },
+                    "supersedes": {
+                        "type": "string",
+                        "description": (
+                            "Id of a memory this one replaces. That memory "
+                            "becomes 'superseded' and leaves search, while "
+                            "still pointing here. Pass it whenever this note "
+                            "corrects or updates an earlier one."
+                        ),
                     },
                     "memory_type": {
                         "type": "string",
@@ -286,6 +386,10 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
     try:
         if name == "memory_search":
             payload = _call_memory_search(arguments, project_root=project_root)
+        elif name == "memory_get":
+            payload = _call_memory_get(arguments, project_root=project_root)
+        elif name == "memory_graph":
+            payload = _call_memory_graph(arguments, project_root=project_root)
         elif name == "memory_add":
             payload = _call_memory_add(arguments, project_root=project_root)
         elif name == "global_status":
@@ -305,6 +409,28 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
         return _tool_result({"error": str(exc)}, is_error=True)
 
 
+def _call_memory_graph(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
+    from truenex_memory.mcp.tools import memory_graph
+
+    target = arguments.get("target")
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError("target must be a non-empty string")
+    scope = arguments.get("scope")
+    if scope is not None and not isinstance(scope, str):
+        raise ValueError("scope must be a string")
+    limit = arguments.get("limit", 12)
+    if not isinstance(limit, int):
+        raise ValueError("limit must be an integer")
+    if limit < 1 or limit > 50:
+        raise ValueError("limit must be between 1 and 50")
+    return memory_graph(
+        target.strip(),
+        scope=scope.strip() if isinstance(scope, str) and scope.strip() else None,
+        limit=limit,
+        project_root=project_root,
+    )
+
+
 def _call_memory_search(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
     query = arguments.get("query")
     top_k = arguments.get("top_k", 5)
@@ -314,17 +440,54 @@ def _call_memory_search(arguments: dict[str, Any], *, project_root: Path) -> dic
         raise ValueError("top_k must be an integer")
     if top_k < 1 or top_k > 50:
         raise ValueError("top_k must be between 1 and 50")
-    return memory_search(query, top_k=top_k, project_root=project_root)
+    full_content = arguments.get("full_content", False)
+    if not isinstance(full_content, bool):
+        raise ValueError("full_content must be a boolean")
+    scope = arguments.get("scope")
+    if scope is not None and not isinstance(scope, str):
+        raise ValueError("scope must be a string")
+    if isinstance(scope, str) and not scope.strip():
+        scope = None
+    return memory_search(
+        query,
+        top_k=top_k,
+        full_content=full_content,
+        project_root=project_root,
+        scope=scope,
+    )
+
+
+def _call_memory_get(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
+    document_id = arguments.get("document_id")
+    memory_id = arguments.get("memory_id")
+    for label, value in (("document_id", document_id), ("memory_id", memory_id)):
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise ValueError(f"{label} must be a non-empty string")
+    if bool(document_id) == bool(memory_id):
+        raise ValueError("provide exactly one of document_id or memory_id")
+    return memory_get(
+        document_id=document_id,
+        memory_id=memory_id,
+        project_root=project_root,
+    )
 
 
 def _call_memory_add(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
     content = arguments.get("content")
     memory_type = arguments.get("memory_type", "note")
+    supersedes = arguments.get("supersedes")
+    if supersedes is not None and (not isinstance(supersedes, str) or not supersedes.strip()):
+        raise ValueError("supersedes must be a non-empty string")
     if not isinstance(content, str) or not content.strip():
         raise ValueError("content must be a non-empty string")
     if not isinstance(memory_type, str) or not memory_type.strip():
         raise ValueError("memory_type must be a non-empty string")
-    return memory_add(content, memory_type=memory_type, project_root=project_root)
+    return memory_add(
+        content,
+        memory_type=memory_type,
+        supersedes=supersedes,
+        project_root=project_root,
+    )
 
 
 def _call_global_status(arguments: dict[str, Any]) -> dict[str, object]:

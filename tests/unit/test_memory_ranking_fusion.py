@@ -136,15 +136,17 @@ def test_fuse_ranked_hits_unit() -> None:
 
     fused = _fuse_ranked_hits(memories, chunks)
 
-    # A rank-1 memory outranks a rank-1 chunk despite the raw-score gap.
-    # Order by RRF math: 1.5/61 > 1.5/62 > 1.0/61 > 1.0/62.
-    assert fused[0].title == "mem best"
+    # Memories and chunks are interleaved by position, not by kind: rank 1
+    # of each list scores the same, then rank 2 of each. The raw-score gap
+    # (0.9 vs 380.0) is deliberately ignored — RRF merges by rank only.
+    # A rank-1 chunk must NOT sit below a rank-2 memory: that is the
+    # behaviour the old 1.5 memory weight imposed, and it buried
+    # documentation entirely on the live store.
+    assert {fused[0].title, fused[1].title} == {"mem best", "chunk best"}
+    assert {fused[2].title, fused[3].title} == {"mem second", "chunk second"}
     assert fused[0].score == round(MEMORY_SOURCE_WEIGHT / (RRF_K + 1), 6)
-    assert fused[1].title == "mem second"
-    assert fused[1].score == round(MEMORY_SOURCE_WEIGHT / (RRF_K + 2), 6)
-    assert fused[2].title == "chunk best"
-    assert fused[2].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
-    assert fused[3].title == "chunk second"
+    assert fused[1].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
+    assert fused[2].score == round(MEMORY_SOURCE_WEIGHT / (RRF_K + 2), 6)
     assert fused[3].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 2), 6)
     assert all(hit.score > 0 for hit in fused)
     # Scores are on one small, commensurable scale (never hundreds).
@@ -158,8 +160,9 @@ def test_fuse_ranked_hits_unit() -> None:
 def test_fuse_ranked_hits_keeps_distinct_chunks_of_same_file_separate() -> None:
     """Two chunks of the same file (same source_path, same title fallback,
     different content) must NOT collapse into one fused hit — the fusion
-    identity key includes normalized content. Only true duplicates (same
-    normalized content) merge and sum their RRF contributions."""
+    identity key includes normalized content. True duplicates DO collapse,
+    and the merged hit is scored at its best rank only: repeating the same
+    content inside one source is one piece of evidence, not several."""
     from truenex_memory.store.repository import (
         CHUNK_SOURCE_WEIGHT,
         MEMORY_SOURCE_WEIGHT,
@@ -183,18 +186,57 @@ def test_fuse_ranked_hits_keeps_distinct_chunks_of_same_file_separate() -> None:
     assert contents == {"alpha body", "beta body", "gamma"}
 
     by_content = {hit.content: hit for hit in fused}
-    # True duplicate sums both RRF contributions: chunk_a is rank 1 (score
-    # 380) and its mirror is rank 4 (score 90) in the score-sorted list.
-    expected_alpha = round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1) + CHUNK_SOURCE_WEIGHT / (RRF_K + 4), 6)
-    assert by_content["alpha body"].score == expected_alpha
+    # chunk_a is rank 1 (score 380) and its mirror rank 4 (score 90) in the
+    # same score-sorted list. The merged hit takes the BEST rank, 1, and does
+    # NOT sum. Summing here is what let a 2,559-chunk chat export with 399
+    # groups of byte-identical chunks accumulate ~6x any real answer and hold
+    # rank 1 on four failing documentation queries; counting once recovered
+    # +3 eval cases (36/53 -> 39/53) with nothing regressing.
+    assert by_content["alpha body"].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
     # Non-duplicate hits keep their single-rank contribution.
     assert by_content["beta body"].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 2), 6)
     assert by_content["gamma"].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 3), 6)
     # No score can exceed the documented single-source-per-content maximum.
     max_possible = (MEMORY_SOURCE_WEIGHT + CHUNK_SOURCE_WEIGHT) / (RRF_K + 1)
     assert all(hit.score <= round(max_possible, 6) for hit in fused)
-    # Ordering: summed alpha first, then beta, then gamma.
+    # Ordering follows the chunk list's own ranks: 1, 2, 3.
     assert [hit.content for hit in fused] == ["alpha body", "beta body", "gamma"]
+
+
+def test_corroboration_across_sources_sums_but_repetition_within_one_does_not() -> None:
+    """The two halves of the fusion contract, side by side.
+
+    Both cases look identical to a naive implementation — the same identity
+    appearing twice — but they mean opposite things. Found by the lexical AND
+    the dense ranker: two independent rankers agree, so the score should
+    rise. Appearing twice inside ONE ranker's list: the same content indexed
+    twice, which is one piece of evidence and must not pay twice.
+    """
+    from truenex_memory.store.repository import (
+        CHUNK_SOURCE_WEIGHT,
+        DENSE_SOURCE_WEIGHT,
+        RRF_K,
+        _fuse_ranked_hits,
+    )
+
+    # (a) same chunk in the lexical and the dense list -> contributions sum.
+    lexical = _hit("doc.md", score=380.0, source_path="docs/doc.md", content="body")
+    dense = _hit("doc.md", score=0.95, source_path="docs/doc.md", content="body")
+    corroborated = _fuse_ranked_hits([], [lexical], [dense])
+    assert len(corroborated) == 1
+    assert corroborated[0].score == round(
+        CHUNK_SOURCE_WEIGHT / (RRF_K + 1) + DENSE_SOURCE_WEIGHT / (RRF_K + 1), 6
+    )
+
+    # (b) same content twice inside the lexical list -> best rank only.
+    twin_a = _hit("dup.md", score=380.0, source_path="docs/dup.md", content="body")
+    twin_b = _hit("dup.md", score=90.0, source_path="docs/dup.md", content="  BODY ")
+    repeated = _fuse_ranked_hits([], [twin_a, twin_b])
+    assert len(repeated) == 1
+    assert repeated[0].score == round(CHUNK_SOURCE_WEIGHT / (RRF_K + 1), 6)
+
+    # Corroborated evidence therefore outranks merely repeated evidence.
+    assert corroborated[0].score > repeated[0].score
 
 
 def test_memory_survives_many_competing_chunks_regression(tmp_path: Path) -> None:
@@ -489,11 +531,13 @@ def test_fuse_ranked_hits_dense_third_ranker_unit() -> None:
     assert all(hit.title != "chunk dense only" for hit in two_lists)
 
 
-def test_dense_ranker_surfaces_semantic_only_chunk(tmp_path: Path) -> None:
+def test_dense_ranker_surfaces_semantic_only_chunk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Integration: with a semantic embedder active, the dense ranker runs
     on EVERY search (not only when lexical is empty). A chunk with zero
     query tokens surfaces via the dense list; a chunk found by both
     rankers is corroborated and ranks first."""
+    # The branch is off by default; this test exercises the branch itself.
+    monkeypatch.setenv("TRUENEX_DENSE", "on")
     from truenex_memory.store.repository import DENSE_SOURCE_WEIGHT
 
     repository = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
@@ -516,10 +560,12 @@ def test_dense_ranker_surfaces_semantic_only_chunk(tmp_path: Path) -> None:
     assert hits[0].source_path.endswith("lex.md")
 
 
-def test_hashing_embedder_keeps_dense_ranker_disabled(tmp_path: Path) -> None:
+def test_hashing_embedder_keeps_dense_ranker_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """With the hashing fallback embedder the dense ranker stays OFF:
     hashing vectors are noise and must not join every fusion (legacy
     fallback on empty lexical is unchanged)."""
+    # The branch is off by default; this test exercises the branch itself.
+    monkeypatch.setenv("TRUENEX_DENSE", "on")
     from truenex_memory.core.embedder import HashingEmbedder
 
     repository = MemoryRepository(tmp_path / "memory.db", embedder=HashingEmbedder())
@@ -528,19 +574,28 @@ def test_hashing_embedder_keeps_dense_ranker_disabled(tmp_path: Path) -> None:
     assert stub_repo._dense_ranker_enabled()
 
 
-def test_truenex_dense_env_killswitch_disables_dense_ranker(
+def test_dense_ranker_is_off_unless_explicitly_switched_on(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """TRUENEX_DENSE=off (case-insensitive) disables the dense ranker even
-    with a semantic embedder active, without changing the embedder."""
+    """The dense branch is OFF by default; only TRUENEX_DENSE=on enables it.
+
+    The default flipped on 2026-08-21: measured on the live store, the
+    branch helped no eval category and, switched off, improved two
+    (42/53 vs 40/53, paired). It stays behind a flag rather than being
+    deleted so re-enabling costs an env var, not re-embedding 201k chunks.
+    """
     repository = MemoryRepository(tmp_path / "memory.db", embedder=_StubSemanticEmbedder())
+    monkeypatch.delenv("TRUENEX_DENSE", raising=False)
+    assert not repository._dense_ranker_enabled()
     monkeypatch.setenv("TRUENEX_DENSE", "off")
     assert not repository._dense_ranker_enabled()
-    monkeypatch.setenv("TRUENEX_DENSE", "OFF")
+    # Anything that is not "on" leaves it off, so a typo cannot silently
+    # re-enable a branch we measured as harmful.
+    monkeypatch.setenv("TRUENEX_DENSE", "yes")
     assert not repository._dense_ranker_enabled()
     monkeypatch.setenv("TRUENEX_DENSE", "on")
     assert repository._dense_ranker_enabled()
-    monkeypatch.delenv("TRUENEX_DENSE")
+    monkeypatch.setenv("TRUENEX_DENSE", "ON")
     assert repository._dense_ranker_enabled()
 
 
@@ -593,6 +648,8 @@ def test_dense_cosine_gate_includes_above_threshold(
 ) -> None:
     """A dense candidate with cosine above the threshold enters the fusion
     as a third RRF ranker."""
+    # The branch is off by default; this test exercises the branch itself.
+    monkeypatch.setenv("TRUENEX_DENSE", "on")
     from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
 
     repository = _repo_with_lexical_chunk(tmp_path)
@@ -609,6 +666,8 @@ def test_dense_cosine_gate_boundary_is_inclusive(
 ) -> None:
     """score == DENSE_FUSION_MIN_COSINE passes the gate (>= semantics,
     symmetric to MEMORY_FUSION_MIN_OVERLAP)."""
+    # The branch is off by default; this test exercises the branch itself.
+    monkeypatch.setenv("TRUENEX_DENSE", "on")
     from truenex_memory.retrieval.fusion import DENSE_FUSION_MIN_COSINE
 
     repository = _repo_with_lexical_chunk(tmp_path)
@@ -717,3 +776,93 @@ def test_cosine_returns_zero_for_mismatched_dimensions() -> None:
     from truenex_memory.retrieval.semantic import _cosine
 
     assert _cosine([1.0] * 384, [1.0] * 768) == 0.0
+
+
+def test_session_derived_paths_are_recognised() -> None:
+    """The path predicate identifies transcript-derived content."""
+    from truenex_memory.store.repository import _is_session_derived
+
+    assert _is_session_derived(r"C:\x\ce5bcf77.jsonl::exchange_750")
+    assert _is_session_derived(r"C:\x\context_5.jsonl")
+    assert _is_session_derived(r"C:\X\CONTEXT_5.JSONL")  # case-insensitive
+    assert not _is_session_derived(r"D:\repo\docs\mcp-setup.md")
+    assert not _is_session_derived(None)
+    # A .jsonl mention inside a normal document name must not trigger it.
+    assert not _is_session_derived(r"D:\repo\docs\how-to-read-jsonl-files.md")
+
+
+def test_vetting_decides_whether_a_transcript_memory_is_retrievable() -> None:
+    """Only *unvetted* transcript content is excluded from results.
+
+    Excluding by path alone made `global auto approve` a no-op: it
+    promotes a node to `active` that retrieval then discards anyway, and
+    it silently withheld the 111 nodes a person had already approved or
+    curated. Raw dialogue still has to stay out while nobody has vouched
+    for it, so the discriminator is vetting, not provenance.
+    """
+    from truenex_memory.store.repository import _is_unvetted_session_memory
+
+    transcript = r"C:\x\ce5bcf77.jsonl::exchange_750"
+    # Nobody has looked at it yet, or it was rejected: keep it out.
+    assert _is_unvetted_session_memory(transcript, "unverified")
+    assert _is_unvetted_session_memory(transcript, "obsolete")
+    assert _is_unvetted_session_memory(transcript, None)
+    # A person promoted it: retrieval honours that decision.
+    assert not _is_unvetted_session_memory(transcript, "active")
+    assert not _is_unvetted_session_memory(transcript, "ACTIVE")
+    # A curated note is never touched, whatever its status.
+    assert not _is_unvetted_session_memory(r"D:\repo\docs\mcp.md", "unverified")
+
+
+def test_supersede_retires_the_old_note_and_links_forward(tmp_path: Path) -> None:
+    """A note can declare which one it replaces, in one transaction.
+
+    The `superseded` status already existed but said nothing about the
+    replacement, so a reader learned a claim was stale without being able
+    to find what now holds true.
+    """
+    repository = MemoryRepository(tmp_path / "memory.db")
+    old = repository.add_memory(
+        "Il lavoro non e' committato: attenzione prima di ripartire.",
+        memory_type="decision",
+    )
+    new = repository.add_memory(
+        "Il lavoro e' stato committato in 6dce6a7.",
+        memory_type="decision",
+        supersedes=old,
+    )
+
+    retired = repository.get_memory_node(old)
+    current = repository.get_memory_node(new)
+    assert retired is not None and current is not None
+    assert retired.status == "superseded"
+    assert retired.superseded_by == new
+    assert current.status == "active"
+    assert current.superseded_by is None
+
+    # The retired claim must leave retrieval: that is the whole point.
+    titles = [hit.title for hit in repository.search("committato", top_k=10)]
+    assert current.title in titles
+    assert retired.title not in titles
+    # ...but stay reachable when history is asked for explicitly.
+    inactive = [
+        hit.title
+        for hit in repository.search("committato", top_k=10, include_inactive=True)
+    ]
+    assert retired.title in inactive
+
+
+def test_supersede_rejects_unknown_and_already_retired_targets(tmp_path: Path) -> None:
+    """Refuse silently-wrong links rather than recording them."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+
+    with pytest.raises(ValueError, match="unknown memory"):
+        repository.add_memory("nuova", supersedes="mem_inesistente")
+
+    first = repository.add_memory("prima versione")
+    second = repository.add_memory("seconda versione", supersedes=first)
+    # Superseding an already-retired note would fork the chain and leave
+    # two notes claiming to replace the same one.
+    with pytest.raises(ValueError, match="already superseded"):
+        repository.add_memory("terza versione", supersedes=first)
+    assert repository.get_memory_node(second).status == "active"

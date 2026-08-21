@@ -132,6 +132,7 @@ global_app = typer.Typer(help="Global store operations (discovery, refresh, stat
 sources_app = typer.Typer(help="Review, confirm, and add source catalog entries.")
 auto_app = typer.Typer(help="Automatic memory maintenance (Phase 3).")
 agent_app = typer.Typer(help="Manage agent discovery manifest.")
+graph_app = typer.Typer(help="Code-structure graph (relations between files).")
 app.add_typer(adapter_app, name="adapter")
 app.add_typer(update_app, name="update")
 app.add_typer(migrate_app, name="migrate")
@@ -141,6 +142,7 @@ app.add_typer(trace_app, name="trace")
 global_app.add_typer(sources_app, name="sources")
 global_app.add_typer(auto_app, name="auto")
 app.add_typer(global_app, name="global")
+app.add_typer(graph_app, name="graph")
 app.add_typer(agent_app, name="agent")
 app.add_typer(task_app, name="task")
 app.add_typer(orchestrate_app, name="orchestrate")
@@ -190,11 +192,25 @@ def add(
         "--type",
         help="Memory type: note, decision, issue, or pattern.",
     ),
+    supersedes: str | None = typer.Option(
+        None,
+        "--supersedes",
+        help=(
+            "Id of a memory this one replaces. That memory becomes "
+            "'superseded' and drops out of search, while still pointing at "
+            "this one. Use it whenever a note corrects or updates an "
+            "earlier one, so a stale claim stops being retrieved as fact."
+        ),
+    ),
 ) -> None:
     """Add a manual memory node."""
 
-    memory_id = MemoryService(resolve_project_root()).add(content, memory_type=memory_type)
+    memory_id = MemoryService(resolve_project_root()).add(
+        content, memory_type=memory_type, supersedes=supersedes
+    )
     typer.echo(memory_id)
+    if supersedes:
+        typer.echo(f"superseded {supersedes}", err=True)
 
 
 @app.command("list")
@@ -252,11 +268,25 @@ def search(
     include_inactive: bool = typer.Option(
         False, "--include-inactive", help="Include inactive (e.g. obsolete) memories in results."
     ),
+    scope: str | None = typer.Option(
+        None,
+        "--scope",
+        help=(
+            "Restrict document results to paths containing this substring, "
+            "normally the project you are asking about. The store holds every "
+            "project at once, so an unscoped search competes against roughly "
+            "eighty times more candidates; scoping tripled the answers found "
+            "on questions phrased without the document's own words. Omit it "
+            "for cross-project questions."
+        ),
+    ),
 ) -> None:
     """Search local memory."""
 
     service = MemoryService(resolve_project_root())
-    results = service.search(query, top_k=top_k, include_inactive=include_inactive)
+    results = service.search(
+        query, top_k=top_k, include_inactive=include_inactive, scope=scope
+    )
     payload = search_payload(query, results, trace_id=service.last_trace_id)
     if json_output:
         typer.echo(json.dumps(payload, indent=2, sort_keys=True))
@@ -1982,6 +2012,269 @@ def _validate_status(status: str) -> None:
     if status not in VALID_STATUSES:
         expected = ", ".join(sorted(VALID_STATUSES))
         raise typer.BadParameter(f"invalid status {status!r}; expected one of {expected}")
+
+
+# ── Code graph ─────────────────────────────────────────────────────────────
+
+def _graph_cache_dir(db: Path | None, home: Path) -> Path:
+    """Cache lives beside the database, like the dense vector cache does."""
+    db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
+    return db_path.parent / "code_graphs"
+
+
+def _current_graph_for(root: Path, cache_dir: Path):
+    """Il grafo in cache di questa radice, se scritto dalla versione corrente.
+
+    Un grafo di una versione precedente non porta l'impronta dei sorgenti, per
+    cui non puo' dire di essere aggiornato: viene trattato come assente e
+    ricostruito.
+    """
+    from truenex_memory.graph import CACHE_VERSION, FileGraph
+
+    wanted = root.as_posix().lower()
+    for entry in sorted(cache_dir.glob("*.json")) if cache_dir.is_dir() else []:
+        try:
+            data = json.loads(entry.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if data.get("cache_version") != CACHE_VERSION:
+            continue
+        if str(data.get("root", "")).lower() != wanted:
+            continue
+        graph = FileGraph.from_dict(data)
+        return graph if graph.fingerprint else None
+    return None
+
+
+@graph_app.command("build")
+def graph_build(
+    path: Path = typer.Argument(Path("."), help="Project root to extract."),
+    home: Path = typer.Option(Path.home(), "--home", help="User home directory for default paths."),
+    db: Path | None = typer.Option(None, "--db", help="Path to the SQLite database."),
+    limit: int | None = typer.Option(None, "--limit", help="Stop after N source files (for a quick trial)."),
+    sequential: bool = typer.Option(False, "--sequential", help="Disable the extraction process pool."),
+    if_stale: bool = typer.Option(
+        False,
+        "--if-stale",
+        help="Non fare nulla se il grafo e' gia' aggiornato. Da usare in un hook o in un'attivita' pianificata.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print the report as JSON."),
+) -> None:
+    """Extract the code graph for a project and cache it for the project view.
+
+    The graph is built here and never during an HTTP request: extraction
+    takes seconds to minutes, which a GET must not pay.
+
+    ``--if-stale`` esiste perche' «ricordati di ricostruire il grafo dopo aver
+    cambiato il codice» e' un compito che non va dato a una persona. Con quel
+    flag il comando confronta l'impronta dei sorgenti e esce subito se non e'
+    cambiato niente (millisecondi), quindi si puo' chiamare a ogni salvataggio
+    o a ogni ora senza pagare l'estrazione a vuoto.
+    """
+    from truenex_memory.graph import (
+        GraphifyUnavailable,
+        build_file_graph,
+        release_lock,
+        save_file_graph,
+    )
+
+    root = path.resolve()
+    if not root.is_dir():
+        typer.echo(f"not a directory: {root}")
+        raise typer.Exit(code=1)
+
+    if if_stale:
+        cached = _current_graph_for(root, _graph_cache_dir(db, home))
+        if cached is not None:
+            freshness = cached.staleness()
+            if freshness.get("stale") is False:
+                message = {"skipped": "up to date", "root": cached.root}
+                typer.echo(json.dumps(message) if json_output else "il grafo e' aggiornato, niente da fare")
+                return
+
+    try:
+        graph = build_file_graph(root, limit=limit, parallel=not sequential)
+    except GraphifyUnavailable as error:
+        typer.echo(str(error))
+        raise typer.Exit(code=1)
+
+    cache_dir = _graph_cache_dir(db, home)
+    target = save_file_graph(graph, cache_dir)
+    # Il lucchetto della ricostruzione in disparte: se questo processo e' quello
+    # lanciato da `ensure_current`, va liberato ora, altrimenti il prossimo
+    # invecchiamento resterebbe senza rimedio fino alla scadenza.
+    release_lock(cache_dir, graph.root)
+
+    if json_output:
+        typer.echo(json.dumps({"cache": str(target), **graph.to_dict()["stats"]}, indent=2))
+        return
+
+    stats = graph.stats
+    typer.echo(f"root:        {graph.root}")
+    typer.echo(f"file sorgente: {stats.get('files', 0)}")
+    typer.echo(f"entita:      {stats.get('entity_nodes', 0)} nodi, {stats.get('entity_edges', 0)} archi")
+    typer.echo(f"archi fra file: {stats.get('file_edges', 0)}")
+    # Cio' che il filtro sulle estensioni ha lasciato fuori, per estensione: un
+    # file mai analizzato risponde «nessun chiamante» esattamente come un file
+    # analizzato che non ne ha, e i due casi vanno distinti.
+    dropped = stats.get("skipped_by_suffix") or {}
+    if dropped:
+        detail = ", ".join(f"{ext} {count}" for ext, count in list(dropped.items())[:6])
+        typer.echo(f"non analizzati: {stats.get('skipped_total', 0)} ({detail})")
+        typer.echo("               TRUENEX_GRAPH_SUFFIXES per includerne altri")
+    for relation, weight in list(stats.get("relations", {}).items())[:8]:
+        typer.echo(f"  {relation:16s} {weight}")
+    typer.echo(f"cache:       {target}")
+
+
+@graph_app.command("explain")
+def graph_explain(
+    target: str = typer.Argument(..., help="Function, class or file, e.g. _search_memories."),
+    scope: str | None = typer.Option(None, "--scope", help="Which project's graph to consult."),
+    limit: int = typer.Option(12, "--limit", min=1, max=50, help="Max entries per group."),
+    home: Path = typer.Option(Path.home(), "--home", help="User home directory."),
+    db: Path | None = typer.Option(None, "--db", help="Path to the SQLite database."),
+    json_output: bool = typer.Option(False, "--json", help="Print as JSON."),
+) -> None:
+    """Who calls it, what it calls, which tests cover it, and why it exists.
+
+    Reads the cached code graph, not the text index: the relations come from a
+    parser, so they are correct or absent, never a plausible near-match. Run
+    `graph build` first for the tree you are asking about.
+    """
+    from truenex_memory.graph import FileGraph, explain_entity
+
+    cache_dir = _graph_cache_dir(db, home)
+    graphs = sorted(cache_dir.glob("*.json")) if cache_dir.is_dir() else []
+    if not graphs:
+        typer.echo("nessun grafo costruito. Esegui prima: truenex-mem graph build <cartella>")
+        raise typer.Exit(code=1)
+
+    from truenex_memory.graph import CACHE_VERSION
+
+    best = None
+    stale: list[str] = []
+    for entry in graphs:
+        try:
+            data = json.loads(entry.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        # Un grafo scritto da una versione precedente non ha il livello
+        # entita', quindi risponderebbe "non trovato" a QUALUNQUE funzione. Va
+        # detto, non lasciato interpretare come un'assenza.
+        if data.get("cache_version") != CACHE_VERSION:
+            stale.append(str(data.get("root", entry.name)))
+            continue
+        graph = FileGraph.from_dict(data)
+        if scope and scope.replace("\\", "/").lower() not in graph.root.lower():
+            continue
+        if explain_entity(graph, target, limit=1)["matched"]:
+            best = graph
+            break
+        if best is None:
+            best = graph
+    if best is None:
+        if stale:
+            typer.echo("il grafo di questi progetti e' stato costruito da una versione")
+            typer.echo("precedente e non contiene le funzioni. Ricostruiscilo:")
+            for root in stale:
+                typer.echo(f"  truenex-mem graph build \"{root}\"")
+        else:
+            typer.echo("nessun grafo corrisponde a quello scope")
+        raise typer.Exit(code=1)
+
+    result = explain_entity(best, target, limit=limit)
+    # Un grafo invecchiato risponde sul codice di ieri senza dichiararlo, ed e'
+    # indistinguibile da una risposta giusta. Il confronto costa la lettura dei
+    # metadati dei sorgenti, quindi si fa sempre invece di chiedere a qualcuno
+    # di ricordarsi di ricostruire.
+    from truenex_memory.graph import ensure_current
+
+    freshness = ensure_current(best, cache_dir)
+    result["stale"] = freshness
+    if json_output:
+        typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if freshness.get("stale"):
+        counts = freshness["counts"]
+        parts = [
+            f"{counts[key]} {label}"
+            for key, label in (
+                ("changed", "file modificati"),
+                ("missing", "file spariti"),
+                ("tree", "cartelle cambiate"),
+            )
+            if counts[key]
+        ]
+        typer.echo(f"ATTENZIONE: il grafo e' piu' vecchio del codice ({', '.join(parts)}).")
+        rebuild = freshness.get("rebuild")
+        if rebuild == "avviata":
+            typer.echo("  ricostruzione avviata in disparte: la prossima domanda avra' il grafo nuovo")
+        elif rebuild == "in corso":
+            typer.echo("  ricostruzione gia' in corso da un'altra sessione")
+        else:
+            typer.echo(f"  ricostruisci: truenex-mem graph build \"{best.root}\"")
+        typer.echo("")
+
+    if not result["matched"]:
+        typer.echo(f"'{target}' non compare nel grafo di {best.root}")
+        raise typer.Exit(code=1)
+    typer.echo(f"progetto: {best.root}")
+    for name in result["matched"]:
+        typer.echo(f"trovato : {name}")
+    for label, key in (
+        ("CHI LO CHIAMA", "callers"),
+        ("COSA CHIAMA", "calls"),
+        ("TEST CHE LO COPRONO", "tests"),
+    ):
+        typer.echo("")
+        typer.echo(f"{label}:")
+        if not result[key]:
+            typer.echo("  (nessuno)")
+        for item in result[key]:
+            typer.echo(f"  {item['entity']}  [{item['relation']}]")
+        hidden = result.get("truncated", {}).get(key)
+        if hidden:
+            typer.echo(f"  ... mostrati {len(result[key])} di {hidden} — tutti con --limit {hidden}")
+    if result["rationale"]:
+        typer.echo("")
+        typer.echo("PERCHE' ESISTE (dal docstring):")
+        for text in result["rationale"]:
+            typer.echo(f"  {text[:150]}")
+
+
+@graph_app.command("status")
+def graph_status(
+    home: Path = typer.Option(Path.home(), "--home", help="User home directory for default paths."),
+    db: Path | None = typer.Option(None, "--db", help="Path to the SQLite database."),
+    json_output: bool = typer.Option(False, "--json", help="Print the report as JSON."),
+) -> None:
+    """List the cached code graphs, without building anything."""
+    from truenex_memory.graph import FileGraph, graphify_available
+
+    cache_dir = _graph_cache_dir(db, home)
+    entries = []
+    for entry in sorted(cache_dir.glob("*.json")) if cache_dir.is_dir() else []:
+        try:
+            data = json.loads(entry.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        graph = FileGraph.from_dict(data)
+        entries.append({"root": graph.root, "cache": str(entry), **graph.stats})
+
+    if json_output:
+        typer.echo(json.dumps({"backend_installed": graphify_available(), "graphs": entries}, indent=2))
+        return
+
+    typer.echo(f"backend di estrazione: {'presente' if graphify_available() else 'assente (pip install truenex-memory[graph])'}")
+    typer.echo(f"cache: {cache_dir}")
+    if not entries:
+        typer.echo("nessun grafo costruito")
+        return
+    for item in entries:
+        typer.echo(f"  {item['root']}")
+        typer.echo(f"    {item.get('files', 0)} file, {item.get('file_edges', 0)} archi fra file")
 
 
 if __name__ == "__main__":

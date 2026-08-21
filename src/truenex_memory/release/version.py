@@ -8,7 +8,14 @@ from truenex_memory import __version__
 
 
 APP_VERSION = __version__
-DB_SCHEMA_VERSION = "7"
+# 8 adds memory_nodes.superseded_by. The bump is what makes the column
+# reach an EXISTING store: migrate_apply() returns early when the recorded
+# version already equals this one, so adding an entry to
+# apply_column_upgrades() without bumping here leaves every store that is
+# already at the previous version without the column — new databases get
+# it from CREATE TABLE and the tests pass, while the live store fails at
+# runtime with "no such column".
+DB_SCHEMA_VERSION = "8"
 MCP_TOOLS_VERSION = "1"
 LICENSE_FORMAT_VERSION = "1"
 MEMORY_EXPORT_VERSION = "1"

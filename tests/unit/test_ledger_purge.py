@@ -208,6 +208,33 @@ def test_worktrees_directory_is_excluded_from_indexing(tmp_path: Path) -> None:
     assert should_exclude(normal_file, root=tmp_path) is False
 
 
+def test_dotted_virtualenv_directories_are_excluded(tmp_path: Path) -> None:
+    """A leading dot must not defeat the `venv` prefix rule.
+
+    `venv310` was excluded while `.venv310` was indexed in full, so one
+    project contributed 12,552 chunks of site-packages to the corpus and
+    another 4,632 — third-party code stored as if it were the user's own.
+    """
+
+    for name in (".venv", ".venv310", ".venv_client_build", "venv310", "venv"):
+        assert should_exclude(tmp_path / name / "pyvenv.cfg", root=tmp_path) is True, name
+    # A real directory that merely starts with a dot stays indexed.
+    assert should_exclude(tmp_path / ".config" / "app.toml", root=tmp_path) is False
+
+
+def test_third_party_and_archived_trees_are_excluded(tmp_path: Path) -> None:
+    """Cargo's crate cache and archived copies are not project content.
+
+    `.cargo/registry` alone was 30,824 chunks, 17.5% of the corpus, none of
+    it written here; `.archive` returns a superseded duplicate of a file
+    that has since changed in the live tree, like `worktrees` does.
+    """
+
+    assert should_exclude(tmp_path / ".cargo" / "registry" / "x.json", root=tmp_path) is True
+    assert should_exclude(tmp_path / ".archive" / "old.md", root=tmp_path) is True
+    assert should_exclude(tmp_path / "docs" / "real.md", root=tmp_path) is False
+
+
 def test_active_twin_with_different_spelling_protects_document(tmp_path: Path) -> None:
     """Windows path spelling variants (`DOCS\\Shared.md` vs `docs/shared.md`)
     must not defeat the anti-twin guard: path matching is case- and
