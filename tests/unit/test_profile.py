@@ -993,3 +993,80 @@ def test_every_target_either_has_a_file_or_declares_it_has_none() -> None:
     for target in CLIENT_TARGETS:
         assert target.relative is None or target.relative.count("/") == 1, target.client
         assert target.marker_dir, target.client
+
+
+# ── il canale garantito: le descrizioni dei tool ──────────────────────────
+
+def test_the_operative_rules_live_where_they_always_arrive() -> None:
+    """Il canale che non dipende dalla buona volonta' di nessun client.
+
+    `tools/list` e' obbligatorio nel protocollo: nessuno puo' chiamare uno
+    strumento senza averne preso lo schema. Il profilo invece arriva per vie che
+    dipendono dal client — un file da leggere, o un campo `instructions` che il
+    client «puo'» incorporare.
+
+    Il 2026-08-22 si e' visto cosa comporta: un client ha descritto
+    correttamente cosa fa lo `scope` e cos'e' il grafo — informazioni che stanno
+    nelle descrizioni — e poi ha ricostruito una catena di chiamate leggendo i
+    file, perche' l'imperativo stava solo nel profilo, che con ogni probabilita'
+    non gli era arrivato.
+    """
+
+    from truenex_memory.mcp.server import _tool_definitions
+
+    definizioni = {d["name"]: d["description"].lower() for d in _tool_definitions()}
+
+    ricerca = definizioni["memory_search"]
+    assert "memory_graph" in ricerca, "deve dirottare le domande strutturali"
+    assert "scope" in ricerca
+    assert "before" in ricerca, "cercare viene PRIMA di leggere"
+
+    grafo = definizioni["memory_graph"]
+    assert "before" in grafo, "il grafo viene PRIMA di aprire i file"
+
+
+def test_the_profile_and_the_tool_descriptions_do_not_drift() -> None:
+    """La duplicazione e' voluta; la divergenza no.
+
+    La stessa regola vive in due posti — il profilo, che e' prosa, e gli schemi
+    JSON dei tool — e non si possono unificare. Ma due copie di una regola
+    diventano due regole appena qualcuno modifica una sola delle due: e' quello
+    che era successo ai generatori `claude_md` e `agents_md`, che dicevano cose
+    diverse senza che nessuno l'avesse deciso. Questo test e' la guardia al
+    posto della mia attenzione.
+    """
+
+    from truenex_memory.mcp.server import _tool_definitions
+
+    definizioni = {d["name"]: d["description"].lower() for d in _tool_definitions()}
+    profilo = profile_text().lower()
+
+    imperativi = [
+        # (concetto, dove deve comparire nel profilo, in quale descrizione)
+        ("memory_graph", "memory_graph", "memory_search"),
+        ("scope", "scope", "memory_search"),
+    ]
+    for concetto, nel_profilo, nella_descrizione in imperativi:
+        assert nel_profilo in profilo, f"il profilo non parla piu' di {concetto}"
+        assert concetto in definizioni[nella_descrizione], (
+            f"{nella_descrizione} non parla piu' di {concetto}: profilo e "
+            "descrizioni sono divergenti"
+        )
+
+    # Entrambi devono dire di NON ricostruire leggendo i file.
+    assert "read" in profilo or "files" in profilo
+    assert "reading files" in definizioni["memory_search"]
+
+
+def test_the_descriptions_stay_short_enough_to_be_read() -> None:
+    """Arrivano sempre, quindi si pagano sempre.
+
+    Una descrizione lunga come un manuale viene saltata come il profilo, e a
+    quel punto si e' pagato il token senza comprare il comportamento.
+    """
+
+    from truenex_memory.mcp.server import _tool_definitions
+
+    for definizione in _tool_definitions():
+        parole = len(definizione["description"].split())
+        assert parole < 180, f"{definizione['name']}: {parole} parole"

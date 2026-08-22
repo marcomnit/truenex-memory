@@ -176,10 +176,32 @@ def _tool_definitions() -> list[dict[str, Any]]:
     return [
         {
             "name": "memory_search",
+            # Le descrizioni dei tool sono l'unico canale garantito dal
+            # protocollo: `tools/list` e' obbligatorio, quindi nessun client puo'
+            # chiamare uno strumento senza averne preso lo schema. Il profilo di
+            # comportamento arriva invece per vie che dipendono dal client (un
+            # file che deve leggere, o un campo `instructions` che «puo'»
+            # incorporare), e il 2026-08-22 si e' visto cosa comporta: un client
+            # ha recitato correttamente cosa fa lo `scope` e cos'e' il grafo —
+            # informazioni che stanno QUI — e poi ha ricostruito una catena di
+            # chiamate leggendo i file, perche' l'imperativo stava solo nel
+            # profilo, che con ogni probabilita' non gli e' mai arrivato.
+            #
+            # Quindi le regole operative stanno anche qui, dove arrivano sempre.
+            # La duplicazione col profilo e' voluta ma non lasciata al caso: un
+            # test verifica che i due testi concordino sugli imperativi, cosi'
+            # una modifica a uno solo dei due fa cadere la suite.
             "description": (
                 "Search local Truenex Memory for project context and source-backed "
                 "decisions. Returns excerpts plus a document_id/memory_id per result; "
-                "call memory_get to read one in full."
+                "call memory_get to read one in full. "
+                "Call this BEFORE broadly reading or grepping a repository: it is "
+                "what past decisions and constraints were written down in. "
+                "Pass the folder you are working in as `scope` by default; omit it "
+                "only for deliberately cross-project questions. "
+                "For structural questions — who calls this, what uses this, which "
+                "tests cover it — use memory_graph instead, and do not reconstruct "
+                "a call chain by reading files."
             ),
             "inputSchema": {
                 "type": "object",
@@ -255,7 +277,13 @@ def _tool_definitions() -> list[dict[str, Any]]:
                 "door from memory_search — that one answers what was written "
                 "and decided, this one answers how the code is wired. The "
                 "relations are parsed from the source, so they are correct or "
-                "absent, never a plausible near-match. Requires "
+                "absent, never a plausible near-match — though an absent relation "
+                "does not prove no dynamic one exists. "
+                "Call this BEFORE opening or grepping the files: three calls here "
+                "answer «who calls this, what does it call, which tests cover it» "
+                "for the cost of a few hundred tokens, where reading the files to "
+                "reconstruct the same chain costs tens of thousands and is thrown "
+                "away when the session ends. Requires "
                 "`truenex-mem graph build <path>` for that tree."
             ),
             "inputSchema": {
