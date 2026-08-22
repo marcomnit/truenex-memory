@@ -2222,6 +2222,12 @@ def graph_explain(
     if not result["matched"]:
         typer.echo(f"'{target}' non compare nel grafo di {best.root}")
         raise typer.Exit(code=1)
+
+    copertura = result.get("coverage") or {}
+    for avviso in copertura.get("incomplete", []):
+        typer.echo(f"ATTENZIONE: {avviso}")
+    if copertura.get("incomplete"):
+        typer.echo("")
     typer.echo(f"progetto: {best.root}")
     for name in result["matched"]:
         typer.echo(f"trovato : {name}")
@@ -2239,6 +2245,21 @@ def graph_explain(
         hidden = result.get("truncated", {}).get(key)
         if hidden:
             typer.echo(f"  ... mostrati {len(result[key])} di {hidden} — tutti con --limit {hidden}")
+    if copertura.get("incomplete") and result["matched"]:
+        from truenex_memory.graph import text_call_sites
+
+        nome = result["matched"][0].split("::", 1)[-1].lstrip(".")
+        candidati = text_call_sites(Path(best.root), nome, files=best.file_set())
+        noti = {c["entity"].split("::", 1)[0] for c in result["callers"]}
+        fuori = [c for c in candidati if c["file"] not in noti]
+        if fuori:
+            typer.echo("")
+            typer.echo("CANDIDATI DA RICERCA TESTUALE (non risolti dal parser, da verificare):")
+            for c in fuori:
+                typer.echo(f"  {c['file']}:{c['line']}  {c['text'][:80]}")
+
+    if copertura.get("tests_detection") and not result["tests"]:
+        typer.echo(f"  (il vuoto qui non e' un «nessuno»: {copertura['tests_detection']})")
     if result["rationale"]:
         typer.echo("")
         typer.echo("PERCHE' ESISTE (dal docstring):")

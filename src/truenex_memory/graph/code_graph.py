@@ -90,7 +90,10 @@ GRAPH_EXTRA_EXCLUDED_DIRS: frozenset[str] = frozenset()
 # 2 adds the entity level next to the file aggregation. A cache written by
 # version 1 has no `entities`, so it reads as absent rather than empty and is
 # rebuilt instead of silently answering "nothing calls this".
-CACHE_VERSION = 2
+# 3 scarta gli archi verso i tipi del linguaggio: erano il 10,2% del grafo di
+# MedDesk (579 archi verso una singola entita' «String»), e una cache vecchia
+# li conterrebbe ancora — quindi va ricostruita, non riletta.
+CACHE_VERSION = 3
 
 # Quanti elementi mostrare per gruppo in `explain_entity`. Non e' una soglia
 # misurata: e' un compromesso sul costo in token per l'agente che legge. Sta qui
@@ -102,6 +105,30 @@ EXPLAIN_GROUP_LIMIT = 12
 
 
 CODE_SUFFIXES = DEFAULT_CODE_SUFFIXES
+
+
+# Nomi che l'estrattore promuove a entita' ma che sono tipi del linguaggio, non
+# codice di questo progetto. Il caso misurato: 579 archi «references» verso una
+# singola entita' `license.rs::String`, il 10,2% di tutti gli archi entita' del
+# grafo di MedDesk. Ogni `String` in qualunque file finiva agganciato lì, quindi
+# «cosa usa questa funzione» rispondeva anche `String` — rumore che allunga la
+# risposta e sposta in basso le relazioni vere, che e' il modo piu' silenzioso
+# di rendere inutile uno strumento.
+#
+# Si scarta solo la relazione `references`: `String::from_utf8` e' una chiamata
+# vera e resta.
+LANGUAGE_TYPE_NAMES: frozenset[str] = frozenset(
+    {
+        "string", "str", "result", "option", "vec", "box", "rc", "arc", "cow",
+        "hashmap", "hashset", "btreemap", "vecdeque", "refcell", "cell", "mutex",
+        "rwlock", "duration", "instant", "path", "pathbuf", "osstring", "self",
+        "some", "none", "ok", "err", "bool", "char", "usize", "isize", "f32",
+        "f64", "u8", "u16", "u32", "u64", "u128", "i8", "i16", "i32", "i64",
+        "i128", "any", "dict", "list", "set", "tuple", "int", "float", "object",
+    }
+)
+
+NOISY_RELATIONS: frozenset[str] = frozenset({"references"})
 
 
 class GraphifyUnavailable(RuntimeError):
@@ -448,6 +475,12 @@ def collect_entity_edges(
         target = f"{tgt[0]}::{tgt[1]}"
         if source == target:
             continue
+        # I tipi del linguaggio non sono codice di questo progetto. Senza questo
+        # filtro `String` da sola raccoglieva 579 archi, il 10,2% del grafo: ogni
+        # `String` di ogni file agganciata a un'unica entita' inventata, che
+        # spingeva in basso le relazioni vere in ogni risposta.
+        if relation in NOISY_RELATIONS and tgt[1].lower() in LANGUAGE_TYPE_NAMES:
+            continue
         key = (source, target, relation)
         if key in seen:
             continue
@@ -586,7 +619,12 @@ def explain_entity(
     for edge in graph.entities:
         for side in (edge.source, edge.target):
             lowered = side.lower()
-            name = lowered.split("::", 1)[-1]
+            # Il punto iniziale: un metodo e' registrato come `.verify_token`,
+            # quindi il confronto esatto con `verify_token` falliva e si cadeva
+            # sulla sottostringa, che prendeva anche `verify_token_for_device`.
+            # Chi cerca un nome preciso riceveva l'omonimo piu' lungo insieme al
+            # suo, senza modo di distinguerli.
+            name = lowered.split("::", 1)[-1].lstrip(".")
             if name == needle or lowered == needle:
                 exact.add(side)
             elif needle in lowered:
@@ -616,6 +654,21 @@ def explain_entity(
                 out.append(item)
         return out
 
+    # Copertura dell'estrazione, dichiarata nella risposta e non in una
+    # documentazione che nessuno legge.
+    #
+    # Misurato il 2026-08-22 su MedDesk: delle funzioni Rust con almeno un
+    # chiamante in un ALTRO file, il grafo non ne trova nessuno nell'83% dei
+    # casi (19 su 23). Tutti i silenzi hanno la stessa forma — una chiamata a
+    # metodo attraverso un ricevitore (`engine.build_soap_prompt(...)`) — perche'
+    # l'estrattore non risolve il tipo del ricevitore fra file diversi.
+    #
+    # Perche' va detto qui e non altrove: un agente a cui si dice di preferire
+    # il grafo alla lettura dei file risponde «lo chiama solo il test» con
+    # sicurezza, e sbaglia. Un'assenza presentata come informativa quando non lo
+    # e' e' peggio di nessuna risposta.
+    caveat = _coverage_caveat(matched, callers, graph)
+
     groups = {
         "matched": sorted(matched),
         "callers": _dedup(callers, lambda i: i["entity"]),
@@ -632,8 +685,64 @@ def explain_entity(
         **{name: items[:limit] for name, items in groups.items()},
         "totals": totals,
         "truncated": {name: total for name, total in totals.items() if total > limit},
+        "coverage": caveat,
         "root": graph.root,
     }
+
+
+# Estensioni per cui l'estrazione delle chiamate a metodo fra file e'
+# incompleta, con la misura accanto. Non e' un elenco di sospetti: e' cio' che
+# e' stato contato.
+WEAK_METHOD_RESOLUTION: dict[str, str] = {
+    ".rs": (
+        "su Rust le chiamate a metodo attraverso un ricevitore da un altro file "
+        "spesso non vengono agganciate: misurato l'83% dei chiamanti cross-file "
+        "mancanti (19 su 23 funzioni, MedDesk, 2026-08-22)"
+    ),
+}
+
+# Linguaggi che tengono i test nello stesso file della funzione. Li' il
+# riconoscimento per percorso non funziona, e in Rust nemmeno quello per nome:
+# un `#[test]` si chiama `publisher_requires_a_fully_correlated_receipt`, senza
+# la parola «test» da nessuna parte. Dire «nessun test» quando non si sa e' una
+# bugia, quindi si dichiara di non sapere.
+TESTS_IN_SAME_FILE: frozenset[str] = frozenset({".rs"})
+
+
+def _coverage_caveat(
+    matched: set[str], callers: list[dict[str, Any]], graph: FileGraph
+) -> dict[str, Any]:
+    """Cosa questa risposta NON puo' garantire."""
+
+    if not matched:
+        return {}
+    file_bersaglio = {nome.split("::", 1)[0] for nome in matched}
+    suffissi = {Path(nome).suffix.lower() for nome in file_bersaglio}
+
+    avvisi: list[str] = []
+    for suffisso in sorted(suffissi):
+        nota = WEAK_METHOD_RESOLUTION.get(suffisso)
+        if nota:
+            avvisi.append(nota)
+
+    fuori = {c["entity"].split("::", 1)[0] for c in callers} - file_bersaglio
+    coverage: dict[str, Any] = {"callers_outside_the_defining_file": len(fuori)}
+    if avvisi and not fuori:
+        # La firma esatta del difetto: tutti i chiamanti nello stesso file.
+        avvisi.append(
+            "nessun chiamante fuori dal file di definizione: e' la forma tipica "
+            "di un'estrazione incompleta, non una prova che non ce ne siano — "
+            "verifica con una ricerca testuale prima di concludere"
+        )
+    if suffissi & TESTS_IN_SAME_FILE:
+        coverage["tests_detection"] = (
+            "non affidabile per questo linguaggio: i test stanno nello stesso "
+            "file e il loro nome non contiene «test». Un elenco vuoto qui "
+            "significa «non lo so», non «nessuno»"
+        )
+    if avvisi:
+        coverage["incomplete"] = avvisi
+    return coverage
 
 
 def cache_slug(root: Path) -> str:
@@ -794,3 +903,81 @@ def document_edges(
             }
         )
     return mapped
+
+
+# Righe che non sono chiamate anche se contengono il nome: commenti, e la
+# definizione stessa. Il filtro e' grezzo di proposito — la review di codex
+# chiedeva di validare i candidati con tree-sitter, ed e' giusto, ma un filtro
+# grezzo DICHIARATO e' meglio di uno raffinato che tarda: qui i risultati sono
+# etichettati come indizi, non come relazioni.
+_NON_CALL_LINE = re.compile(r"^\s*(//|#|\*|/\*|--)")
+_DEFINITION_LINE = re.compile(r"\b(fn|def|function|pub\s+fn|async\s+fn)\s+$")
+
+
+def text_call_sites(
+    root: Path,
+    name: str,
+    *,
+    limit: int = 20,
+    files: Iterable[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Punti in cui *name* compare come chiamata, cercati nel TESTO.
+
+    Perche' esiste: il parser non risolve le chiamate a metodo attraverso un
+    ricevitore da un altro file, e su Rust perde l'83% dei chiamanti cross-file.
+    Il grafo quindi risponde «nessun chiamante» quando invece ce ne sono, e un
+    agente a cui abbiamo detto di preferire il grafo alla lettura dei file
+    riporta quel «nessuno» come un fatto.
+
+    Questa funzione non ripara il grafo: ripara la RISPOSTA. I risultati vanno
+    presentati in un campo separato e dichiarati per quello che sono — righe di
+    testo compatibili, non relazioni verificate. Confondere le due qualita' di
+    verita' nello stesso elenco sarebbe peggio del difetto che stiamo
+    correggendo, perche' distruggerebbe la fiducia in tutto il resto.
+
+    Cerca `nome(` e `.nome(`, salta le righe di commento e la riga di
+    definizione. Non distingue una chiamata dentro una stringa: e' un limite
+    dichiarato, e il motivo per cui il campo si chiama «candidati».
+    """
+
+    if not name.strip():
+        return []
+    ago = re.compile(rf"(?<![\w]){re.escape(name)}\s*\(")
+    trovati: list[dict[str, Any]] = []
+    # I file su cui cercare arrivano dal GRAFO, non da una nuova scansione
+    # dell'albero: sono esattamente quelli che il parser ha letto, e ripercorrere
+    # le cartelle costava 1,5 s per interrogazione — troppo per una risposta che
+    # deve essere immediata, quindi il ripiego verrebbe spento e non servirebbe a
+    # niente.
+    elenco = (
+        [root / relativo for relativo in files]
+        if files is not None
+        else collect_source_files(root)
+    )
+    for percorso in elenco:
+        try:
+            testo = percorso.read_text(encoding="utf-8", errors="replace")
+        except OSError:  # pragma: no cover - file spartito
+            continue
+        if name not in testo:
+            continue
+        for numero, riga in enumerate(testo.splitlines(), start=1):
+            if not ago.search(riga) or _NON_CALL_LINE.match(riga):
+                continue
+            prima = riga[: riga.index(name)]
+            if _DEFINITION_LINE.search(prima):
+                continue
+            try:
+                nome_file = percorso.relative_to(root).as_posix()
+            except ValueError:  # pragma: no cover - percorso fuori dalla radice
+                nome_file = percorso.as_posix()
+            trovati.append(
+                {
+                    "file": nome_file,
+                    "line": numero,
+                    "text": riga.strip()[:160],
+                }
+            )
+            if len(trovati) >= limit:
+                return trovati
+    return trovati

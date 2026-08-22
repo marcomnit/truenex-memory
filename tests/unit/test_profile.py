@@ -1070,3 +1070,27 @@ def test_the_descriptions_stay_short_enough_to_be_read() -> None:
     for definizione in _tool_definitions():
         parole = len(definizione["description"].split())
         assert parole < 180, f"{definizione['name']}: {parole} parole"
+
+
+def test_reconnecting_does_not_wipe_the_measurements(tmp_path: Path) -> None:
+    """Il difetto che ha distrutto la prima misura.
+
+    `record_client` ricostruiva la voce da zero a ogni handshake, quindi una
+    riconnessione azzerava `behaviour` — cioe' esattamente i contatori con cui
+    si verifica se il profilo e' arrivato. Invisibile finche' nessuno
+    riconnetteva un client dopo averlo usato: si e' visto solo confrontando due
+    misure a distanza di un'ora.
+    """
+
+    from truenex_memory.adapters.profile import compliance, record_client, record_tool_use
+
+    registro = tmp_path / "clients.json"
+    record_client("claude-code", "1.0", registro)
+    for _ in range(4):
+        record_tool_use("claude-code", "memory_search", {"scope": "p"}, registro)
+
+    record_client("claude-code", "1.1", registro)  # riconnessione
+
+    rapporto = compliance(registro)[0]
+    assert rapporto["searches"] == 4, "i contatori devono sopravvivere alla riconnessione"
+    assert rapporto["connections"] == 2

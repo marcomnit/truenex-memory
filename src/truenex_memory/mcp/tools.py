@@ -98,6 +98,35 @@ def memory_graph(
 
     result = explain_entity(best, target, limit=limit)
     result["project"] = best.root
+
+    # Ripiego testuale quando la copertura del parser e' nota incompleta.
+    #
+    # Non solo quando i chiamanti sono zero: un chiamante risolto puo' convivere
+    # con altri mancanti, e limitarsi al caso vuoto lascerebbe passare proprio le
+    # risposte «plausibili e incomplete», che sono le peggiori.
+    #
+    # I candidati NON entrano fra i `callers`. Sono due qualita' di verita'
+    # diverse — una relazione letta dal parser e una riga di testo compatibile —
+    # e mescolarle nello stesso elenco distruggerebbe la fiducia anche in quelle
+    # vere. Il contratto per chi legge sta scritto accanto ai dati.
+    if (result.get("coverage") or {}).get("incomplete") and result.get("matched"):
+        from truenex_memory.graph import text_call_sites
+
+        nome = result["matched"][0].split("::", 1)[-1].lstrip(".")
+        candidati = text_call_sites(Path(best.root), nome, files=best.file_set())
+        noti = {c["entity"].split("::", 1)[0] for c in result["callers"]}
+        result["candidate_callers_from_text"] = {
+            "pattern": f"{nome}(",
+            "confidence": "low",
+            "note": (
+                "Call sites found by TEXT search, not resolved by the parser. "
+                "They exist because method calls through a receiver from another "
+                "file are not resolved. Treat them as leads to open, not as "
+                "proven call relations — and never report them as if they came "
+                "from the graph."
+            ),
+            "matches": [c for c in candidati if c["file"] not in noti],
+        }
     # Il grafo e' una fotografia. Se i sorgenti sono cambiati da quando e' stato
     # costruito, questa risposta parla del passato: dirlo qui e' l'unico modo
     # perche' l'agente lo sappia senza che una persona debba ricordarselo.

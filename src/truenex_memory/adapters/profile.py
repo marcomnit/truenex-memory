@@ -640,21 +640,6 @@ def record_client(name: str | None, version: str | None, registry: Path) -> dict
     istruzioni non da' errore.
     """
 
-    entry = {
-        "name": name or "(non dichiarato)",
-        "version": version or "",
-        "last_seen": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }
-    catena = process_ancestry()
-    target, segnale = identify_client(name, None)
-    # La catena intera, non solo il padre: e' cio' che serve per mappare un
-    # client nuovo, e senza registrarla si dovrebbe chiedere all'utente di
-    # riprodurre la connessione ogni volta.
-    entry["process"] = catena[0] if catena else ""
-    entry["ancestry"] = catena[:6]
-    entry["recognised_as"] = target.client if target else None
-    entry["signal"] = segnale
-
     known: dict[str, Any] = {}
     try:
         known = json.loads(registry.read_text(encoding="utf-8"))
@@ -662,10 +647,34 @@ def record_client(name: str | None, version: str | None, registry: Path) -> dict
         known = {}
     if not isinstance(known, dict):
         known = {}
-    previous = known.get(entry["name"], {})
-    entry["first_seen"] = previous.get("first_seen", entry["last_seen"])
-    entry["connections"] = int(previous.get("connections", 0)) + 1
-    known[entry["name"]] = entry
+
+    # Si PARTE dalla voce esistente invece di costruirne una nuova. La prima
+    # versione ricostruiva il dizionario da zero, e a ogni riconnessione buttava
+    # via `behaviour`: cioe' proprio i contatori con cui si misura se il profilo
+    # e' arrivato. Il difetto era invisibile finche' nessuno riconnetteva un
+    # client dopo averlo usato, e si e' visto solo confrontando due misure a
+    # un'ora di distanza — la seconda diceva «mai usato» di un client che aveva
+    # fatto sei chiamate.
+    chiave = name or "(non dichiarato)"
+    entry = dict(known.get(chiave) or {})
+    adesso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # La catena intera, non solo il padre: e' cio' che serve per mappare un
+    # client nuovo, e senza registrarla si dovrebbe chiedere all'utente di
+    # riprodurre la connessione ogni volta.
+    catena = process_ancestry()
+    target, segnale = identify_client(name, None)
+    entry.update(
+        name=chiave,
+        version=version or entry.get("version", ""),
+        last_seen=adesso,
+        process=catena[0] if catena else entry.get("process", ""),
+        ancestry=catena[:6] or entry.get("ancestry", []),
+        recognised_as=target.client if target else None,
+        signal=segnale,
+        first_seen=entry.get("first_seen", adesso),
+        connections=int(entry.get("connections", 0)) + 1,
+    )
+    known[chiave] = entry
     try:
         registry.parent.mkdir(parents=True, exist_ok=True)
         temporary = registry.with_name(registry.name + ".truenex-tmp")
