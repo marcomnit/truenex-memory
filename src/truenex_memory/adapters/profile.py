@@ -840,12 +840,27 @@ def compliance(registry: Path | None = None) -> list[dict[str, Any]]:
         searches = int(behaviour.get("searches", 0))
         with_scope = int(behaviour.get("searches_with_scope", 0))
         rate = (with_scope / searches) if searches else None
+        grafo = int(behaviour.get("graph_calls", 0))
+        registrazioni = int(behaviour.get("task_steps", 0))
         if not int(behaviour.get("calls", 0)):
             verdict = "no-usage"
+        elif not searches and grafo:
+            # Difetto trovato il 2026-08-22 su dati veri: un client con 26
+            # chiamate al grafo e ZERO ricerche veniva dichiarato «profilo in
+            # vigore», perche' il tasso di scope era indefinito e il ramo finale
+            # premiava l'uso del grafo. Ma la prima regola del profilo e' cercare
+            # prima di lavorare: chi non cerca mai non lo sta seguendo, e un
+            # verdetto che lo assolve rende la misura inutile proprio dove serve.
+            verdict = "graph-only"
         elif searches and rate is not None and rate < 2 / 3:
             verdict = "ignores-scope"
-        elif not int(behaviour.get("graph_calls", 0)) and not int(behaviour.get("task_steps", 0)):
+        elif not grafo and not registrazioni:
             verdict = "search-only"
+        elif not registrazioni:
+            # Zero registrazioni su OTTO client: e' la regola piu' ignorata di
+            # tutte, e confonderla con l'adesione piena nasconde l'unica parte
+            # del profilo che nessuno esegue.
+            verdict = "no-recording"
         else:
             verdict = "follows-profile"
         # Ricalcolato dal nome, non letto dal registro: le etichette dei

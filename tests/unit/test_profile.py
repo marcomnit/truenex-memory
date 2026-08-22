@@ -1206,3 +1206,48 @@ def test_known_projects_come_from_the_graph_cache(tmp_path: Path, monkeypatch) -
     monkeypatch.setenv(PROFILE_HOME_ENV, str(tmp_path))
 
     assert known_project_roots(tmp_path) == [progetto.resolve()]
+
+
+def test_a_client_that_never_searches_is_not_following_the_profile(tmp_path: Path) -> None:
+    """Difetto della misura, trovato su dati veri il 2026-08-22.
+
+    MiniMax aveva 29 chiamate, 26 al grafo e ZERO ricerche, e il verdetto diceva
+    «profilo in vigore»: il tasso di scope era indefinito (nessuna ricerca) e il
+    ramo finale premiava l'uso del grafo. Ma la prima regola del profilo e'
+    cercare prima di lavorare. Un verdetto che assolve chi non cerca mai rende
+    la misura inutile proprio dove serve — e la misura esisteva per non doversi
+    fidare delle impressioni.
+    """
+
+    from truenex_memory.adapters.profile import compliance
+
+    registro = tmp_path / "clients.json"
+    _sessione(
+        registro,
+        "mavis-local-runtime-mcp",
+        [("memory_graph", {"target": "x"})] * 26,
+    )
+
+    rapporto = compliance(registro)[0]
+
+    assert rapporto["verdict"] == "graph-only"
+    assert rapporto["searches"] == 0 and rapporto["graph_calls"] == 26
+
+
+def test_searching_and_navigating_without_recording_is_its_own_state(tmp_path: Path) -> None:
+    """Zero registrazioni su otto client: la regola che nessuno esegue.
+
+    Confonderla con l'adesione piena nasconderebbe l'unica parte del profilo che
+    non arriva a nessuno.
+    """
+
+    from truenex_memory.adapters.profile import compliance
+
+    registro = tmp_path / "clients.json"
+    _sessione(
+        registro,
+        "claude-code",
+        [("memory_search", {"query": "x", "scope": "p"})] * 3 + [("memory_graph", {"target": "y"})],
+    )
+
+    assert compliance(registro)[0]["verdict"] == "no-recording"

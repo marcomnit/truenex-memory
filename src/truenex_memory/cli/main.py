@@ -2613,6 +2613,8 @@ def profile_check(
         "no-usage": "mai usato",
         "ignores-scope": "scope ignorato",
         "search-only": "solo ricerca",
+        "graph-only": "solo grafo, mai cerca",
+        "no-recording": "cerca e naviga, non registra",
         "follows-profile": "profilo in vigore",
     }
     righe = [
@@ -2649,5 +2651,7 @@ def profile_check(
     typer.echo("  mai usato       collegato ma nessuna chiamata: il profilo probabilmente non e' arrivato")
     typer.echo("  scope ignorato  cerca senza scope in oltre un caso su tre")
     typer.echo("  solo ricerca    cerca bene, non usa il grafo ne' registra: meta' profilo in vigore")
+    typer.echo("  solo grafo      usa il grafo ma non cerca mai: la prima regola non e' arrivata")
+    typer.echo("  non registra    l'ultima regola, quella che nessun client esegue")
     typer.echo("")
     typer.echo("  uno scope basso puo' essere legittimo: le domande trasversali non lo passano")
