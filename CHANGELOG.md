@@ -2,6 +2,114 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-08-22
+
+Due giorni su una domanda sola: perche' un agente che ha la memoria a
+disposizione continua a leggere trenta file. La risposta e' stata tre difetti
+distinti — la ricerca guardava nel posto sbagliato, il grafo del codice taceva
+meta' delle relazioni, e nessuno aveva mai detto agli agenti che quegli
+strumenti esistono.
+
+### Added
+
+- **`scope` nella ricerca.** `memory_search`, `MemoryService.search()` e la CLI
+  accettano una cartella su cui restringere. La condizione vive dentro l'SQL di
+  FTS5, non come filtro successivo: filtrare dopo spenderebbe il bacino dei
+  candidati sul resto del corpus. Lo scope corrisponde a **segmenti interi** del
+  percorso, quindi `truenex-memory` non prende `truenex-memory-dev` — un progetto
+  vicino e sbagliato e' il caso peggiore, perche' la risposta e' plausibile.
+  Misurato sull'insieme cieco: **da 2/32 a 8/32** (MRR 0,042 -> 0,128), zero
+  regressioni sui 53 casi committati.
+- **Grafo del codice** (`memory_graph`, `truenex-mem graph`). Risponde a «chi
+  chiama questa funzione», «cosa chiama», «quali test la coprono» leggendo le
+  relazioni estratte dal sorgente con tree-sitter, aggregate su due livelli.
+  Costo misurato di una risposta: 1.604 caratteri contro 108.707 leggendo i
+  quattro file coinvolti.
+- **Deduzione del tipo del ricevitore** per le chiamate che tree-sitter non
+  risolve: parametri, `let x: T`, costruttori, campi di struct, contenitori
+  (`Mutex<T>`, `State<'_, T>`) e tipi di ritorno. Chiamanti cross-file trovati:
+  **da 4/23 a 18/22**, con 323 archi dedotti su 323 che superano il controllo di
+  precisione. Gli archi dedotti portano `confidence: "inferred"` e restano
+  distinguibili da quelli letti dal parser.
+- **Riconoscimento dei test in Rust** dall'attributo `#[test]` e dai moduli
+  `#[cfg(test)]`. Prima il campo «quali test coprono X» era vuoto **sempre** su
+  Rust, perche' l'euristica guardava il percorso del file e li' i test stanno
+  accanto al codice. 583 funzioni di test riconosciute su un progetto reale, 365
+  funzioni con almeno un test attribuito.
+- **Profilo di comportamento per gli agenti**, da una sorgente sola
+  (`adapters/profile.md`) verso i file utente degli otto client riconosciuti, gli
+  `AGENTS.md` di progetto e il campo `instructions` dell'handshake MCP. Comandi
+  `truenex-mem profile show | status | apply | clients | check`.
+- **`truenex-mem upgrade`**: migrazione con backup, ricostruzione dei grafi,
+  scrittura del profilo, in un comando. Dopo un aggiornamento restavano quattro
+  passi da fare a mano, e quattro passi scritti in un manuale sono un compito
+  affidato alla memoria di una persona.
+- **`truenex-mem profile check`**: misura se i client seguono il profilo
+  guardando come usano gli strumenti, invece di fidarsi del fatto che il testo
+  sia arrivato.
+
+### Changed
+
+- **Nessun aggiornamento silenzioso dello schema.** `initialize_schema` gira a
+  ogni apertura — una ricerca, un handshake MCP — e applicava le migrazioni
+  senza backup: chi installava una versione nuova si trovava lo schema cambiato
+  e nessun punto di ripristino. Ora un archivio **con contenuto** e schema piu'
+  vecchio viene rifiutato con il comando da eseguire; `truenex-mem migrate` e
+  `upgrade` restano le sole porte autorizzate, e prendono il backup prima. Gli
+  archivi nuovi o vuoti non sono toccati, e un archivio piu' NUOVO del codice non
+  viene bloccato — le migrazioni sono additive, quindi si prosegue registrando
+  un avviso.
+- **Il grafo si accorge da solo di essere invecchiato**, confrontando mtime e
+  dimensione dei sorgenti in 4 ms, e si ricostruisce in disparte. La logica sta
+  in libreria e la usano le tre porte che leggono il grafo — tool MCP, CLI, API —
+  perche' una regola scritta nella configurazione di un client lascerebbe gli
+  altri con un grafo vecchio.
+- **`MAX_CHUNKS_PER_DOCUMENT = 1`**: la deduplica per contenuto non vedeva tre
+  chunk *diversi* dello stesso file, che occupavano tutte le prime posizioni.
+  Sweep monotono sull'insieme cieco: nessun cap 4/32, cap 3 -> 4, cap 2 -> 5,
+  **cap 1 -> 6**.
+- **Nella fusione RRF un'identita' contribuisce una volta sola** al suo rango
+  migliore, invece di sommare ogni occorrenza. Un export di chat da 2.559 chunk
+  con 399 gruppi identici accumulava sei volte il punteggio di qualunque
+  risposta vera. **+3 casi.**
+- **Il ramo denso e' spento per default** (`TRUENEX_DENSE=on` per riaccenderlo):
+  alla soglia 0,90 non portava nulla, e spento guadagna 2 casi.
+- **I limiti dello strumento sono dichiarati nella risposta**, non nella
+  documentazione: `totals` accanto agli elenchi tagliati, `coverage` con la
+  percentuale misurata di relazioni ancora mancanti, `tests` che dice «non lo so»
+  invece di «nessuno» quando non puo' sapere, e `answered_from` con i progetti da
+  cui la risposta viene davvero.
+
+### Fixed
+
+- Il ripiego globale dello scope era registrato solo nel log del server: chi
+  chiamava riceveva risultati di tutto il corpus credendoli ristretti.
+- 579 archi `references` verso una finta entita' `String` — il 10,2% del grafo —
+  ora scartati insieme agli altri tipi del linguaggio.
+- Il confronto esatto dei nomi falliva sul punto iniziale dei metodi
+  (`.verify_token`) e restituiva anche gli omonimi piu' lunghi
+  (`verify_token_for_device`).
+- Le esclusioni: `.venv` come **prefisso** (il punto iniziale annullava la regola,
+  quindi `venv310` era escluso e `.venv310` no), piu' `.cargo` e `.archive`.
+  Indice da 201.282 a 170.285 chunk, da 4,05 a 3,47 GB.
+- L'harness di valutazione confrontava i percorsi come sottostringhe letterali,
+  quindi ogni bersaglio scritto con `/` falliva in silenzio su Windows.
+- `serve.py` non aveva un logger: il ramo di errore avrebbe sollevato
+  `NameError` dentro il gestore della richiesta.
+- La deduplica delle memorie non filtrate per stato scartava 111 nodi approvati
+  da una persona, rendendo `global auto approve` un comando senza effetto.
+
+### Note
+
+- La cache del grafo del codice ha cambiato formato (versione 5). Le cache
+  esistenti vengono ricostruite: `truenex-mem upgrade` lo fa per i progetti che
+  conosce.
+- Sui client: il profilo arriva in modo **verificato** su Claude Code, Codex e
+  Kimi CLI. Su Cursor, Gemini, Copilot e Aider il file e' nel percorso che la
+  loro documentazione dichiara, ma non e' stato provato sul campo. MiniMax non
+  legge nessun file di istruzioni: per lui l'unica strada e' l'`AGENTS.md` di
+  progetto o la sua memoria interna.
+
 ## [0.5.3] — 2026-08-05
 
 ### Fixed

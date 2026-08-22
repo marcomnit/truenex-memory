@@ -2670,3 +2670,98 @@ def profile_check(
     typer.echo("  non registra    l'ultima regola, quella che nessun client esegue")
     typer.echo("")
     typer.echo("  uno scope basso puo' essere legittimo: le domande trasversali non lo passano")
+
+
+@app.command("upgrade")
+def upgrade(
+    home: Path = typer.Option(Path.home(), "--home", help="User home directory for default paths."),
+    db: Path | None = typer.Option(None, "--db", help="Path to the SQLite database."),
+    project_root: Path = typer.Option(Path("."), "--project-root", help="Project root."),
+    skip_graphs: bool = typer.Option(False, "--skip-graphs", help="Non ricostruire i grafi del codice."),
+    skip_profile: bool = typer.Option(False, "--skip-profile", help="Non scrivere il profilo nei client."),
+    json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
+) -> None:
+    """Porta un'installazione esistente alla versione corrente, in un comando.
+
+    Dopo un aggiornamento del pacchetto restavano quattro passi da fare a mano —
+    migrare lo schema, ricostruire i grafi, scrivere il profilo nei client,
+    aggiornare l'indice — e quattro passi scritti in un manuale sono un compito
+    affidato alla memoria di una persona. Questo comando li fa e dice cosa ha
+    fatto.
+
+    L'ordine non e' arbitrario: prima la migrazione con il suo backup, perche' se
+    qualcosa va storto lì il resto non deve nemmeno cominciare.
+    """
+    from truenex_memory.core.config import resolve_project_config
+    from truenex_memory.core.migration import migrate_apply, migration_status
+
+    config = resolve_project_config(project_root)
+    db_path = db if db is not None else config.db_path
+    # I backup stanno accanto al database che si sta migrando, non nella cartella
+    # del progetto corrente: con `--db` che punta all'archivio globale, la copia
+    # di sicurezza finiva dentro un progetto qualsiasi — cioe' lontano da cio'
+    # che protegge, dove nessuno la cercherebbe.
+    backups_dir = db_path.parent / "backups"
+    rapporto: dict[str, Any] = {"database": str(db_path)}
+
+    # 1. Schema, col backup che l'apertura normale non fa.
+    prima = migration_status(db_path)
+    if prima["pending"]:
+        esito = migrate_apply(db_path, backups_dir)
+        rapporto["schema"] = {
+            "da": esito["previous_version"],
+            "a": esito["current_version"],
+            "backup": esito["backup_path"],
+        }
+    else:
+        rapporto["schema"] = {"da": prima["current_version"], "a": prima["current_version"], "backup": None}
+
+    # 2. I grafi del codice: la cache ha cambiato formato, e una cache di una
+    #    versione precedente risponderebbe «nessun chiamante» dove ce ne sono.
+    rapporto["grafi"] = []
+    if not skip_graphs:
+        from truenex_memory.graph import GraphifyUnavailable, build_file_graph, save_file_graph
+        from truenex_memory.adapters.profile import known_project_roots
+
+        cache_dir = _graph_cache_dir(db, home)
+        radici = known_project_roots(home)
+        for radice in radici:
+            try:
+                grafo = build_file_graph(radice)
+                save_file_graph(grafo, cache_dir)
+                rapporto["grafi"].append(
+                    {"progetto": radice.name, "file": grafo.stats.get("files", 0), "esito": "ricostruito"}
+                )
+            except GraphifyUnavailable:
+                rapporto["grafi"].append({"progetto": radice.name, "esito": "backend di estrazione assente"})
+            except Exception as errore:  # pragma: no cover - un progetto rotto non ferma gli altri
+                rapporto["grafi"].append({"progetto": radice.name, "esito": f"errore: {errore}"})
+
+    # 3. Il profilo nei file dei client installati.
+    rapporto["profilo"] = []
+    if not skip_profile:
+        from truenex_memory.adapters.profile import apply_all
+
+        for voce in apply_all(home):
+            if voce.installed:
+                rapporto["profilo"].append({"client": voce.client, "esito": voce.action})
+
+    if json_output:
+        typer.echo(json.dumps(rapporto, indent=2, ensure_ascii=False, default=str))
+        return
+
+    s = rapporto["schema"]
+    typer.echo(f"schema:  {s['da']} -> {s['a']}" + (f"   backup: {s['backup']}" if s["backup"] else ""))
+    if rapporto["grafi"]:
+        typer.echo("")
+        typer.echo("grafi del codice:")
+        for g in rapporto["grafi"]:
+            dettaglio = f"{g.get('file', '')} file" if g.get("file") else ""
+            typer.echo(f"  {g['progetto']:32s} {g['esito']:24s} {dettaglio}")
+    if rapporto["profilo"]:
+        typer.echo("")
+        typer.echo("profilo nei client:")
+        for p in rapporto["profilo"]:
+            typer.echo(f"  {p['client']:16s} {p['esito']}")
+    typer.echo("")
+    typer.echo("fatto. `truenex-mem status` per il quadro completo.")

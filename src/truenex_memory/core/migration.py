@@ -102,7 +102,9 @@ def migrate_apply(db_path: Path, backups_dir: Path) -> MigrationResult:
     backup_path = backup_database(db_path, backups_dir) if db_path.exists() else None
 
     with connect(db_path) as conn:
-        initialize_schema(conn)
+        # Il backup e' stato preso qui sopra: questa e' la sola chiamata
+        # autorizzata ad aggiornare uno schema esistente.
+        initialize_schema(conn, allow_upgrade=True)
         apply_column_upgrades(conn)
 
     after = migration_status(db_path)

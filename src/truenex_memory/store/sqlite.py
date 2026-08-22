@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import logging
 import sqlite3
 from typing import Any
 
@@ -31,6 +32,9 @@ class MemoryRecord:
     metadata: dict[str, Any]
 
 
+logger = logging.getLogger(__name__)
+
+
 def connect(db_path: Path | str) -> sqlite3.Connection:
     """Open a SQLite connection with local-first defaults."""
 
@@ -43,8 +47,118 @@ def connect(db_path: Path | str) -> sqlite3.Connection:
     return conn
 
 
-def initialize_schema(conn: sqlite3.Connection) -> None:
-    """Create or safely upgrade the local schema."""
+class SchemaUpgradeRequired(RuntimeError):
+    """Il database esiste, ha contenuto, e il suo schema e' piu' vecchio del codice.
+
+    Perche' e' un errore e non un aggiornamento silenzioso. Questa funzione gira a
+    OGNI apertura: una ricerca, un handshake MCP, un comando qualunque. Applicare
+    lì la migrazione significherebbe cambiare il database di qualcuno senza che
+    l'abbia chiesto e senza un punto di ripristino — e prendere un backup in quel
+    momento non e' un'alternativa praticabile: su un archivio reale da 3,47 GB
+    sarebbe una copia di secondi dentro un handshake, che il client vedrebbe come
+    un blocco.
+
+    Quindi si rifiuta, con il comando da eseguire scritto nel messaggio. Un
+    fallimento chiaro e' meglio di una modifica irreversibile fatta di nascosto:
+    le migrazioni qui sono additive e il rischio di perdere dati e' basso, ma
+    «basso» non e' cio' che si promette a chi ha un archivio da tre giga.
+
+    Si scavalca con ``TRUENEX_ALLOW_AUTO_MIGRATE=1``, che serve alle prove
+    automatiche e a chi sa cosa sta facendo.
+    """
+
+
+def _recorded_schema_version(conn: sqlite3.Connection) -> int:
+    """La versione registrata nel database, 0 se non c'e' ancora niente."""
+
+    try:
+        row = conn.execute(
+            "SELECT version FROM schema_migrations ORDER BY CAST(version AS INTEGER) DESC LIMIT 1"
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    try:
+        return int(row[0]) if row else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def _database_path(conn: sqlite3.Connection) -> str:
+    try:
+        for _, nome, file in conn.execute("PRAGMA database_list"):
+            if nome == "main":
+                return file or ""
+    except sqlite3.Error:  # pragma: no cover
+        pass
+    return ""
+
+
+def _has_content(conn: sqlite3.Connection) -> bool:
+    """Vero se il database contiene qualcosa che valga la pena di proteggere."""
+
+    for tabella in ("documents", "memory_nodes"):
+        try:
+            if conn.execute(f"SELECT 1 FROM {tabella} LIMIT 1").fetchone():
+                return True
+        except sqlite3.OperationalError:
+            continue
+    return False
+
+
+def guard_schema_version(conn: sqlite3.Connection) -> None:
+    """Rifiuta di aggiornare in silenzio uno schema piu' vecchio del codice.
+
+    Non tocca i database nuovi o vuoti — li' non c'e' niente da proteggere e la
+    creazione dello schema e' il comportamento atteso. E non blocca il caso
+    opposto, un database piu' NUOVO del codice: le migrazioni sono additive,
+    quindi una versione precedente riesce a leggerlo e scriverlo, e rifiutare
+    lascerebbe a piedi chi ha due installazioni. Viene solo registrato nel log,
+    perche' un avviso che non si puo' agire non deve fermare il lavoro.
+    """
+
+    import os
+
+    if (os.environ.get("TRUENEX_ALLOW_AUTO_MIGRATE") or "").strip() in {"1", "on", "true", "yes"}:
+        return
+
+    registrata = _recorded_schema_version(conn)
+    corrente = int(SCHEMA_VERSION)
+    if registrata == 0 or registrata == corrente:
+        return
+    if registrata > corrente:
+        logger.warning(
+            "il database e' allo schema %s e questo codice conosce lo %s: "
+            "le migrazioni sono additive, quindi si prosegue, ma una versione "
+            "piu' recente di truenex-mem ha toccato questo archivio",
+            registrata, corrente,
+        )
+        return
+    if not _has_content(conn):
+        return
+
+    percorso = _database_path(conn)
+    raise SchemaUpgradeRequired(
+        f"lo schema di questo archivio e' alla versione {registrata}, il codice "
+        f"richiede la {corrente}. Non lo aggiorno da solo: la migrazione si fa "
+        f"solo su richiesta, per prendere prima un backup.\n\n"
+        f"    truenex-mem upgrade\n\n"
+        f"(oppure `truenex-mem migrate` per la sola migrazione)"
+        + (f"\narchivio: {percorso}" if percorso else "")
+    )
+
+
+def initialize_schema(conn: sqlite3.Connection, *, allow_upgrade: bool = False) -> None:
+    """Create or safely upgrade the local schema.
+
+    ``allow_upgrade`` lo passa SOLO chi ha già preso un backup — cioe'
+    `migrate_apply`. Senza quel parametro il guardiano rifiuta di aggiornare in
+    silenzio uno schema piu' vecchio, e senza questo parametro il comando che
+    indichiamo per migrare verrebbe rifiutato da se' stesso: il guardiano vive
+    dentro la funzione che la migrazione deve chiamare.
+    """
+
+    if not allow_upgrade:
+        guard_schema_version(conn)
 
     conn.executescript(
         """
