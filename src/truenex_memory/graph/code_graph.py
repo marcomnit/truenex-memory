@@ -757,12 +757,14 @@ def explain_entity(
 # incompleta, con la misura accanto. Non e' un elenco di sospetti: e' cio' che
 # e' stato contato.
 WEAK_METHOD_RESOLUTION: dict[str, str] = {
-    ".rs": (
-        "su Rust le chiamate a metodo attraverso un ricevitore da un altro file "
-        "non sempre vengono agganciate: misurato il 39% dei chiamanti cross-file "
-        "ancora mancante (9 su 23 funzioni, MedDesk, 2026-08-22), dopo la "
-        "deduzione dai tipi dichiarati che ha ridotto il buco dall'83%"
-    ),
+    # Codici, non prose. Questa risposta viene letta a ogni interrogazione da un
+    # modello che paga a token, e la spiegazione era identica ogni volta: il 22%
+    # della risposta erano le stesse quattro righe. Il significato dei codici sta
+    # nella descrizione del tool, che il protocollo consegna UNA volta per
+    # sessione — dirlo dove si paga una volta invece che dove si paga sempre.
+    # La CLI li riespande in italiano, perche' li' li legge una persona e non
+    # costano niente.
+    ".rs": "cross_file_method_calls: 39% missing (23 fn, 2026-08-22, was 83%)",
 }
 
 # Linguaggi che tengono i test nello stesso file della funzione. Li' il
@@ -793,17 +795,9 @@ def _coverage_caveat(
     coverage: dict[str, Any] = {"callers_outside_the_defining_file": len(fuori)}
     if avvisi and not fuori:
         # La firma esatta del difetto: tutti i chiamanti nello stesso file.
-        avvisi.append(
-            "nessun chiamante fuori dal file di definizione: e' la forma tipica "
-            "di un'estrazione incompleta, non una prova che non ce ne siano — "
-            "verifica con una ricerca testuale prima di concludere"
-        )
+        avvisi.append("no_caller_outside_defining_file: typical shape of a missed extraction")
     if suffissi & TESTS_IN_SAME_FILE:
-        coverage["tests_detection"] = (
-            "non affidabile per questo linguaggio: i test stanno nello stesso "
-            "file e il loro nome non contiene «test». Un elenco vuoto qui "
-            "significa «non lo so», non «nessuno»"
-        )
+        coverage["tests_detection"] = "unknown: tests share the file and the name carries no marker"
     if avvisi:
         coverage["incomplete"] = avvisi
     return coverage

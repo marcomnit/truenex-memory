@@ -189,8 +189,12 @@ def test_an_absence_is_not_presented_as_a_finding() -> None:
 
     copertura = risultato["coverage"]
     assert copertura["callers_outside_the_defining_file"] == 0
-    assert any("83%" in avviso for avviso in copertura["incomplete"])
-    assert any("non una prova" in avviso for avviso in copertura["incomplete"])
+    # Codici compatti, non prose: la spiegazione sta nella descrizione del tool,
+    # che il protocollo consegna una volta per sessione invece che a ogni
+    # risposta. Il numero misurato resta nella risposta, perche' e' l'unica parte
+    # che cambia.
+    assert any("cross_file_method_calls" in a and "%" in a for a in copertura["incomplete"])
+    assert any("no_caller_outside_defining_file" in a for a in copertura["incomplete"])
 
 
 def test_an_empty_test_list_says_it_does_not_know() -> None:
@@ -204,7 +208,7 @@ def test_an_empty_test_list_says_it_does_not_know() -> None:
     risultato = explain_entity(_grafo_rust(), "publish_vault_state")
 
     assert risultato["tests"] == []
-    assert "non lo so" in risultato["coverage"]["tests_detection"]
+    assert risultato["coverage"]["tests_detection"].startswith("unknown")
 
 
 def test_a_language_with_reliable_extraction_gets_no_caveat() -> None:
@@ -254,7 +258,9 @@ def test_the_tool_description_no_longer_guarantees_completeness() -> None:
     descrizione = grafo["description"].lower()
 
     assert "proves nothing" in descrizione or "not report proves" in descrizione
-    assert "83%" in descrizione, "il numero misurato, non un «potrebbe essere incompleto»"
+    assert "measured, not guessed" in descrizione, (
+        "la descrizione spiega i codici; il numero misurato viaggia nella risposta"
+    )
     assert "coverage" in descrizione
 
 

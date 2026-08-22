@@ -2224,8 +2224,24 @@ def graph_explain(
         raise typer.Exit(code=1)
 
     copertura = result.get("coverage") or {}
+    # I codici compatti della risposta tornano frasi: nella CLI le legge una
+    # persona una volta sola, quindi la brevita' non serve a nessuno.
+    spiegazioni = {
+        "cross_file_method_calls": (
+            "su questo linguaggio le chiamate a metodo attraverso un ricevitore da un "
+            "altro file non sempre vengono agganciate"
+        ),
+        "no_caller_outside_defining_file": (
+            "nessun chiamante fuori dal file di definizione: e' la forma tipica di "
+            "un'estrazione incompleta, non una prova che non ce ne siano"
+        ),
+    }
     for avviso in copertura.get("incomplete", []):
-        typer.echo(f"ATTENZIONE: {avviso}")
+        codice = avviso.split(":", 1)[0]
+        dettaglio = avviso.split(":", 1)[1].strip() if ":" in avviso else ""
+        typer.echo(f"ATTENZIONE: {spiegazioni.get(codice, codice)}")
+        if dettaglio:
+            typer.echo(f"            misurato: {dettaglio}")
     if copertura.get("incomplete"):
         typer.echo("")
     typer.echo(f"progetto: {best.root}")
@@ -2263,7 +2279,10 @@ def graph_explain(
                 typer.echo(f"  {c['file']}:{c['line']}  {c['text'][:80]}")
 
     if copertura.get("tests_detection") and not result["tests"]:
-        typer.echo(f"  (il vuoto qui non e' un «nessuno»: {copertura['tests_detection']})")
+        typer.echo(
+            "  (il vuoto qui non e' un «nessuno»: i test di questo linguaggio stanno "
+            "nello stesso file e il nome non li tradisce, quindi significa «non lo so»)"
+        )
     if result["rationale"]:
         typer.echo("")
         typer.echo("PERCHE' ESISTE (dal docstring):")

@@ -1067,9 +1067,13 @@ def test_the_descriptions_stay_short_enough_to_be_read() -> None:
 
     from truenex_memory.mcp.server import _tool_definitions
 
+    # Il tetto e' 230 e non 180 perche' `memory_graph` ha assorbito il contratto
+    # sulla provenienza dei dati, che prima veniva ripetuto in OGNI risposta e
+    # pesava il 22% di ognuna. Qui si paga una volta per sessione: la stessa
+    # informazione, moltiplicata per una invece che per cinquanta.
     for definizione in _tool_definitions():
         parole = len(definizione["description"].split())
-        assert parole < 180, f"{definizione['name']}: {parole} parole"
+        assert parole < 230, f"{definizione['name']}: {parole} parole"
 
 
 def test_reconnecting_does_not_wipe_the_measurements(tmp_path: Path) -> None:

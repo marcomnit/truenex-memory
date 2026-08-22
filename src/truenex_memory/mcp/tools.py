@@ -117,14 +117,10 @@ def memory_graph(
         noti = {c["entity"].split("::", 1)[0] for c in result["callers"]}
         result["candidate_callers_from_text"] = {
             "pattern": f"{nome}(",
+            # Il contratto per intero sta nella descrizione del tool, che arriva
+            # una volta per sessione; qui basta l'etichetta.
             "confidence": "low",
-            "note": (
-                "Call sites found by TEXT search, not resolved by the parser. "
-                "They exist because method calls through a receiver from another "
-                "file are not resolved. Treat them as leads to open, not as "
-                "proven call relations — and never report them as if they came "
-                "from the graph."
-            ),
+            "source": "text_search",
             "matches": [c for c in candidati if c["file"] not in noti],
         }
     # Il grafo e' una fotografia. Se i sorgenti sono cambiati da quando e' stato
