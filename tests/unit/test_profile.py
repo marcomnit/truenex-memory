@@ -918,3 +918,78 @@ def test_the_recognition_logic_exists_once() -> None:
     assert sorgente.count("GENERIC_CLIENT_NAMES") == 0, (
         "la CLI non deve reimplementare il riconoscimento"
     )
+
+
+# ── un client senza canale a file ─────────────────────────────────────────
+
+def test_minimax_is_recognised_by_its_runtime_name() -> None:
+    """Si presenta come `mavis-local-runtime-mcp`, e «mavis» e' suo.
+
+    Verificato sul disco e non dedotto: `~/.minimax/agents/mavis/` esiste, e
+    «mavis» compare in tutte le sue skill predefinite. Prima di trovarlo
+    sospettavo che fosse il runtime locale di Kimi, e mi sbagliavo.
+    """
+
+    from truenex_memory.adapters.profile import target_for_client_info
+
+    target = target_for_client_info("mavis-local-runtime-mcp")
+
+    assert target is not None and target.client == "MiniMax"
+
+
+def test_a_client_without_a_file_channel_is_never_written_to(tmp_path: Path) -> None:
+    """MiniMax scrive la memoria di utente con un suo strumento, non un file.
+
+    Inventargli un `~/.minimax/AGENTS.md` non darebbe nessun errore e sarebbe
+    indistinguibile dal successo — e' esattamente il difetto che ci e' costato
+    mezza giornata con `~/AGENTS.md`. Il codice dice «non lo so scrivere»
+    invece di scrivere nel vuoto.
+    """
+
+    from truenex_memory.adapters.profile import apply_all
+
+    home = _home_with(tmp_path, ".minimax")
+
+    rapporti = apply_all(home)
+    minimax = next(r for r in rapporti if r.client == "MiniMax")
+
+    assert minimax.action == "no-file-channel"
+    assert minimax.path is None
+    assert list((home / ".minimax").iterdir()) == []
+
+
+def test_a_file_less_client_still_counts_as_installed(tmp_path: Path) -> None:
+    """Non e' «non installato»: e' installato e raggiungibile solo via MCP.
+
+    Confonderli nasconderebbe che quel client esiste e che per lui l'unico
+    canale e' l'handshake — cioe' l'unico dove non abbiamo alternative se non
+    funziona.
+    """
+
+    from truenex_memory.adapters.profile import status
+
+    home = _home_with(tmp_path, ".minimax")
+
+    rapporto = next(r for r in status(home) if r.client == "MiniMax")
+
+    assert rapporto.installed is True
+    assert rapporto.action == "no-file-channel"
+
+
+def test_the_connection_hook_writes_nothing_for_such_a_client(tmp_path: Path) -> None:
+    from truenex_memory.adapters.profile import refresh_on_connect
+
+    home = _home_with(tmp_path, ".minimax")
+
+    assert refresh_on_connect("mavis-local-runtime-mcp", home, mode="always") == "no-file-channel"
+    assert list((home / ".minimax").iterdir()) == []
+
+
+def test_every_target_either_has_a_file_or_declares_it_has_none() -> None:
+    """Nessun bersaglio a metà: o il percorso c'e', o e' None dichiaratamente."""
+
+    from truenex_memory.adapters.profile import CLIENT_TARGETS
+
+    for target in CLIENT_TARGETS:
+        assert target.relative is None or target.relative.count("/") == 1, target.client
+        assert target.marker_dir, target.client

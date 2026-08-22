@@ -2328,13 +2328,14 @@ def profile_status(
         "updated": "da aggiornare",
         "absent": "manca",
         "client-not-installed": "non installato",
+        "no-file-channel": "solo handshake",
     }
     righe = [
         (
             r.client,
             etichette[r.action],
             f"v{r.present_version}" if r.present_version is not None else "—",
-            str(r.path),
+            str(r.path) if r.path else "— (istruzioni solo via MCP)",
         )
         for r in reports
     ]
@@ -2386,8 +2387,12 @@ def profile_apply(
         "unchanged": "invariato",
         "absent": "da scrivere" if dry_run else "non scritto",
         "client-not-installed": "saltato",
+        "no-file-channel": "nessun file da scrivere",
     }
-    righe = [(r.client, verbi[r.action], str(r.path)) for r in reports]
+    righe = [
+        (r.client, verbi[r.action], str(r.path) if r.path else "— (istruzioni solo via MCP)")
+        for r in reports
+    ]
     intestazione = ("CLIENT", "ESITO", "FILE")
     larghezze = [max(len(x[i]) for x in [intestazione, *righe]) for i in range(3)]
 
@@ -2452,11 +2457,17 @@ def profile_clients(
                 # Quando il riconoscimento viene dal processo si mostra QUELLO
                 # che ha deciso; per un client ignoto serve invece vedere la
                 # catena, perche' e' da lì che si ricava come mapparlo.
+                # Chi ha deciso quando l'ha deciso un processo; per un client
+                # riconosciuto dal nome la catena e' rumore. Se non e'
+                # riconosciuto serve invece vederla, perche' e' da lì che si
+                # ricava come mapparlo.
                 (
                     deciso
                     if segnale == "process"
-                    else (" > ".join((entry.get("ancestry") or [])[:4]) or entry.get("process") or "—")
-                )[:44],
+                    else "—"
+                    if segnale == "declared"
+                    else (" > ".join((entry.get("ancestry") or [])[:3]) or entry.get("process") or "—")
+                )[:40],
                 target.client if target else "—",
                 {"declared": "nome", "process": "processo", "none": "ignoto"}[segnale],
             )

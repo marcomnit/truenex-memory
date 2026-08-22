@@ -73,7 +73,11 @@ class ClientTarget:
     """One client's user-level instruction file."""
 
     client: str
-    relative: str  # relative to the user's home
+    # ``None`` quando quel client NON legge istruzioni da un file: MiniMax
+    # scrive la propria memoria di utente attraverso un suo strumento, non un
+    # markdown. Rappresentarlo cosi' e' il punto: scrivergli un file che nessuno
+    # legge non darebbe nessun errore, e sarebbe indistinguibile dal successo.
+    relative: str | None  # relative to the user's home
     marker_dir: str  # the client's own directory; its presence means "installed"
     # Variabile che sposta la cartella del client altrove. Copilot ha
     # `COPILOT_HOME`: ignorarla vorrebbe dire scrivere nella home mentre il
@@ -87,7 +91,9 @@ class ClientTarget:
             return Path(override.strip())
         return home / self.marker_dir
 
-    def path(self, home: Path) -> Path:
+    def path(self, home: Path) -> Path | None:
+        if self.relative is None:
+            return None
         return self._root(home) / Path(self.relative).name
 
     def installed(self, home: Path) -> bool:
@@ -127,6 +133,13 @@ CLIENT_TARGETS: tuple[ClientTarget, ...] = (
     # NON e' la cartella del profilo di VS Code: quella contiene impostazioni,
     # non istruzioni, e scriverci non avrebbe effetto.
     ClientTarget("Copilot", ".copilot/copilot-instructions.md", ".copilot", "COPILOT_HOME"),
+    # MiniMax si presenta come `mavis-local-runtime-mcp` e dichiara
+    # truenex-memory nel proprio `~/.minimax/mcp.json`, quindi si collega
+    # davvero. Ma le sue istruzioni di utente vivono dentro un suo strumento
+    # `memory(...)` e non in un file: per lui l'unico canale e' il campo
+    # `instructions` dell'handshake, e se quello non funzionasse non abbiamo
+    # niente da scrivere. Meglio dirlo che finta di averlo servito.
+    ClientTarget("MiniMax", None, ".minimax"),
 )
 
 
@@ -213,7 +226,7 @@ class TargetReport:
     """What was found, or done, for one client."""
 
     client: str
-    path: Path
+    path: Path | None
     installed: bool
     action: str  # created | updated | unchanged | absent | client-not-installed
     present_version: int | None = None
@@ -221,7 +234,7 @@ class TargetReport:
     def to_dict(self) -> dict[str, object]:
         return {
             "client": self.client,
-            "path": str(self.path),
+            "path": str(self.path) if self.path else None,
             "installed": self.installed,
             "action": self.action,
             "present_version": self.present_version,
@@ -251,6 +264,9 @@ def status(home: Path | None = None) -> list[TargetReport]:
         installed = target.installed(root)
         if not installed:
             reports.append(TargetReport(target.client, path, False, "client-not-installed"))
+            continue
+        if path is None:
+            reports.append(TargetReport(target.client, None, True, "no-file-channel"))
             continue
         try:
             content = path.read_text(encoding="utf-8")
@@ -305,6 +321,9 @@ def apply_all(home: Path | None = None) -> list[TargetReport]:
         if not target.installed(root):
             reports.append(TargetReport(target.client, path, False, "client-not-installed"))
             continue
+        if path is None:
+            reports.append(TargetReport(target.client, None, True, "no-file-channel"))
+            continue
         before = None
         try:
             before = block_version(path.read_text(encoding="utf-8"))
@@ -333,6 +352,8 @@ CLIENT_INFO_ALIASES: tuple[tuple[str, str], ...] = (
     ("cursor", "Cursor"),
     ("aider", "Aider"),
     ("copilot", "Copilot"),
+    ("minimax", "MiniMax"),
+    ("mavis", "MiniMax"),
 )
 
 # Cosa fa il server quando un client si presenta.
@@ -679,6 +700,8 @@ def refresh_on_connect(
 
     root = profile_home() if home is None else home
     path = target.path(root)
+    if path is None:
+        return "no-file-channel"
     if effective == "refresh":
         # Prima inserzione: solo su richiesta esplicita (`profile apply`). Un
         # programma che si scrive da solo dentro il file di configurazione di
