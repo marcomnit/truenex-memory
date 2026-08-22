@@ -407,3 +407,53 @@ def collect_return_types(files: dict[str, str]) -> dict[str, str]:
 
 
 _LET_FROM_CALL = re.compile(r"\blet\s+(?:mut\s+)?(\w+)\s*=\s*[\w.\s?()&*]*?\.\s*(\w+)\s*\(")
+
+
+# `#[test]`, `#[tokio::test]`, `#[rstest]`: l'attributo che rende una funzione un
+# test. In Rust il nome non lo tradisce — il test reale che ci ha fatto scoprire
+# il buco si chiama `publisher_requires_a_fully_correlated_receipt`, senza la
+# parola «test» da nessuna parte — e nemmeno il percorso, perche' i test vivono
+# nello stesso file del codice. Restava un'unica strada: leggere l'attributo.
+_TEST_ATTR = re.compile(r"^\s*#\[(?:[\w:]+::)?(?:\w+_)?test(?:_case)?\b")
+_CFG_TEST = re.compile(r"^\s*#\[cfg\(test\)\]")
+_MOD = re.compile(r"^\s*(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+(\w+)")
+
+
+def collect_test_functions(files: dict[str, str]) -> set[tuple[str, str]]:
+    """``{(file, nome_funzione)}`` delle funzioni di test.
+
+    Due segnali, entrambi nel sorgente: l'attributo sulla singola funzione, e il
+    modulo marcato `#[cfg(test)]`, dentro cui tutto e' test anche senza
+    attributo (le funzioni di appoggio di un test sono codice di test).
+
+    Prima di questo, il campo «quali test coprono questa funzione» era vuoto in
+    9 interrogazioni su 9 su un progetto Rust: l'euristica guardava il percorso
+    del file, che in Rust non dice niente.
+    """
+
+    trovati: set[tuple[str, str]] = set()
+    for percorso, testo in files.items():
+        if Path(percorso).suffix.lower() != ".rs":
+            continue
+        atteso = False          # l'attributo appena visto riguarda la prossima fn
+        profondita_test = None  # profondita' di parentesi del modulo di test
+        profondita = 0
+        cfg_test = False
+        for riga in testo.splitlines():
+            if _COMMENT.match(riga):
+                continue
+            if _CFG_TEST.match(riga):
+                cfg_test = True
+            elif _TEST_ATTR.match(riga):
+                atteso = True
+            elif cfg_test and _MOD.match(riga):
+                profondita_test = profondita
+                cfg_test = False
+            funzione = _FN.match(riga)
+            if funzione and (atteso or profondita_test is not None):
+                trovati.add((percorso, funzione.group(1)))
+                atteso = False
+            profondita += riga.count("{") - riga.count("}")
+            if profondita_test is not None and profondita <= profondita_test:
+                profondita_test = None
+    return trovati

@@ -434,3 +434,117 @@ def test_a_field_name_with_two_types_is_dropped() -> None:
     )
 
     assert "motore" not in campi
+
+
+# ── quali test coprono una funzione ───────────────────────────────────────
+
+def test_a_rust_test_is_recognised_by_its_attribute() -> None:
+    """Ne' il percorso ne' il nome lo tradiscono: resta l'attributo.
+
+    Il test reale che ha fatto scoprire il buco si chiama
+    `publisher_requires_a_fully_correlated_receipt` e vive in `hub_ipc.rs`
+    accanto al codice che prova. L'euristica sul percorso del file — che funziona
+    in Python, dove i test stanno in `tests/` — qui rispondeva vuoto sempre: 9
+    interrogazioni su 9 su un progetto reale.
+    """
+
+    from truenex_memory.graph.receiver_types import collect_test_functions
+
+    trovati = collect_test_functions(
+        {
+            "src/hub_ipc.rs": (
+                "pub fn produzione() {}\n"
+                "#[test]\n"
+                "fn publisher_requires_a_fully_correlated_receipt() {}\n"
+                "#[tokio::test]\n"
+                "async fn anche_questo() {}\n"
+            )
+        }
+    )
+
+    assert ("src/hub_ipc.rs", "publisher_requires_a_fully_correlated_receipt") in trovati
+    assert ("src/hub_ipc.rs", "anche_questo") in trovati
+    assert ("src/hub_ipc.rs", "produzione") not in trovati
+
+
+def test_everything_inside_a_cfg_test_module_is_test_code() -> None:
+    """Le funzioni di appoggio di un test sono codice di test, senza attributo."""
+
+    from truenex_memory.graph.receiver_types import collect_test_functions
+
+    trovati = collect_test_functions(
+        {
+            "src/a.rs": (
+                "pub fn produzione() {}\n"
+                "#[cfg(test)]\n"
+                "mod tests {\n"
+                "    fn fabbrica_un_vault() {}\n"
+                "    #[test]\n"
+                "    fn verifica() {}\n"
+                "}\n"
+                "pub fn ancora_produzione() {}\n"
+            )
+        }
+    )
+
+    nomi = {n for _, n in trovati}
+    assert nomi == {"fabbrica_un_vault", "verifica"}, (
+        "dentro il modulo tutto e' test, fuori niente lo e'"
+    )
+
+
+def test_only_rust_is_read_this_way() -> None:
+    """Le altre lingue mettono i test in file separati e il percorso basta."""
+
+    from truenex_memory.graph.receiver_types import collect_test_functions
+
+    assert collect_test_functions({"tests/test_x.py": "def test_uno(): pass\n"}) == set()
+
+
+def test_a_test_caller_is_listed_as_a_test_not_as_a_caller() -> None:
+    """Erano informazioni diverse presentate come la stessa.
+
+    Un chiamante di produzione e un test che esercita la funzione rispondono a
+    due domande diverse, e prima finivano nello stesso elenco: chi leggeva
+    «lo chiama X» non sapeva se X fosse codice vero o una verifica.
+    """
+
+    from truenex_memory.graph import EntityEdge, FileGraph, explain_entity
+
+    grafo = FileGraph(
+        root="/repo",
+        entities=[
+            EntityEdge("src/a.rs::produzione", "src/b.rs::bersaglio", "calls", "src/a.rs", "src/b.rs"),
+            EntityEdge("src/b.rs::verifica_qualcosa", "src/b.rs::bersaglio", "calls", "src/b.rs", "src/b.rs"),
+        ],
+        test_entities=["src/b.rs::verifica_qualcosa"],
+    )
+
+    risultato = explain_entity(grafo, "bersaglio")
+
+    assert [c["entity"] for c in risultato["callers"]] == ["src/a.rs::produzione"]
+    assert [t["entity"] for t in risultato["tests"]] == ["src/b.rs::verifica_qualcosa"]
+
+
+def test_an_empty_test_list_means_none_once_we_can_tell() -> None:
+    """La differenza fra «non lo so» e «nessuno» e' un'informazione.
+
+    Finche' l'attributo non veniva letto, un elenco vuoto andava dichiarato
+    ignoto. Ora che il grafo porta l'elenco dei test, vuoto significa vuoto — e
+    continuare a dire «non lo so» sarebbe una prudenza che nasconde un dato.
+    """
+
+    from truenex_memory.graph import EntityEdge, FileGraph, explain_entity
+
+    con_elenco = FileGraph(
+        root="/repo",
+        entities=[EntityEdge("src/a.rs::c", "src/b.rs::bersaglio", "calls", "src/a.rs", "src/b.rs")],
+        test_entities=["src/b.rs::qualche_test"],
+    )
+    senza_elenco = FileGraph(
+        root="/repo",
+        entities=[EntityEdge("src/a.rs::c", "src/b.rs::bersaglio", "calls", "src/a.rs", "src/b.rs")],
+    )
+
+    assert "tests_detection" not in explain_entity(con_elenco, "bersaglio")["coverage"]
+    assert "tests_detection" in explain_entity(senza_elenco, "bersaglio")["coverage"]

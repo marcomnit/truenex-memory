@@ -96,7 +96,9 @@ GRAPH_EXTRA_EXCLUDED_DIRS: frozenset[str] = frozenset()
 # 4 aggiunge gli archi dedotti dal tipo dichiarato del ricevitore, con il campo
 # `confidence`. Una cache di versione 3 non li ha e risponderebbe ancora
 # «nessun chiamante» dove ce ne sono.
-CACHE_VERSION = 4
+# 5 aggiunge l'elenco delle funzioni di test riconosciute dall'attributo: senza
+# quello «quali test coprono questa funzione» resta vuoto su Rust.
+CACHE_VERSION = 5
 
 # Quanti elementi mostrare per gruppo in `explain_entity`. Non e' una soglia
 # misurata: e' un compromesso sul costo in token per l'agente che legge. Sta qui
@@ -236,6 +238,11 @@ class FileGraph:
     # non vede, senza ripercorrere l'albero (11,5 s su questo progetto, contro
     # 20 ms).
     dir_fingerprint: dict[str, str] = field(default_factory=dict)
+    # `file::nome` delle funzioni di test, riconosciute dall'attributo `#[test]`.
+    # In Rust ne' il percorso ne' il nome le tradiscono, quindi senza questo
+    # elenco «quali test coprono questa funzione» rispondeva vuoto sempre: 9
+    # interrogazioni su 9 su un progetto reale.
+    test_entities: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -245,6 +252,7 @@ class FileGraph:
             "entities": [edge.to_dict() for edge in self.entities],
             "fingerprint": self.fingerprint,
             "dir_fingerprint": self.dir_fingerprint,
+            "test_entities": self.test_entities,
             "stats": self.stats,
         }
 
@@ -257,6 +265,7 @@ class FileGraph:
             entities=[EntityEdge.from_dict(e) for e in data.get("entities", [])],
             fingerprint=data.get("fingerprint", {}),
             dir_fingerprint=data.get("dir_fingerprint", {}),
+            test_entities=data.get("test_entities", []),
         )
 
     def file_set(self) -> set[str]:
@@ -572,7 +581,10 @@ def build_file_graph(
     # Chiamate a metodo che il parser non ha risolto, dedotte dai tipi che il
     # codice dichiara a voce alta. Si aggiungono solo quelle che NON esistono
     # gia': l'arco del parser vince sempre, perche' e' letto e non dedotto.
-    from truenex_memory.graph.receiver_types import infer_receiver_calls
+    from truenex_memory.graph.receiver_types import (
+        collect_test_functions,
+        infer_receiver_calls,
+    )
 
     esistenti = {(e.source, e.target) for e in entita}
     # Come il parser chiama le entita' che conosce gia'. Serve perche' un metodo
@@ -609,10 +621,29 @@ def build_file_graph(
             )
         )
 
+    letti = {}
+    for relativo in sorted(fingerprint):
+        if Path(relativo).suffix.lower() != ".rs":
+            continue
+        try:
+            letti[relativo] = (root / relativo).read_text(encoding="utf-8", errors="replace")
+        except OSError:  # pragma: no cover
+            continue
+    grafia_test = {
+        f"{f}::{n}" for f, n in collect_test_functions(letti)
+    }
+    # Anche nella grafia del parser, che ai metodi mette un punto davanti.
+    for arco in entita:
+        for lato, file_lato in ((arco.source, arco.source_file), (arco.target, arco.target_file)):
+            nudo = f"{file_lato}::{lato.split('::', 1)[-1].lstrip('.')}"
+            if nudo in grafia_test:
+                grafia_test.add(lato)
+
     return FileGraph(
         root=root.as_posix(),
         edges=file_edges,
         entities=entita,
+        test_entities=sorted(grafia_test),
         fingerprint=fingerprint,
         dir_fingerprint=dir_fingerprint,
         stats={
@@ -682,6 +713,9 @@ def explain_entity(
                 loose.add(side)
     matched = exact or loose
 
+    # L'elenco dei test riconosciuti dall'attributo. Il ripiego sul percorso
+    # resta per i linguaggi che mettono i test in file separati.
+    noti_come_test = set(graph.test_entities)
     callers, calls, tests, rationale = [], [], [], []
     for edge in graph.entities:
         hits_target = edge.target in matched
@@ -689,7 +723,7 @@ def explain_entity(
         if hits_target and not hits_source:
             if edge.relation_type == "rationale_for":
                 rationale.append(edge.source.split("::", 1)[-1])
-            elif "test" in edge.source_file.lower():
+            elif edge.source in noti_come_test or "test" in edge.source_file.lower():
                 tests.append({
                     "entity": edge.source,
                     "relation": edge.relation_type,
@@ -796,7 +830,9 @@ def _coverage_caveat(
     if avvisi and not fuori:
         # La firma esatta del difetto: tutti i chiamanti nello stesso file.
         avvisi.append("no_caller_outside_defining_file: typical shape of a missed extraction")
-    if suffissi & TESTS_IN_SAME_FILE:
+    if suffissi & TESTS_IN_SAME_FILE and not graph.test_entities:
+        # Solo se il grafo non porta l'elenco: con l'attributo riconosciuto un
+        # elenco vuoto torna a significare «nessuno», che e' un'informazione.
         coverage["tests_detection"] = "unknown: tests share the file and the name carries no marker"
     if avvisi:
         coverage["incomplete"] = avvisi
