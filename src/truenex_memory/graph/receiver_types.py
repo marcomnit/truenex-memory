@@ -153,7 +153,20 @@ def collect_declared_types(testo: str) -> dict[str, str]:
     for riga in testo.splitlines():
         if _COMMENT.match(riga):
             continue
-        for espressione in (_LET, _LET_CTOR, _BINDING):
+        # Il tipo INTERO anche per i parametri: `_BINDING` si ferma al `<` e da
+        # `prompt_engine: State<'_, PromptEngine>` estraeva `State`, cioe' il
+        # contenitore invece del contenuto. Stessa causa dei campi di struct.
+        parametro = _FIELD.match(riga)
+        if parametro:
+            nome, tipo = parametro.groups()
+            breve = _unwrap(tipo)
+            if breve and breve not in _NOT_A_TYPE and breve[:1].isupper():
+                candidati.setdefault(nome, set()).add(breve)
+        # `_BINDING` si salta quando `_FIELD` ha gia' letto la riga: darebbero
+        # due tipi per lo stesso nome (`State` contro `PromptEngine`) e la regola
+        # dell'unicita' li scarterebbe entrambi — un filtro giusto che, per un
+        # conflitto interno, cancellava l'informazione buona.
+        for espressione in ((_LET, _LET_CTOR) if parametro else (_LET, _LET_CTOR, _BINDING)):
             for nome, tipo in espressione.findall(riga):
                 breve = _short(tipo)
                 if not breve or breve in _NOT_A_TYPE or not breve[0].isupper():
@@ -194,11 +207,48 @@ def infer_receiver_calls(
         return []
 
     metodi = collect_impl_methods(testi)
+    # Ambito di PROGETTO, non di file: un campo di struct e' dichiarato dove la
+    # struct e' definita e usato altrove, ed era esattamente il caso che restava
+    # fuori — `state.authority.next_publication()` ha come ricevitore un campo
+    # dichiarato in un altro file.
+    campi = collect_struct_fields(testi)
+    ritorni = collect_return_types(testi)
     risultati: list[InferredCall] = []
     visti: set[tuple[str, str, str, str]] = set()
 
     for percorso, testo in testi.items():
-        tipi = collect_declared_types(testo)
+        tipi = dict(campi)
+        # I tipi locali vincono su quelli di progetto: nello stesso file una
+        # dichiarazione esplicita e' piu' vicina alla verita' di un campo
+        # omonimo definito altrove.
+        tipi.update(collect_declared_types(testo))
+
+        # `let a = state.authority.lock()`: il tipo di `a` non e' scritto, ma
+        # discende da un campo noto attraverso un accessore di contenitore, e da
+        # un tipo di ritorno negli altri casi.
+        for nome, metodo in _LET_FROM_CALL.findall(testo):
+            if nome in tipi:
+                continue
+            if metodo in _CONTAINER_ACCESSORS:
+                continue  # gestito sotto, dove si conosce il ricevitore
+            dedotto = ritorni.get(metodo)
+            if dedotto:
+                tipi[nome] = dedotto
+        for riga in testo.splitlines():
+            if _COMMENT.match(riga):
+                continue
+            catena = re.search(
+                r"\blet\s+(?:mut\s+)?(\w+)\s*=\s*[\w.&*]*?\b(\w+)\s*\.\s*(\w+)\s*\(", riga
+            )
+            if not catena:
+                continue
+            variabile, ricevitore, accessore = catena.groups()
+            if accessore not in _CONTAINER_ACCESSORS or variabile in collect_declared_types(riga):
+                continue
+            interno = campi.get(ricevitore) or tipi.get(ricevitore)
+            if interno:
+                tipi.setdefault(variabile, interno)
+
         if not tipi:
             continue
         funzioni = _enclosing_functions(testo)
@@ -249,3 +299,111 @@ def infer_receiver_calls(
                     )
                 )
     return risultati
+
+
+# `struct Nome {` — apre un blocco i cui `campo: Tipo` sono dichiarazioni valide
+# in TUTTO il progetto, non solo nel file che le contiene. È la differenza che
+# mancava: `state.authority.next_publication()` ha come ricevitore `authority`,
+# che è un campo dichiarato dove la struct è definita, quasi sempre altrove.
+# Il tipo di un campo va preso per intero, generici compresi: `_BINDING` si
+# fermava al `<` e da `pub authority: Mutex<VaultAuthority>` estraeva `Mutex`,
+# che finiva scartato come tipo del linguaggio. Il tipo utile era dentro.
+_FIELD = re.compile(r"^\s*(?:pub(?:\s*\([^)]*\))?\s+)?(\w+)\s*:\s*(.+?)\s*,?\s*$")  # il tipo fino a fine riga:
+# fermarsi alla prima virgola perdeva `State<'_, PromptEngine>`, dove la
+# virgola sta DENTRO i generici.
+
+
+_STRUCT = re.compile(r"^\s*(?:pub(?:\s*\([^)]*\))?\s+)?struct\s+(\w+)")
+
+# `fn nome(...) -> Tipo`. Serve per `let conn = vault.conn_mut()`: il tipo di
+# `conn` non è scritto lì, ma è scritto nella firma del metodo che lo produce.
+_RETURNS = re.compile(
+    r"\bfn\s+(\w+)\s*(?:<[^>]*>)?\s*\([^;{]*?\)\s*->\s*([\w:<>, &']+)"
+)
+
+# I contenitori che avvolgono il tipo utile: `-> Result<Vault, String>` produce
+# un `Vault`, non un `Result`.
+_WRAPPERS = (
+    "Result", "Option", "Box", "Arc", "Rc", "Vec",
+    # I contenitori di sincronizzazione: `pub authority: Mutex<VaultAuthority>`
+    # e' il caso reale che restava fuori. Il tipo utile e' quello dentro, perche'
+    # e' su quello che si chiamano i metodi del progetto — sul contenitore si
+    # chiama solo `lock()`, che e' della libreria standard.
+    "Mutex", "RwLock", "RefCell", "Cell", "MutexGuard", "RwLockReadGuard",
+    "RwLockWriteGuard", "Ref", "RefMut",
+    # `State<'_, PromptEngine>` di Tauri: tre degli otto casi che restavano
+    # erano questo, e il tipo utile e' il secondo argomento perche' il primo e'
+    # un lifetime.
+    "State",
+)
+
+# Metodi che aprono un contenitore restituendo cio' che sta dentro. Non sono
+# metodi del progetto, quindi non generano archi: servono a sapere che
+# `let a = state.authority.lock()` da' un `VaultAuthority`, non un `Mutex`.
+_CONTAINER_ACCESSORS = frozenset(
+    {"lock", "borrow", "borrow_mut", "read", "write", "unwrap", "expect", "as_ref", "as_mut", "clone"}
+)
+
+
+def _unwrap(type_expr: str) -> str:
+    """`Result<&mut Vault, String>` -> `Vault`."""
+
+    testo = type_expr.strip()
+    for _ in range(4):
+        breve = testo.split("<")[0].split("::")[-1].strip()
+        if breve in _WRAPPERS and "<" in testo:
+            interno = testo[testo.index("<") + 1 :].rsplit(">", 1)[0]
+            # Il primo argomento puo' essere un lifetime (`State<'_, T>`): si
+            # prende il primo che sia un tipo.
+            pezzi = [pezzo.strip() for pezzo in interno.split(",")]
+            testo = next((pezzo for pezzo in pezzi if not pezzo.startswith("'")), pezzi[0])
+            continue
+        break
+    return _short(testo.replace("&", "").replace("mut ", "").strip())
+
+
+def collect_struct_fields(files: dict[str, str]) -> dict[str, str]:
+    """``{nome_campo: Tipo}`` dalle definizioni di struct del progetto.
+
+    Ambito di progetto e non di file, al contrario dei tipi locali: un campo è
+    dichiarato una volta e usato altrove, che è esattamente il caso che restava
+    fuori. La regola dell'unicità resta: un nome di campo con due tipi diversi
+    in due struct viene scartato, non indovinato.
+    """
+
+    candidati: dict[str, set[str]] = {}
+    for testo in files.values():
+        dentro = False
+        profondita = 0
+        for riga in testo.splitlines():
+            if _COMMENT.match(riga):
+                continue
+            if not dentro and _STRUCT.match(riga):
+                dentro = "{" in riga
+                profondita = riga.count("{") - riga.count("}")
+                continue
+            if dentro:
+                campo_trovato = _FIELD.match(riga)
+                for nome, tipo in ([campo_trovato.groups()] if campo_trovato else []):
+                    breve = _unwrap(tipo)
+                    if breve and breve not in _NOT_A_TYPE and breve[:1].isupper():
+                        candidati.setdefault(nome, set()).add(breve)
+                profondita += riga.count("{") - riga.count("}")
+                if profondita <= 0:
+                    dentro = False
+    return {nome: next(iter(t)) for nome, t in candidati.items() if len(t) == 1}
+
+
+def collect_return_types(files: dict[str, str]) -> dict[str, str]:
+    """``{nome_metodo: Tipo restituito}``, scartando gli omonimi ambigui."""
+
+    candidati: dict[str, set[str]] = {}
+    for testo in files.values():
+        for nome, tipo in _RETURNS.findall(testo):
+            breve = _unwrap(tipo)
+            if breve and breve not in _NOT_A_TYPE and breve[:1].isupper():
+                candidati.setdefault(nome, set()).add(breve)
+    return {nome: next(iter(t)) for nome, t in candidati.items() if len(t) == 1}
+
+
+_LET_FROM_CALL = re.compile(r"\blet\s+(?:mut\s+)?(\w+)\s*=\s*[\w.\s?()&*]*?\.\s*(\w+)\s*\(")

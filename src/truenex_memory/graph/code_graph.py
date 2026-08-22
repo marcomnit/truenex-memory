@@ -764,7 +764,7 @@ WEAK_METHOD_RESOLUTION: dict[str, str] = {
     # sessione — dirlo dove si paga una volta invece che dove si paga sempre.
     # La CLI li riespande in italiano, perche' li' li legge una persona e non
     # costano niente.
-    ".rs": "cross_file_method_calls: 39% missing (23 fn, 2026-08-22, was 83%)",
+    ".rs": "cross_file_method_calls: 22% missing (23 fn, 2026-08-22, was 83%)",
 }
 
 # Linguaggi che tengono i test nello stesso file della funzione. Li' il

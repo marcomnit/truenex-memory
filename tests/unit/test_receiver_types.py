@@ -293,3 +293,144 @@ def test_the_answer_carries_the_confidence_of_each_caller() -> None:
 
     assert per_nome["src/a.rs::letto"] == "resolved"
     assert per_nome["src/b.rs::dedotto"] == "inferred"
+
+
+# ── i tipi che stanno altrove: campi, ritorni, contenitori ────────────────
+
+def test_a_struct_field_declares_a_type_for_the_whole_project() -> None:
+    """Il campo e' dichiarato dove sta la struct e usato altrove.
+
+    E' la differenza fra ambito di file e ambito di progetto:
+    `state.authority.next_publication()` ha come ricevitore un campo dichiarato
+    in un altro file, e cercarlo solo nel file chiamante non poteva funzionare.
+    """
+
+    from truenex_memory.graph.receiver_types import collect_struct_fields
+
+    campi = collect_struct_fields(
+        {"vault.rs": "pub struct VaultState {\n    pub authority: Mutex<VaultAuthority>,\n}\n"}
+    )
+
+    assert campi["authority"] == "VaultAuthority"
+
+
+def test_a_container_is_unwrapped_to_what_is_inside() -> None:
+    """Sul contenitore si chiama `lock()`, sul contenuto i metodi del progetto.
+
+    `Mutex<VaultAuthority>` prima veniva letto come `Mutex` — il tipo del
+    linguaggio — e scartato, perdendo l'informazione utile che stava dentro.
+    """
+
+    from truenex_memory.graph.receiver_types import _unwrap
+
+    assert _unwrap("Mutex<VaultAuthority>") == "VaultAuthority"
+    assert _unwrap("Result<&mut Vault, String>") == "Vault"
+    assert _unwrap("Arc<Mutex<Engine>>") == "Engine"
+
+
+def test_a_lifetime_argument_is_skipped() -> None:
+    """`State<'_, PromptEngine>` di Tauri: il primo argomento non e' un tipo.
+
+    Tre dei casi che restavano erano questo, e prendere il primo argomento
+    generico avrebbe dato `'_`.
+    """
+
+    from truenex_memory.graph.receiver_types import _unwrap
+
+    assert _unwrap("State<'_, PromptEngine>") == "PromptEngine"
+
+
+def test_a_full_type_beats_a_truncated_one_on_the_same_line() -> None:
+    """Due letture della stessa riga si annullavano a vicenda.
+
+    Un riconoscitore si fermava al `<` e dava `State`, l'altro leggeva il tipo
+    intero e dava `PromptEngine`: due tipi per un nome, e la regola
+    dell'unicita' — giusta — cancellava anche quello buono. Un filtro corretto
+    che, per un conflitto interno, distruggeva l'informazione.
+    """
+
+    tipi = collect_declared_types("    prompt_engine: State<'_, PromptEngine>,\n")
+
+    assert tipi == {"prompt_engine": "PromptEngine"}
+
+
+def test_a_return_type_declares_the_variable(tmp_path: Path) -> None:
+    """`let conn = vault.conn_mut()`: il tipo e' nella firma del metodo."""
+
+    from truenex_memory.graph.receiver_types import collect_return_types
+
+    ritorni = collect_return_types(
+        {"vault.rs": "impl Vault {\n    pub fn conn_mut(&mut self) -> &mut Connection {}\n}\n"}
+    )
+
+    assert ritorni["conn_mut"] == "Connection"
+
+
+def test_two_methods_with_the_same_name_and_different_returns_are_dropped() -> None:
+    """La regola dell'unicita' vale anche qui: meglio tacere che indovinare."""
+
+    from truenex_memory.graph.receiver_types import collect_return_types
+
+    ritorni = collect_return_types(
+        {
+            "a.rs": "fn apri(&self) -> Vault {}\n",
+            "b.rs": "fn apri(&self) -> Sessione {}\n",
+        }
+    )
+
+    assert "apri" not in ritorni
+
+
+def test_the_chain_through_a_lock_resolves(tmp_path: Path) -> None:
+    """Il caso segnalato da MiniMax come ancora rotto.
+
+        let mut authority = state.authority.lock().unwrap();
+        let snapshot = authority.next_publication();
+
+    Il tipo di `authority` non e' scritto lì, ma il campo `authority` e'
+    dichiarato `Mutex<VaultAuthority>` in un altro file, e `lock()` apre il
+    contenitore. Due informazioni entrambe presenti nel codice.
+    """
+
+    radice = _progetto(
+        tmp_path,
+        {
+            "src/vault.rs": (
+                "pub struct VaultState {\n"
+                "    pub authority: Mutex<VaultAuthority>,\n"
+                "}\n"
+            ),
+            "src/authority.rs": (
+                "impl VaultAuthority {\n    pub fn next_publication(&mut self) {}\n}\n"
+            ),
+            "src/connect.rs": (
+                "fn pubblica(state: VaultState) {\n"
+                "    let mut authority = state.authority.lock().unwrap();\n"
+                "    let snapshot = authority.next_publication();\n"
+                "}\n"
+            ),
+        },
+    )
+
+    dedotte = infer_receiver_calls(
+        radice, ["src/vault.rs", "src/authority.rs", "src/connect.rs"]
+    )
+
+    assert [(d.source_name, d.target_name) for d in dedotte] == [
+        ("pubblica", "next_publication")
+    ]
+
+
+def test_a_field_name_with_two_types_is_dropped() -> None:
+    """Due struct, un nome di campo, due tipi: nessun arco."""
+
+    from truenex_memory.graph.receiver_types import collect_struct_fields
+
+    campi = collect_struct_fields(
+        {
+            "a.rs": "struct Uno {\n    motore: MotoreA,\n}\n",
+            "b.rs": "struct Due {\n    motore: MotoreB,\n}\n",
+        }
+    )
+
+    assert "motore" not in campi
