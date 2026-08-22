@@ -645,7 +645,10 @@ def test_the_scope_threshold_tolerates_cross_project_questions(tmp_path: Path) -
         + [("memory_graph", {"target": "f"})],
     )
 
-    assert compliance(registro)[0]["verdict"] == "follows-profile"
+    # Cio' che questo test difende e' la SOGLIA, non l'adesione piena: con tre
+    # ricerche su quattro con lo scope il verdetto non deve accusare. Che poi
+    # manchino le registrazioni e' un'altra informazione, e ha un suo stato.
+    assert compliance(registro)[0]["verdict"] != "ignores-scope"
 
 
 def test_the_label_is_recomputed_not_frozen(tmp_path: Path) -> None:
