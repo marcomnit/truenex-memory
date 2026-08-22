@@ -93,7 +93,10 @@ GRAPH_EXTRA_EXCLUDED_DIRS: frozenset[str] = frozenset()
 # 3 scarta gli archi verso i tipi del linguaggio: erano il 10,2% del grafo di
 # MedDesk (579 archi verso una singola entita' «String»), e una cache vecchia
 # li conterrebbe ancora — quindi va ricostruita, non riletta.
-CACHE_VERSION = 3
+# 4 aggiunge gli archi dedotti dal tipo dichiarato del ricevitore, con il campo
+# `confidence`. Una cache di versione 3 non li ha e risponderebbe ancora
+# «nessun chiamante» dove ce ne sono.
+CACHE_VERSION = 4
 
 # Quanti elementi mostrare per gruppo in `explain_entity`. Non e' una soglia
 # misurata: e' un compromesso sul costo in token per l'agente che legge. Sta qui
@@ -181,6 +184,10 @@ class EntityEdge:
     relation_type: str
     source_file: str     # repo-relative, posix
     target_file: str
+    # "resolved" = letto dal parser. "inferred" = dedotto dal tipo dichiarato
+    # del ricevitore (vedi `receiver_types`). I due non vanno confusi: un grafo
+    # che presenta una deduzione come una lettura mente, e chi legge si fida.
+    confidence: str = "resolved"
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -189,6 +196,7 @@ class EntityEdge:
             "relation_type": self.relation_type,
             "source_file": self.source_file,
             "target_file": self.target_file,
+            "confidence": self.confidence,
         }
 
     @classmethod
@@ -199,6 +207,7 @@ class EntityEdge:
             relation_type=data["relation_type"],
             source_file=data.get("source_file", ""),
             target_file=data.get("target_file", ""),
+            confidence=data.get("confidence", "resolved"),
         )
 
 
@@ -558,10 +567,52 @@ def build_file_graph(
         relative = "." if directory == root else directory.relative_to(root).as_posix()
         dir_fingerprint[relative] = stamp
 
+    entita = collect_entity_edges(nodes, entity_edges, root)
+
+    # Chiamate a metodo che il parser non ha risolto, dedotte dai tipi che il
+    # codice dichiara a voce alta. Si aggiungono solo quelle che NON esistono
+    # gia': l'arco del parser vince sempre, perche' e' letto e non dedotto.
+    from truenex_memory.graph.receiver_types import infer_receiver_calls
+
+    esistenti = {(e.source, e.target) for e in entita}
+    # Come il parser chiama le entita' che conosce gia'. Serve perche' un metodo
+    # e' registrato come `file::.nome` col punto davanti: creando l'arco dedotto
+    # con `file::nome` la stessa funzione diventava DUE entita' distinte, e la
+    # risposta elencava due volte lo stesso bersaglio con meta' dei chiamanti per
+    # ciascuno — un difetto peggiore di quello che stavo correggendo.
+    grafia = {}
+    for arco in entita:
+        for lato, file_lato in ((arco.source, arco.source_file), (arco.target, arco.target_file)):
+            nome = lato.split("::", 1)[-1]
+            grafia[(file_lato, nome.lstrip("."))] = lato
+
+    for dedotta in infer_receiver_calls(root, sorted(fingerprint)):
+        sorgente = grafia.get(
+            (dedotta.source_file, dedotta.source_name),
+            f"{dedotta.source_file}::{dedotta.source_name}",
+        )
+        bersaglio = grafia.get(
+            (dedotta.target_file, dedotta.target_name),
+            f"{dedotta.target_file}::{dedotta.target_name}",
+        )
+        if (sorgente, bersaglio) in esistenti or sorgente == bersaglio:
+            continue
+        esistenti.add((sorgente, bersaglio))
+        entita.append(
+            EntityEdge(
+                source=sorgente,
+                target=bersaglio,
+                relation_type="calls",
+                source_file=dedotta.source_file,
+                target_file=dedotta.target_file,
+                confidence="inferred",
+            )
+        )
+
     return FileGraph(
         root=root.as_posix(),
         edges=file_edges,
-        entities=collect_entity_edges(nodes, entity_edges, root),
+        entities=entita,
         fingerprint=fingerprint,
         dir_fingerprint=dir_fingerprint,
         stats={
@@ -639,11 +690,23 @@ def explain_entity(
             if edge.relation_type == "rationale_for":
                 rationale.append(edge.source.split("::", 1)[-1])
             elif "test" in edge.source_file.lower():
-                tests.append({"entity": edge.source, "relation": edge.relation_type})
+                tests.append({
+                    "entity": edge.source,
+                    "relation": edge.relation_type,
+                    "confidence": edge.confidence,
+                })
             elif edge.relation_type != "contains":
-                callers.append({"entity": edge.source, "relation": edge.relation_type})
+                callers.append({
+                    "entity": edge.source,
+                    "relation": edge.relation_type,
+                    "confidence": edge.confidence,
+                })
         elif hits_source and not hits_target and edge.relation_type != "contains":
-            calls.append({"entity": edge.target, "relation": edge.relation_type})
+            calls.append({
+                "entity": edge.target,
+                "relation": edge.relation_type,
+                "confidence": edge.confidence,
+            })
 
     def _dedup(items, key):
         seen, out = set(), []
@@ -696,8 +759,9 @@ def explain_entity(
 WEAK_METHOD_RESOLUTION: dict[str, str] = {
     ".rs": (
         "su Rust le chiamate a metodo attraverso un ricevitore da un altro file "
-        "spesso non vengono agganciate: misurato l'83% dei chiamanti cross-file "
-        "mancanti (19 su 23 funzioni, MedDesk, 2026-08-22)"
+        "non sempre vengono agganciate: misurato il 39% dei chiamanti cross-file "
+        "ancora mancante (9 su 23 funzioni, MedDesk, 2026-08-22), dopo la "
+        "deduzione dai tipi dichiarati che ha ridotto il buco dall'83%"
     ),
 }
 

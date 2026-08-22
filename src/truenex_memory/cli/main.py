@@ -2241,7 +2241,11 @@ def graph_explain(
         if not result[key]:
             typer.echo("  (nessuno)")
         for item in result[key]:
-            typer.echo(f"  {item['entity']}  [{item['relation']}]")
+            # La provenienza viaggia accanto al dato: entrambe le review hanno
+            # insistito, perche' altrimenti chi legge tratta una deduzione come
+            # una lettura.
+            marchio = " (dedotto dal tipo)" if item.get("confidence") == "inferred" else ""
+            typer.echo(f"  {item['entity']}  [{item['relation']}]{marchio}")
         hidden = result.get("truncated", {}).get(key)
         if hidden:
             typer.echo(f"  ... mostrati {len(result[key])} di {hidden} — tutti con --limit {hidden}")
