@@ -133,6 +133,7 @@ sources_app = typer.Typer(help="Review, confirm, and add source catalog entries.
 auto_app = typer.Typer(help="Automatic memory maintenance (Phase 3).")
 agent_app = typer.Typer(help="Manage agent discovery manifest.")
 graph_app = typer.Typer(help="Code-structure graph (relations between files).")
+profile_app = typer.Typer(help="Il profilo di comportamento consegnato ai client agentici.")
 app.add_typer(adapter_app, name="adapter")
 app.add_typer(update_app, name="update")
 app.add_typer(migrate_app, name="migrate")
@@ -142,6 +143,7 @@ app.add_typer(trace_app, name="trace")
 global_app.add_typer(sources_app, name="sources")
 global_app.add_typer(auto_app, name="auto")
 app.add_typer(global_app, name="global")
+app.add_typer(profile_app, name="profile")
 app.add_typer(graph_app, name="graph")
 app.add_typer(agent_app, name="agent")
 app.add_typer(task_app, name="task")
@@ -2279,3 +2281,189 @@ def graph_status(
 
 if __name__ == "__main__":
     app()
+
+
+# ── profilo di comportamento ──────────────────────────────────────────────
+
+@profile_app.command("show")
+def profile_show(
+    raw: bool = typer.Option(False, "--raw", help="Solo il testo, senza i marcatori."),
+) -> None:
+    """Mostra il blocco che memory scrive nei file dei client.
+
+    Sola lettura: non tocca nessun file. Serve a vedere cosa verrebbe scritto
+    prima di scriverlo — e a leggere cosa un agente riceve oggi.
+    """
+    from truenex_memory.adapters.profile import PROFILE_VERSION, profile_text, render_block
+
+    typer.echo(profile_text() if raw else render_block())
+    if not raw:
+        typer.echo("")
+        typer.echo(f"versione {PROFILE_VERSION}, {len(profile_text().split())} parole")
+
+
+@profile_app.command("status")
+def profile_status(
+    home: Path | None = typer.Option(None, "--home", help="Cartella utente (per i test)."),
+    json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
+) -> None:
+    """Quali client hanno il profilo, quali no, e chi e' rimasto indietro.
+
+    Sola lettura. E' la fotografia che rende visibile la deriva: senza questa,
+    un client con il profilo di tre versioni fa e' indistinguibile da uno
+    aggiornato.
+    """
+    from truenex_memory.adapters.profile import profile_home
+
+    home = profile_home() if home is None else home
+    from truenex_memory.adapters.profile import PROFILE_VERSION, status
+
+    reports = status(home)
+    if json_output:
+        typer.echo(json.dumps([r.to_dict() for r in reports], indent=2, ensure_ascii=False))
+        return
+
+    etichette = {
+        "unchanged": "aggiornato",
+        "updated": "DA AGGIORNARE",
+        "absent": "MANCA il profilo",
+        "client-not-installed": "client non installato",
+    }
+    typer.echo(f"profilo corrente: versione {PROFILE_VERSION}")
+    typer.echo("")
+    for report in reports:
+        versione = f"v{report.present_version}" if report.present_version is not None else "—"
+        typer.echo(f"  {report.client:14s} {etichette[report.action]:22s} {versione:4s} {report.path}")
+    da_fare = [r for r in reports if r.action in {"updated", "absent"}]
+    typer.echo("")
+    if da_fare:
+        typer.echo(f"{len(da_fare)} client da sistemare: truenex-mem profile apply")
+    else:
+        typer.echo("tutti i client installati hanno il profilo corrente")
+
+
+@profile_app.command("apply")
+def profile_apply(
+    home: Path | None = typer.Option(None, "--home", help="Cartella utente (per i test)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Dice cosa farebbe senza scrivere."),
+    json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
+) -> None:
+    """Scrive il profilo nel file utente di ogni client installato.
+
+    Idempotente: rieseguirlo su un sistema aggiornato non cambia niente. Tocca
+    solo cio' che sta fra i marcatori; tutto il resto di quei file e' di chi li
+    ha scritti e non viene sfiorato.
+    """
+    from truenex_memory.adapters.profile import profile_home
+
+    home = profile_home() if home is None else home
+    from truenex_memory.adapters.profile import apply_all, status
+
+    reports = status(home) if dry_run else apply_all(home)
+    if json_output:
+        typer.echo(json.dumps([r.to_dict() for r in reports], indent=2, ensure_ascii=False))
+        return
+
+    verbi = {
+        "created": "scritto",
+        "updated": "aggiornato",
+        "unchanged": "gia' aggiornato",
+        "absent": "da scrivere" if dry_run else "non scritto",
+        "client-not-installed": "saltato (non installato)",
+    }
+    for report in reports:
+        typer.echo(f"  {report.client:14s} {verbi[report.action]:26s} {report.path}")
+    scritti = [r for r in reports if r.action in {"created", "updated"}]
+    typer.echo("")
+    if dry_run:
+        typer.echo("prova a vuoto: nessun file toccato")
+    else:
+        typer.echo(f"{len(scritti)} file scritti su {len([r for r in reports if r.installed])} client installati")
+
+
+@profile_app.command("clients")
+def profile_clients(
+    home: Path | None = typer.Option(None, "--home", help="Cartella utente (per i test)."),
+    json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
+) -> None:
+    """Chi si e' collegato davvero a memory, come si e' presentato.
+
+    Diverso da `profile status`, che guarda quali cartelle esistono: qui ci
+    sono i client che hanno aperto una sessione MCP e hanno dichiarato il
+    proprio nome nell'handshake. E' il segnale autorevole, e include i nomi che
+    ancora non sappiamo riconoscere — che altrimenti non scopriremmo mai,
+    perche' un client senza istruzioni non da' nessun errore.
+    """
+    from truenex_memory.adapters.profile import profile_home
+
+    home = profile_home() if home is None else home
+    registry = home / ".truenex-memory" / "clients.json"
+    try:
+        known = json.loads(registry.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        typer.echo("nessun client si e' ancora collegato (o il registro non esiste)")
+        typer.echo(f"  atteso in: {registry}")
+        return
+
+    if json_output:
+        typer.echo(json.dumps(known, indent=2, ensure_ascii=False))
+        return
+
+    typer.echo(f"registro: {registry}")
+    typer.echo("")
+    for name, entry in sorted(known.items()):
+        riconosciuto = entry.get("recognised_as") or "NON RICONOSCIUTO"
+        typer.echo(
+            f"  {name:24s} v{entry.get('version', ''):10s} "
+            f"{entry.get('connections', 0):4d} connessioni   -> {riconosciuto}"
+        )
+    ignoti = [n for n, e in known.items() if not e.get("recognised_as")]
+    if ignoti:
+        typer.echo("")
+        typer.echo(f"{len(ignoti)} da mappare in CLIENT_INFO_ALIASES: {', '.join(ignoti)}")
+
+
+@profile_app.command("check")
+def profile_check(
+    home: Path | None = typer.Option(None, "--home", help="Cartella utente (per i test)."),
+    json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
+) -> None:
+    """Il profilo e' arrivato davvero? Lo dice il comportamento, non una promessa.
+
+    Sapere che un client si e' collegato non dice se ha letto le istruzioni, e
+    chiedere all'agente di confermarlo dipenderebbe dalla sua collaborazione —
+    cioe' misurerebbe la stessa cosa che si vuole verificare. Qui si guarda cio'
+    che il server osserva comunque: chi ha ricevuto il profilo cerca prima di
+    leggere, passa lo `scope`, usa il grafo e registra i passi.
+
+    I numeri sono tassi, non sentenze: una ricerca senza `scope` e' legittima
+    per una domanda trasversale, quindi un valore basso e' un indizio.
+    """
+    from truenex_memory.adapters.profile import compliance, profile_home
+
+    home = profile_home() if home is None else home
+    rapporti = compliance(home / ".truenex-memory" / "clients.json")
+    if json_output:
+        typer.echo(json.dumps(rapporti, indent=2, ensure_ascii=False))
+        return
+    if not rapporti:
+        typer.echo("nessun client si e' ancora collegato: niente da misurare")
+        return
+
+    spiegazioni = {
+        "no-usage": "collegato, non ha MAI usato memoria -> profilo probabilmente non arrivato",
+        "ignores-scope": "cerca ma quasi senza scope -> profilo non arrivato o non seguito",
+        "search-only": "cerca con lo scope, non usa grafo ne' registra -> meta' profilo in vigore",
+        "follows-profile": "cerca con lo scope e usa le altre porte -> profilo in vigore",
+    }
+    for r in rapporti:
+        nome = r["recognised_as"] or f"{r['name']} (non riconosciuto)"
+        tasso = "—" if r["scope_rate"] is None else f"{r['scope_rate']*100:.0f}%"
+        typer.echo(f"  {nome}")
+        typer.echo(
+            f"      chiamate {r['calls']:4d} | ricerche {r['searches']:4d} (con scope {tasso})"
+            f" | grafo {r['graph_calls']:3d} | registrazioni {r['task_steps']:3d}"
+        )
+        typer.echo(f"      {spiegazioni[r['verdict']]}")
+    typer.echo("")
+    typer.echo("un tasso di scope basso puo' essere legittimo: le domande trasversali non lo usano")

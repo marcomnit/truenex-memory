@@ -8,8 +8,8 @@ without installing the optional Python MCP SDK.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Any
 
 from truenex_memory import __version__
@@ -101,19 +101,68 @@ def _dispatch(method: str, params: dict[str, Any], *, project_root: Path) -> dic
     if method == "tools/list":
         return {"tools": _tool_definitions()}
     if method == "tools/call":
+        # Osservare come il client usa memoria e' il solo modo di sapere se il
+        # profilo e' arrivato che non dipenda dalla collaborazione del client
+        # stesso. Racchiuso in un try perche' una risposta perduta sarebbe un
+        # danno vero, mentre un contatore mancato non e' niente.
+        try:
+            from truenex_memory.adapters.profile import record_tool_use
+
+            record_tool_use(_CLIENT_NAME, params.get("name", ""), params.get("arguments"))
+        except Exception:  # pragma: no cover - mai far cadere una chiamata
+            pass
         return _call_tool(params, project_root=project_root)
     if method.startswith("notifications/"):
         return {}
     raise KeyError(method)
 
 
+# Chi sta servendo questo processo. Un server stdio serve un solo client per
+# tutta la sua vita, quindi una variabile di modulo e' esatta e non una
+# scorciatoia: il nome arriva nell'handshake e vale per tutte le chiamate
+# successive.
+_CLIENT_NAME: str | None = None
+
+
 def _initialize(params: dict[str, Any]) -> dict[str, Any]:
     requested = params.get("protocolVersion")
     protocol_version = requested if requested in SUPPORTED_PROTOCOL_VERSIONS else DEFAULT_PROTOCOL_VERSION
+    from truenex_memory.adapters.profile import (
+        client_registry_path,
+        profile_text,
+        record_client,
+        refresh_on_connect,
+    )
+
+    # Chi si e' collegato lo dice lui stesso, qui: `clientInfo` e' il segnale
+    # autorevole su quali client esistono davvero su questa macchina — non una
+    # deduzione da quali cartelle esistono. Annotarlo serve anche a scoprire i
+    # client che ancora non sappiamo riconoscere: un nome non mappato viene
+    # registrato invece di essere ignorato, perche' un client senza istruzioni
+    # non da' nessun errore e altrimenti non lo scopriremmo mai.
+    #
+    # Racchiuso in un try: un handshake rotto e' molto peggio di un profilo non
+    # aggiornato, e questo non e' il lavoro per cui il client si e' collegato.
+    try:
+        global _CLIENT_NAME
+        info = params.get("clientInfo") or {}
+        _CLIENT_NAME = info.get("name")
+        record_client(info.get("name"), info.get("version"), client_registry_path())
+        refresh_on_connect(info.get("name"))
+    except Exception:  # pragma: no cover - mai far cadere l'handshake
+        pass
+
     return {
         "protocolVersion": protocol_version,
         "capabilities": {"tools": {"listChanged": False}},
         "serverInfo": {"name": "truenex-memory", "version": __version__},
+        # Stesso testo che finisce nei file utente dei client, dalla stessa
+        # sorgente. Va servito perche' costa zero, NON perche' ci si possa
+        # contare: la specifica dice che il client «puo'» aggiungerlo al proprio
+        # prompt di sistema, quindi un client conforme puo' ignorarlo — e ci
+        # sono client che lo fanno (il gateway di LiteLLM lo perde, langchain4j
+        # lo riceve e non lo espone). Il canale su cui si conta e' il file.
+        "instructions": profile_text(),
     }
 
 

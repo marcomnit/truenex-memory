@@ -1,31 +1,18 @@
-"""CLAUDE.md adapter text generation."""
+"""CLAUDE.md adapter text generation.
+
+Delegates to `profile`: this module used to carry its own hand-written copy of
+the instructions, and so did `agents_md`, and the two had already drifted —
+one said "prefer active results, do not use obsolete memory", the other said
+"cite local source paths", and nobody decided either. Two copies of a rule are
+two rules.
+"""
 
 from __future__ import annotations
 
+from truenex_memory.adapters.profile import render_block
+
 
 def generate_claude_md() -> str:
-    """Return concise Claude Code instructions for Truenex Memory."""
+    """Return the memory profile block, for Claude Code's user-level file."""
 
-    return "\n".join(
-        [
-            "# Truenex Memory",
-            "",
-            "Before coding, search local memory for project decisions and constraints.",
-            (
-                "Pass the project you are working in as `scope` (a path "
-                "fragment, e.g. the repository folder name). The store holds "
-                "every project at once, so an unscoped search competes against "
-                "roughly eighty times more candidates and usually answers with "
-                "another project's documents: measured on questions phrased "
-                "without the target document's own words, scoping tripled the "
-                "answers found. Omit `scope` only for deliberately "
-                "cross-project questions."
-            ),
-            (
-                "A WRONG scope returns that other project's documents rather "
-                "than nothing, so pass the folder you are actually in."
-            ),
-            "Prefer active memory results and treat unverified results as tentative.",
-            "Do not use obsolete or superseded memory unless explicitly asked.",
-        ]
-    )
+    return render_block()
