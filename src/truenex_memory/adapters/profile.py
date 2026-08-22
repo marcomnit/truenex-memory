@@ -13,16 +13,35 @@ every session — and a store nobody closes accumulates contradictory truths.
 
 There is NO single user-level file every client reads. Verified, not assumed:
 Codex reads `~/.codex/AGENTS.md`, Claude Code reads `~/.claude/CLAUDE.md`,
-Gemini CLI reads `~/.gemini/GEMINI.md`. A plain `~/AGENTS.md` is read by
-nobody. The genuinely shared file is the *project* `AGENTS.md`, which is not
-where this belongs: how to work with memory is true in every project, while
-what a project is differs by project.
+Gemini CLI reads `~/.gemini/GEMINI.md`, Copilot reads
+`~/.copilot/copilot-instructions.md`. A plain `~/AGENTS.md` is read by nobody.
 
-So the profile is written once here and rendered into every client found on
-the machine. The alternative — a file per client maintained by hand — is what
-exists today and it has already drifted: on this machine one client of six had
-the full text, one was 32 lines behind, one file was empty, and three clients
-had nothing at all. Nobody decided that; it is what hand-copying produces.
+Due livelli, e per un giorno ho creduto che bastasse il primo.
+
+**Livello utente**, un file per client. Vale in ogni progetto, che e' la cosa
+giusta per «come si lavora con memory». Ma quei percorsi sono scelte private di
+ciascun client: alcuni documentati, altri — Kimi, Cursor, Aider — dedotti per
+analogia, cioe' non standard affatto. E un client puo' non averne nessuno:
+MiniMax tiene la propria memoria di utente in uno strumento suo.
+
+**Livello progetto**, `AGENTS.md` nella radice. E' l'unico dei due con uno
+standard vero: stewardship della Linux Foundation, letto nativamente da Codex,
+Cursor, Copilot, Gemini CLI, Aider, Windsurf, Zed e oltre venti strumenti. La
+documentazione di MiniMax lo dice della propria memoria di progetto: «Edit
+AGENTS.md (every agent reads it on every task)».
+
+L'errore che ha ritardato tutto: «parla MCP» e «legge AGENTS.md» sono proprieta'
+INDIPENDENTI, e le ho trattate come se una implicasse l'altra. MCP e' un
+protocollo per gli strumenti e non dice una parola su dove un client legga le
+istruzioni. Ragionando «il profilo e' universale, quindi va nel file utente»
+sono finito sul livello meno standardizzato e ho scartato il solo che uno
+standard lo ha.
+
+Quindi entrambi, e non uno al posto dell'altro. L'alternativa — un file per
+client mantenuto a mano — e' cio' che esisteva, e aveva gia' divergito: su
+questa macchina un client su sei aveva il testo completo, uno era indietro di 32
+righe, un file era vuoto e tre client non avevano niente. Nessuno l'aveva
+deciso: e' cio' che produce il copia-e-incolla.
 
 ## Why the block is delimited
 
@@ -848,3 +867,89 @@ def compliance(registry: Path | None = None) -> list[dict[str, Any]]:
             }
         )
     return rapporti
+
+
+# Il nome del file di progetto, che è l'unico livello dove `AGENTS.md` sia
+# davvero uno standard: stewardship della Linux Foundation, letto nativamente da
+# Codex, Cursor, Copilot, Gemini CLI, Aider, Windsurf, Zed e oltre venti
+# strumenti. La documentazione di MiniMax lo dice della propria memoria di
+# progetto: «Edit AGENTS.md (every agent reads it on every task)».
+PROJECT_FILE = "AGENTS.md"
+
+
+def project_target(root: Path) -> Path:
+    """Il file di progetto in cui va il blocco."""
+
+    return Path(root) / PROJECT_FILE
+
+
+def apply_to_project(root: Path) -> TargetReport:
+    """Scrive o aggiorna il blocco nell'`AGENTS.md` di un progetto.
+
+    Perché serve, oltre ai file utente. «Parla MCP» e «legge AGENTS.md» sono due
+    proprietà indipendenti, e per un giorno le ho trattate come se una implicasse
+    l'altra: MiniMax parla MCP e non legge nessun file utente, quindi il profilo
+    non gli arrivava per nessuna strada. Ma legge l'AGENTS.md di progetto, e lo
+    dice la sua documentazione.
+
+    Il livello utente resta preferibile quando esiste — una regola scritta una
+    volta vale per tutti i progetti — ma i percorsi utente sono scelte private di
+    ciascun client, alcune documentate e altre dedotte da me. Questo invece e' il
+    solo livello con uno standard vero dietro.
+
+    Il blocco e' delimitato come negli altri file: cio' che il progetto scrive di
+    proprio non viene sfiorato.
+    """
+
+    percorso = project_target(root)
+    prima = None
+    try:
+        prima = block_version(percorso.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        pass
+    azione = apply_to_file(percorso)
+    return TargetReport(f"progetto {Path(root).name}", percorso, True, azione, prima)
+
+
+def known_project_roots(home: Path | None = None) -> list[Path]:
+    """Le radici dei progetti su cui memory ha già lavorato.
+
+    Prese dalla cache dei grafi del codice: sono i progetti per cui qualcuno ha
+    costruito un grafo, cioe' quelli su cui si lavora davvero. Dedurli
+    dall'indice dei documenti darebbe anche cartelle sfiorate una volta.
+    """
+
+    radice = profile_home() if home is None else home
+    cache = radice / ".truenex-memory" / "code_graphs"
+    trovate: list[Path] = []
+    if not cache.is_dir():
+        return trovate
+    for voce in sorted(cache.glob("*.json")):
+        try:
+            dati = json.loads(voce.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        percorso = dati.get("root")
+        if not percorso or not Path(percorso).is_dir():
+            continue
+        radice_progetto = repository_root(Path(percorso))
+        if radice_progetto not in trovate:
+            trovate.append(radice_progetto)
+    return trovate
+
+
+def repository_root(percorso: Path) -> Path:
+    """La radice del repository che contiene *percorso*, o *percorso* stesso.
+
+    Serve perche' il grafo del codice di un progetto puo' essere costruito su una
+    sottocartella — su MedDesk e' `runtime/tauri-app` — mentre l'`AGENTS.md` che
+    i client leggono e' quello della radice: Codex concatena tutti quelli lungo
+    il cammino dalla radice git alla cartella corrente, e chi lavora dalla radice
+    non vedrebbe mai un blocco messo in una sottocartella.
+    """
+
+    corrente = percorso.resolve()
+    for candidato in (corrente, *corrente.parents):
+        if (candidato / ".git").exists():
+            return candidato
+    return corrente

@@ -1098,3 +1098,111 @@ def test_reconnecting_does_not_wipe_the_measurements(tmp_path: Path) -> None:
     rapporto = compliance(registro)[0]
     assert rapporto["searches"] == 4, "i contatori devono sopravvivere alla riconnessione"
     assert rapporto["connections"] == 2
+
+
+# ── il livello di progetto: l'unico con uno standard vero ─────────────────
+
+def test_the_project_file_is_agents_md() -> None:
+    """L'unico dei due livelli con uno standard dietro.
+
+    I percorsi utente sono scelte private di ciascun client — alcune
+    documentate, altre (Kimi, Cursor, Aider) dedotte per analogia. `AGENTS.md`
+    nella radice del progetto invece e' sotto la Linux Foundation e lo leggono
+    piu' di venti strumenti.
+    """
+
+    from truenex_memory.adapters.profile import project_target
+
+    assert project_target(Path("/repo")).name == "AGENTS.md"
+
+
+def test_a_client_with_no_user_file_is_reached_through_the_project(tmp_path: Path) -> None:
+    """Il caso che ha ritardato tutto di un giorno.
+
+    «Parla MCP» e «legge AGENTS.md» sono proprieta' INDIPENDENTI, e le avevo
+    trattate come se una implicasse l'altra: MCP e' un protocollo per gli
+    strumenti e non dice niente su dove un client legga le istruzioni. MiniMax
+    parla MCP, non ha nessun file utente, e legge l'AGENTS.md di progetto — lo
+    dichiara la sua documentazione: «Edit AGENTS.md (every agent reads it on
+    every task)». Era l'unico canale che onora, ed era quello che avevamo
+    scartato per principio.
+    """
+
+    from truenex_memory.adapters.profile import apply_to_project
+
+    rapporto = apply_to_project(tmp_path)
+
+    assert rapporto.action == "created"
+    assert render_block() in (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+
+
+def test_what_the_project_already_wrote_survives(tmp_path: Path) -> None:
+    """Un `AGENTS.md` di progetto parla d'altro, e resta suo.
+
+    Sul file vero di questo progetto: 193 righe prima, 251 dopo, e le prime
+    righe — che dicono a un agente chi e' — al loro posto.
+    """
+
+    from truenex_memory.adapters.profile import apply_to_project
+
+    proprio = "# Identita' e workflow\n\nTu sei KIMI, non sei Codex.\n"
+    (tmp_path / "AGENTS.md").write_text(proprio, encoding="utf-8")
+
+    apply_to_project(tmp_path)
+
+    dopo = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert "Tu sei KIMI, non sei Codex." in dopo
+    assert dopo.index("KIMI") < dopo.index(BEGIN_MARKER)
+
+
+def test_applying_to_a_project_twice_changes_nothing(tmp_path: Path) -> None:
+    from truenex_memory.adapters.profile import apply_to_project
+
+    apply_to_project(tmp_path)
+
+    assert apply_to_project(tmp_path).action == "unchanged"
+
+
+def test_the_block_goes_to_the_repository_root_not_a_subfolder(tmp_path: Path) -> None:
+    """Il grafo di MedDesk e' costruito su `runtime/tauri-app`, non sulla radice.
+
+    Codex concatena tutti gli `AGENTS.md` lungo il cammino dalla radice git alla
+    cartella corrente: un blocco messo in una sottocartella non lo vedrebbe mai
+    chi lavora dalla radice. Quindi si risale.
+    """
+
+    from truenex_memory.adapters.profile import repository_root
+
+    (tmp_path / ".git").mkdir()
+    sotto = tmp_path / "runtime" / "tauri-app"
+    sotto.mkdir(parents=True)
+
+    assert repository_root(sotto) == tmp_path.resolve()
+
+
+def test_a_folder_outside_a_repository_stays_itself(tmp_path: Path) -> None:
+    from truenex_memory.adapters.profile import repository_root
+
+    assert repository_root(tmp_path) == tmp_path.resolve()
+
+
+def test_known_projects_come_from_the_graph_cache(tmp_path: Path, monkeypatch) -> None:
+    """I progetti su cui si lavora davvero, non quelli sfiorati una volta.
+
+    Dedurli dall'indice dei documenti darebbe anche le cartelle indicizzate per
+    caso; un grafo del codice lo costruisce chi ci sta lavorando.
+    """
+
+    from truenex_memory.adapters.profile import PROFILE_HOME_ENV, known_project_roots
+
+    progetto = tmp_path / "progetti" / "alfa"
+    (progetto / ".git").mkdir(parents=True)
+    cache = tmp_path / ".truenex-memory" / "code_graphs"
+    cache.mkdir(parents=True)
+    (cache / "alfa.json").write_text(
+        '{"cache_version": 5, "root": "' + progetto.as_posix() + '", "edges": []}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(PROFILE_HOME_ENV, str(tmp_path))
+
+    assert known_project_roots(tmp_path) == [progetto.resolve()]

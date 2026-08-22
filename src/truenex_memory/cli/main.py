@@ -2406,6 +2406,12 @@ def profile_status(
 @profile_app.command("apply")
 def profile_apply(
     home: Path | None = typer.Option(None, "--home", help="Cartella utente (per i test)."),
+    project: list[Path] = typer.Option(
+        [], "--project", help="Scrive il blocco anche nell'AGENTS.md di questo progetto."
+    ),
+    known_projects: bool = typer.Option(
+        False, "--known-projects", help="Tutti i progetti di cui memory conosce il grafo."
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Dice cosa farebbe senza scrivere."),
     json_output: bool = typer.Option(False, "--json", help="Stampa il rapporto come JSON."),
 ) -> None:
@@ -2415,12 +2421,43 @@ def profile_apply(
     solo cio' che sta fra i marcatori; tutto il resto di quei file e' di chi li
     ha scritti e non viene sfiorato.
     """
-    from truenex_memory.adapters.profile import profile_home
+    from truenex_memory.adapters.profile import (
+        TargetReport,
+        apply_all,
+        apply_to_project,
+        known_project_roots,
+        profile_home,
+        project_target,
+        status,
+    )
 
     home = profile_home() if home is None else home
-    from truenex_memory.adapters.profile import apply_all, status
-
     reports = status(home) if dry_run else apply_all(home)
+
+    # Il livello di progetto: l'unico dove `AGENTS.md` sia davvero uno standard,
+    # e la sola strada per i client che non leggono nessun file utente.
+    radici = [Path(r) for r in project]
+    if known_projects:
+        radici += [r for r in known_project_roots(home) if r not in radici]
+    for radice in radici:
+        if dry_run:
+            percorso = project_target(radice)
+            try:
+                presente = "truenex-memory:begin" in percorso.read_text(
+                    encoding="utf-8", errors="replace"
+                )
+            except OSError:
+                presente = False
+            reports.append(
+                TargetReport(
+                    f"progetto {radice.name}",
+                    percorso,
+                    True,
+                    "unchanged" if presente else "absent",
+                )
+            )
+        else:
+            reports.append(apply_to_project(radice))
     if json_output:
         typer.echo(json.dumps([r.to_dict() for r in reports], indent=2, ensure_ascii=False))
         return
