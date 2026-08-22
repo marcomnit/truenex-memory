@@ -2185,6 +2185,21 @@ def graph_explain(
             typer.echo("nessun grafo corrisponde a quello scope")
         raise typer.Exit(code=1)
 
+    # Anche l'uso dalla CLI viene contato. Il contatore vedeva solo le chiamate
+    # MCP, quindi un agente che eseguiva `truenex-mem graph explain` da shell
+    # risultava «mai usato»: e' successo con Kimi, che aveva usato lo strumento
+    # per davvero e la misura lo dava a zero. Un falso negativo in una misura
+    # nata per non fidarsi delle impressioni e' il difetto peggiore che possa
+    # avere. Il client si riconosce dall'albero dei processi, perche' da qui non
+    # c'e' nessun handshake in cui si dichiari.
+    try:
+        from truenex_memory.adapters.profile import identify_client, record_tool_use
+
+        chi, _ = identify_client(None)
+        record_tool_use(chi.client if chi else "(riga di comando)", "memory_graph", {})
+    except Exception:  # pragma: no cover - mai far cadere il comando
+        pass
+
     result = explain_entity(best, target, limit=limit)
     # Un grafo invecchiato risponde sul codice di ieri senza dichiararlo, ed e'
     # indistinguibile da una risposta giusta. Il confronto costa la lettura dei

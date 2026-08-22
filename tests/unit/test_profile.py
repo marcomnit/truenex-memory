@@ -1254,3 +1254,44 @@ def test_searching_and_navigating_without_recording_is_its_own_state(tmp_path: P
     )
 
     assert compliance(registro)[0]["verdict"] == "no-recording"
+
+
+def test_usage_from_the_command_line_counts_too(tmp_path: Path) -> None:
+    """Il falso negativo peggiore: dire «mai usato» di chi ha usato.
+
+    Il contatore vedeva solo le chiamate MCP. Kimi ha eseguito
+    `truenex-mem graph explain` da shell, ha ottenuto la risposta giusta, e la
+    misura lo dava a zero — in una misura nata proprio per non fidarsi delle
+    impressioni.
+    """
+
+    from truenex_memory.adapters.profile import compliance, record_tool_use
+
+    registro = tmp_path / "clients.json"
+    record_tool_use("Kimi", "memory_graph", {}, registro)
+
+    rapporto = next(r for r in compliance(registro) if r["recognised_as"] == "Kimi")
+
+    assert rapporto["graph_calls"] == 1
+    assert rapporto["verdict"] != "no-usage"
+
+
+def test_the_same_client_is_one_row_from_any_door(tmp_path: Path) -> None:
+    """Una sessione MCP si presenta come `claude-code`, la CLI col nome noto.
+
+    Tenerle separate mostrava due righe per lo stesso strumento, e una delle due
+    diceva «mai usato» di chi lo stava usando. Cio' che si vuole sapere e' quanto
+    un client usa memory, non da quale ingresso.
+    """
+
+    from truenex_memory.adapters.profile import compliance, record_client, record_tool_use
+
+    registro = tmp_path / "clients.json"
+    record_client("claude-code", "1.0", registro)
+    record_tool_use("claude-code", "memory_search", {"scope": "p"}, registro)
+    record_tool_use("Claude Code", "memory_graph", {}, registro)
+
+    righe = [r for r in compliance(registro) if r["recognised_as"] == "Claude Code"]
+
+    assert len(righe) == 1, "una riga per client"
+    assert righe[0]["searches"] == 1 and righe[0]["graph_calls"] == 1

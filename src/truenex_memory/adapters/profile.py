@@ -834,8 +834,33 @@ def compliance(registry: Path | None = None) -> list[dict[str, Any]]:
     if not isinstance(known, dict):
         return []
 
+    # Le voci dello stesso client si sommano, da qualunque porta arrivino: la
+    # sessione MCP si presenta come `claude-code`, l'uso dalla riga di comando
+    # viene registrato col nome riconosciuto, e tenerle separate mostrava due
+    # righe per lo stesso strumento — una delle quali diceva «mai usato» di chi
+    # lo stava usando. Cio' che si vuole sapere e' quanto un client usa memory,
+    # non attraverso quale ingresso.
+    unite: dict[str, dict[str, Any]] = {}
+    for nome_voce, voce in sorted(known.items()):
+        riconosciuto, _, _ = identify_from_entry(nome_voce, voce)
+        chiave = riconosciuto.client if riconosciuto else nome_voce
+        if chiave not in unite:
+            unite[chiave] = dict(voce)
+            unite[chiave]["name"] = nome_voce
+            continue
+        accumulata = unite[chiave]
+        comportamento = dict(accumulata.get("behaviour") or {})
+        for campo, valore in (voce.get("behaviour") or {}).items():
+            comportamento[campo] = int(comportamento.get(campo, 0)) + int(valore)
+        accumulata["behaviour"] = comportamento
+        accumulata["connections"] = int(accumulata.get("connections", 0)) + int(
+            voce.get("connections", 0)
+        )
+        if not accumulata.get("ancestry") and voce.get("ancestry"):
+            accumulata["ancestry"] = voce["ancestry"]
+
     rapporti: list[dict[str, Any]] = []
-    for name, entry in sorted(known.items()):
+    for name, entry in ((v["name"], v) for v in unite.values()):
         behaviour = entry.get("behaviour") or {}
         searches = int(behaviour.get("searches", 0))
         with_scope = int(behaviour.get("searches_with_scope", 0))
