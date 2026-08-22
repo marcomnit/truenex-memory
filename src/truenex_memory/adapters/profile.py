@@ -324,6 +324,9 @@ CLIENT_INFO_ALIASES: tuple[tuple[str, str], ...] = (
     ("claude-code", "Claude Code"),
     ("claude code", "Claude Code"),
     ("claudecode", "Claude Code"),
+    # Gli eseguibili si chiamano in modo piu' corto dei nomi dichiarati:
+    # risalendo l'albero dei processi si trova `claude.exe`, non `claude-code`.
+    ("claude", "Claude Code"),
     ("codex", "Codex"),
     ("gemini", "Gemini"),
     ("kimi", "Kimi"),
@@ -446,6 +449,113 @@ def parent_process_name() -> str | None:
         return None
 
 
+def process_ancestry(limit: int = 10) -> list[str]:
+    """I nomi degli eseguibili che hanno portato a questo processo, dal piu' vicino.
+
+    Un solo gradino non basta, e la prova e' sul campo: interrogando il padre si
+    ottiene `python.exe`, che e' il lanciatore dello script console di questo
+    stesso pacchetto — non il client. Lo stesso accadrebbe con `node.exe` per un
+    client scritto in JavaScript. Il nome del prodotto compare piu' in alto,
+    quindi si risale.
+
+    Il limite di dieci gradini non e' prudenza generica: la catena reale ne ha
+    tre o quattro, e un tetto evita che un ciclo nella tabella dei processi
+    (pid riusati, padre morto e sostituito) faccia girare a vuoto.
+
+    Nessuna dipendenza nuova. Su Windows una sola istantanea della tabella dei
+    processi (`CreateToolhelp32Snapshot`) da' nome e padre di tutti, quindi la
+    risalita non costa una chiamata per gradino.
+    """
+
+    try:
+        start = os.getppid()
+    except (AttributeError, OSError):  # pragma: no cover
+        return []
+
+    tabella = _process_table()
+    if not tabella:
+        nome = parent_process_name()
+        return [nome] if nome else []
+
+    catena: list[str] = []
+    pid = start
+    visti: set[int] = set()
+    while pid and pid not in visti and len(catena) < limit:
+        visti.add(pid)
+        voce = tabella.get(pid)
+        if voce is None:
+            break
+        nome, pid = voce
+        if nome:
+            catena.append(nome)
+    return catena
+
+
+def _process_table() -> dict[int, tuple[str, int]]:
+    """``{pid: (nome, pid del padre)}`` per tutti i processi, o vuoto."""
+
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class PROCESSENTRY32W(ctypes.Structure):
+                _fields_ = [
+                    ("dwSize", wintypes.DWORD),
+                    ("cntUsage", wintypes.DWORD),
+                    ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                    ("th32ModuleID", wintypes.DWORD),
+                    ("cntThreads", wintypes.DWORD),
+                    ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", ctypes.c_long),
+                    ("dwFlags", wintypes.DWORD),
+                    ("szExeFile", wintypes.WCHAR * 260),
+                ]
+
+            TH32CS_SNAPPROCESS = 0x00000002
+            INVALID = ctypes.c_void_p(-1).value
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+            snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+            if not snapshot or snapshot == INVALID:
+                return {}
+            try:
+                voce = PROCESSENTRY32W()
+                voce.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+                tabella: dict[int, tuple[str, int]] = {}
+                if not kernel32.Process32FirstW(snapshot, ctypes.byref(voce)):
+                    return {}
+                while True:
+                    tabella[int(voce.th32ProcessID)] = (
+                        str(voce.szExeFile),
+                        int(voce.th32ParentProcessID),
+                    )
+                    if not kernel32.Process32NextW(snapshot, ctypes.byref(voce)):
+                        break
+                return tabella
+            finally:
+                kernel32.CloseHandle(snapshot)
+        except Exception:  # pragma: no cover - dipende dalla piattaforma
+            return {}
+
+    tabella = {}
+    try:
+        for voce in Path("/proc").iterdir():
+            if not voce.name.isdigit():
+                continue
+            try:
+                testo = (voce / "stat").read_text(encoding="utf-8", errors="replace")
+                nome = testo[testo.index("(") + 1 : testo.rindex(")")]
+                resto = testo[testo.rindex(")") + 2 :].split()
+                tabella[int(voce.name)] = (nome, int(resto[1]))
+            except (OSError, ValueError, IndexError):
+                continue
+    except OSError:
+        return {}
+    return tabella
+
+
 def identify_client(
     declared: str | None, process: str | None = None
 ) -> tuple[ClientTarget | None, str]:
@@ -465,11 +575,38 @@ def identify_client(
         if target is not None:
             return target, "declared"
 
-    hint = process if process is not None else parent_process_name()
-    target = target_for_client_info(hint)
-    if target is not None:
-        return target, "process"
+    candidati = [process] if process is not None else process_ancestry()
+    for nome in candidati:
+        target = target_for_client_info(nome)
+        if target is not None:
+            return target, "process"
     return None, "none"
+
+
+def identify_from_entry(
+    name: str, entry: dict[str, Any]
+) -> tuple[ClientTarget | None, str, str]:
+    """Riconosce un client da una voce GIA' registrata.
+
+    Esiste come funzione perche' la stessa risalita serviva a due comandi e
+    l'avevo scritta due volte: la seconda copia era rimasta indietro e mostrava
+    «ignoto» un client che l'altra riconosceva. Due copie di una regola sono due
+    regole, qui come nel profilo.
+    """
+
+    lowered = (name or "").strip().lower()
+    if lowered not in GENERIC_CLIENT_NAMES:
+        target = target_for_client_info(name)
+        if target is not None:
+            return target, "declared", name
+    for nome_processo in entry.get("ancestry") or [entry.get("process") or ""]:
+        target = target_for_client_info(nome_processo)
+        if target is not None:
+            # Il nome che ha deciso, non tutta la catena: e' l'unica parte
+            # interessante quando si legge il registro, e per un client ignoto
+            # la catena resta comunque visibile.
+            return target, "process", nome_processo
+    return None, "none", ""
 
 
 def record_client(name: str | None, version: str | None, registry: Path) -> dict[str, Any]:
@@ -487,9 +624,13 @@ def record_client(name: str | None, version: str | None, registry: Path) -> dict
         "version": version or "",
         "last_seen": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    processo = parent_process_name()
-    target, segnale = identify_client(name, processo)
-    entry["process"] = processo or ""
+    catena = process_ancestry()
+    target, segnale = identify_client(name, None)
+    # La catena intera, non solo il padre: e' cio' che serve per mappare un
+    # client nuovo, e senza registrarla si dovrebbe chiedere all'utente di
+    # riprodurre la connessione ogni volta.
+    entry["process"] = catena[0] if catena else ""
+    entry["ancestry"] = catena[:6]
     entry["recognised_as"] = target.client if target else None
     entry["signal"] = segnale
 
@@ -661,7 +802,7 @@ def compliance(registry: Path | None = None) -> list[dict[str, Any]]:
         # perche' quel nome suggeriva una superficie e non una cartella), e un
         # valore congelato al momento della prima connessione mostrerebbe per
         # sempre l'etichetta vecchia.
-        riconosciuto, segnale = identify_client(name, entry.get("process") or "")
+        riconosciuto, segnale, _ = identify_from_entry(name, entry)
         rapporti.append(
             {
                 "name": name,

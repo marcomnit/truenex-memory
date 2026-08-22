@@ -807,3 +807,114 @@ def test_an_unrecognised_client_still_gets_recorded(tmp_path: Path) -> None:
     assert voce["recognised_as"] is None
     assert voce["name"] == "mcp"
     assert "mcp" in registro.read_text(encoding="utf-8")
+
+
+# ── risalire l'albero dei processi, non un gradino ────────────────────────
+
+def test_the_ancestry_is_walked_because_one_step_is_a_launcher() -> None:
+    """La prova sul campo che un solo gradino non basta.
+
+    Kimi dichiara `mcp` e il padre del server risulta `python.exe`, che e' il
+    lanciatore dello script console di QUESTO pacchetto — non il client. La
+    catena reale registrata il 2026-08-22 e':
+
+        python.exe > truenex-mem.exe > python.exe > python.exe > kimi.exe
+
+    Il nome del prodotto e' al quinto gradino. Fermarsi al primo avrebbe
+    lasciato Kimi non riconosciuto per sempre, e lo stesso vale per qualunque
+    client scritto in Node (`node.exe`).
+    """
+
+    from truenex_memory.adapters.profile import identify_from_entry
+
+    voce = {
+        "ancestry": ["python.exe", "truenex-mem.exe", "python.exe", "python.exe", "kimi.exe"],
+    }
+
+    target, segnale, deciso = identify_from_entry("mcp", voce)
+
+    assert target is not None and target.client == "Kimi"
+    assert segnale == "process"
+    assert deciso == "kimi.exe"
+
+
+def test_a_launcher_only_chain_stays_unrecognised() -> None:
+    """Nessun nome del prodotto nella catena: si dichiara, non si indovina."""
+
+    from truenex_memory.adapters.profile import identify_from_entry
+
+    target, segnale, _ = identify_from_entry("mcp", {"ancestry": ["python.exe", "node.exe"]})
+
+    assert target is None and segnale == "none"
+
+
+def test_the_declared_name_still_wins_over_the_chain() -> None:
+    """Un client lanciato da un terminale ha antenati che non dicono niente di lui."""
+
+    from truenex_memory.adapters.profile import identify_from_entry
+
+    voce = {"ancestry": ["python.exe", "pwsh.exe", "explorer.exe"]}
+
+    target, segnale, deciso = identify_from_entry("cursor-vscode", voce)
+
+    assert target.client == "Cursor" and segnale == "declared" and deciso == "cursor-vscode"
+
+
+def test_an_executable_name_shorter_than_the_declared_one_matches() -> None:
+    """`claude.exe` non contiene «claude-code», e la catena porta proprio quello."""
+
+    from truenex_memory.adapters.profile import identify_from_entry
+
+    target, segnale, _ = identify_from_entry("mcp", {"ancestry": ["python.exe", "claude.exe"]})
+
+    assert target.client == "Claude Code" and segnale == "process"
+
+
+def test_the_ancestry_walk_terminates_on_a_cycle() -> None:
+    """I pid vengono riusati: un padre morto e sostituito puo' chiudere un anello.
+
+    Senza il tetto e l'insieme dei visti la risalita girerebbe a vuoto dentro
+    l'handshake, che e' il posto peggiore dove bloccarsi.
+    """
+
+    from truenex_memory.adapters import profile
+
+    finta = {10: ("a.exe", 20), 20: ("b.exe", 10)}
+    original = profile._process_table
+    profile._process_table = lambda: finta
+    try:
+        catena = profile.process_ancestry(limit=10)
+    finally:
+        profile._process_table = original
+
+    assert len(catena) <= 3
+
+
+def test_the_ancestry_never_raises() -> None:
+    """Gira con tre meccanismi diversi su tre sistemi: l'errore vale lista vuota."""
+
+    from truenex_memory.adapters.profile import process_ancestry
+
+    risultato = process_ancestry()
+
+    assert isinstance(risultato, list)
+    assert all(isinstance(x, str) for x in risultato)
+
+
+def test_the_recognition_logic_exists_once() -> None:
+    """Era scritta due volte e la seconda copia era rimasta indietro.
+
+    Un comando mostrava «ignoto» un client che l'altro riconosceva: lo stesso
+    difetto dei due generatori del profilo, su un'altra scala.
+    """
+
+    import inspect
+
+    from truenex_memory.cli import main
+
+    sorgente = inspect.getsource(main)
+
+    assert "identify_from_entry" in sorgente
+    assert sorgente.count("GENERIC_CLIENT_NAMES") == 0, (
+        "la CLI non deve reimplementare il riconoscimento"
+    )

@@ -24,3 +24,22 @@ def _profilo_in_una_home_finta(tmp_path_factory, monkeypatch) -> None:
 
     finta = tmp_path_factory.mktemp("home-finta")
     monkeypatch.setenv(PROFILE_HOME_ENV, str(finta))
+
+
+@pytest.fixture(autouse=True)
+def _nessun_indizio_dai_processi(monkeypatch) -> None:
+    """Il riconoscimento non deve dipendere da chi ha avviato pytest.
+
+    Il client si identifica anche risalendo l'albero dei processi, e in una
+    suite quell'albero e' quello del terminale di chi la esegue: lanciata da
+    Claude Code, un client «mai visto» risultava Claude Code, e tre test
+    cambiavano esito in base allo strumento usato per eseguirli. Un test cosi'
+    non misura il codice, misura l'ambiente.
+
+    Chi vuole verificare la risalita passa una catena esplicita a
+    `identify_from_entry`; qui la si azzera.
+    """
+
+    from truenex_memory.adapters import profile
+
+    monkeypatch.setattr(profile, "process_ancestry", lambda *a, **k: [])

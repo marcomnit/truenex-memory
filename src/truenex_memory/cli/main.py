@@ -2435,7 +2435,7 @@ def profile_clients(
         typer.echo(json.dumps(known, indent=2, ensure_ascii=False))
         return
 
-    from truenex_memory.adapters.profile import identify_client
+    from truenex_memory.adapters.profile import identify_from_entry
 
     righe = []
     for name, entry in sorted(known.items()):
@@ -2443,13 +2443,20 @@ def profile_clients(
         # riconoscimento usa due segnali perche' il nome dichiarato spesso non
         # identifica niente (Kimi si presenta come `mcp`, il predefinito della
         # libreria MCP).
-        target, segnale = identify_client(name, entry.get("process") or "")
+        target, segnale, deciso = identify_from_entry(name, entry)
         righe.append(
             (
                 name[:26],
                 (entry.get("version") or "—")[:18],
                 str(entry.get("connections", 0)),
-                (entry.get("process") or "—")[:16],
+                # Quando il riconoscimento viene dal processo si mostra QUELLO
+                # che ha deciso; per un client ignoto serve invece vedere la
+                # catena, perche' e' da lì che si ricava come mapparlo.
+                (
+                    deciso
+                    if segnale == "process"
+                    else (" > ".join((entry.get("ancestry") or [])[:4]) or entry.get("process") or "—")
+                )[:44],
                 target.client if target else "—",
                 {"declared": "nome", "process": "processo", "none": "ignoto"}[segnale],
             )
@@ -2457,7 +2464,7 @@ def profile_clients(
 
     typer.echo(f"registro: {registry}")
     typer.echo("")
-    intestazione = ("CLIENT", "VERSIONE", "CONN", "PROCESSO PADRE", "RICONOSCIUTO", "DA")
+    intestazione = ("CLIENT", "VERSIONE", "CONN", "PROCESSO", "RICONOSCIUTO", "DA")
     larghezze = [max(len(r[i]) for r in [intestazione, *righe]) for i in range(6)]
     def _riga(valori, intestazione=False):
         return "  ".join(
