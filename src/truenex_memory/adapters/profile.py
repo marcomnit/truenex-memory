@@ -383,6 +383,95 @@ def target_for_client_info(name: str | None) -> ClientTarget | None:
     return None
 
 
+# Nomi che NON identificano niente. Kimi si presenta come `mcp` v0.1.0: e' il
+# valore predefinito delle librerie MCP, non un prodotto. Mapparlo su Kimi
+# sarebbe un errore che si scopre tardi — domani un altro client con lo stesso
+# predefinito riceverebbe il profilo nella cartella di Kimi, e nessuno se ne
+# accorgerebbe perche' un file scritto nel posto sbagliato non da' errori.
+GENERIC_CLIENT_NAMES = frozenset({"", "mcp", "mcp-client", "mcpclient", "client", "unknown"})
+
+
+def parent_process_name() -> str | None:
+    """Il nome dell'eseguibile che ha lanciato questo processo.
+
+    Il secondo segnale, e in pratica il piu' affidabile: un server MCP su stdio
+    e' **avviato dal client**, quindi il padre e' il client, e il nome di un
+    eseguibile non e' un campo che qualcuno dimentica di personalizzare.
+    Serve quando `clientInfo.name` e' generico.
+
+    Senza dipendenze nuove: `ctypes` su Windows, `/proc` su Linux, `ps` su
+    macOS. Qualunque errore restituisce ``None`` — questa e' un'informazione in
+    piu', non una condizione per funzionare.
+    """
+
+    try:
+        parent = os.getppid()
+    except (AttributeError, OSError):  # pragma: no cover - piattaforma esotica
+        return None
+
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, parent)
+            if not handle:
+                return None
+            try:
+                buffer = ctypes.create_unicode_buffer(1024)
+                size = wintypes.DWORD(len(buffer))
+                if not kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                    return None
+                return Path(buffer.value).name or None
+            finally:
+                kernel32.CloseHandle(handle)
+        except Exception:  # pragma: no cover - dipende dalla piattaforma
+            return None
+
+    try:
+        return Path(os.readlink(f"/proc/{parent}/exe")).name
+    except OSError:
+        pass
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["ps", "-o", "comm=", "-p", str(parent)],
+            capture_output=True, text=True, timeout=2, check=False,
+        )
+        return Path(out.stdout.strip()).name or None
+    except Exception:  # pragma: no cover - dipende dalla piattaforma
+        return None
+
+
+def identify_client(
+    declared: str | None, process: str | None = None
+) -> tuple[ClientTarget | None, str]:
+    """Chi e' il client, e come lo si e' capito.
+
+    Restituisce ``(bersaglio, segnale)`` dove segnale e' ``"declared"``,
+    ``"process"`` o ``"none"``. Il nome dichiarato ha la precedenza quando dice
+    qualcosa; se e' generico si guarda l'eseguibile che ha avviato il server.
+    Registrare COME si e' capito e' importante quanto il risultato: un
+    riconoscimento dedotto dal processo e' piu' fragile di uno dichiarato, e chi
+    legge il registro deve poterlo distinguere.
+    """
+
+    lowered = (declared or "").strip().lower()
+    if lowered not in GENERIC_CLIENT_NAMES:
+        target = target_for_client_info(declared)
+        if target is not None:
+            return target, "declared"
+
+    hint = process if process is not None else parent_process_name()
+    target = target_for_client_info(hint)
+    if target is not None:
+        return target, "process"
+    return None, "none"
+
+
 def record_client(name: str | None, version: str | None, registry: Path) -> dict[str, Any]:
     """Annota chi si e' collegato, riconosciuto o no.
 
@@ -398,8 +487,11 @@ def record_client(name: str | None, version: str | None, registry: Path) -> dict
         "version": version or "",
         "last_seen": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
-    target = target_for_client_info(name)
+    processo = parent_process_name()
+    target, segnale = identify_client(name, processo)
+    entry["process"] = processo or ""
     entry["recognised_as"] = target.client if target else None
+    entry["signal"] = segnale
 
     known: dict[str, Any] = {}
     try:
@@ -440,7 +532,7 @@ def refresh_on_connect(
     effective = auto_profile_mode() if mode is None else mode
     if effective == "off":
         return "off"
-    target = target_for_client_info(client_name)
+    target, _ = identify_client(client_name)
     if target is None:
         return "unknown-client"
 
@@ -569,11 +661,13 @@ def compliance(registry: Path | None = None) -> list[dict[str, Any]]:
         # perche' quel nome suggeriva una superficie e non una cartella), e un
         # valore congelato al momento della prima connessione mostrerebbe per
         # sempre l'etichetta vecchia.
-        riconosciuto = target_for_client_info(name)
+        riconosciuto, segnale = identify_client(name, entry.get("process") or "")
         rapporti.append(
             {
                 "name": name,
                 "recognised_as": riconosciuto.client if riconosciuto else None,
+                "signal": segnale,
+                "process": entry.get("process") or "",
                 "connections": int(entry.get("connections", 0)),
                 "verdict": verdict,
                 "scope_rate": rate,

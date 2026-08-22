@@ -2325,19 +2325,35 @@ def profile_status(
 
     etichette = {
         "unchanged": "aggiornato",
-        "updated": "DA AGGIORNARE",
-        "absent": "MANCA il profilo",
-        "client-not-installed": "client non installato",
+        "updated": "da aggiornare",
+        "absent": "manca",
+        "client-not-installed": "non installato",
     }
+    righe = [
+        (
+            r.client,
+            etichette[r.action],
+            f"v{r.present_version}" if r.present_version is not None else "—",
+            str(r.path),
+        )
+        for r in reports
+    ]
+    intestazione = ("CLIENT", "PROFILO", "VER", "FILE")
+    larghezze = [max(len(x[i]) for x in [intestazione, *righe]) for i in range(4)]
+
+    def _riga(valori):
+        return "  ".join(v.ljust(w) for v, w in zip(valori, larghezze)).rstrip()
+
     typer.echo(f"profilo corrente: versione {PROFILE_VERSION}")
     typer.echo("")
-    for report in reports:
-        versione = f"v{report.present_version}" if report.present_version is not None else "—"
-        typer.echo(f"  {report.client:14s} {etichette[report.action]:22s} {versione:4s} {report.path}")
+    typer.echo("  " + _riga(intestazione))
+    typer.echo("  " + "  ".join("-" * w for w in larghezze))
+    for riga in righe:
+        typer.echo("  " + _riga(riga))
     da_fare = [r for r in reports if r.action in {"updated", "absent"}]
     typer.echo("")
     if da_fare:
-        typer.echo(f"{len(da_fare)} client da sistemare: truenex-mem profile apply")
+        typer.echo(f"{len(da_fare)} da sistemare: truenex-mem profile apply")
     else:
         typer.echo("tutti i client installati hanno il profilo corrente")
 
@@ -2367,18 +2383,28 @@ def profile_apply(
     verbi = {
         "created": "scritto",
         "updated": "aggiornato",
-        "unchanged": "gia' aggiornato",
+        "unchanged": "invariato",
         "absent": "da scrivere" if dry_run else "non scritto",
-        "client-not-installed": "saltato (non installato)",
+        "client-not-installed": "saltato",
     }
-    for report in reports:
-        typer.echo(f"  {report.client:14s} {verbi[report.action]:26s} {report.path}")
+    righe = [(r.client, verbi[r.action], str(r.path)) for r in reports]
+    intestazione = ("CLIENT", "ESITO", "FILE")
+    larghezze = [max(len(x[i]) for x in [intestazione, *righe]) for i in range(3)]
+
+    def _riga(valori):
+        return "  ".join(v.ljust(w) for v, w in zip(valori, larghezze)).rstrip()
+
+    typer.echo("  " + _riga(intestazione))
+    typer.echo("  " + "  ".join("-" * w for w in larghezze))
+    for riga in righe:
+        typer.echo("  " + _riga(riga))
     scritti = [r for r in reports if r.action in {"created", "updated"}]
+    installati = [r for r in reports if r.installed]
     typer.echo("")
     if dry_run:
         typer.echo("prova a vuoto: nessun file toccato")
     else:
-        typer.echo(f"{len(scritti)} file scritti su {len([r for r in reports if r.installed])} client installati")
+        typer.echo(f"{len(scritti)} file scritti, {len(installati)} client installati")
 
 
 @profile_app.command("clients")
@@ -2409,18 +2435,52 @@ def profile_clients(
         typer.echo(json.dumps(known, indent=2, ensure_ascii=False))
         return
 
+    from truenex_memory.adapters.profile import identify_client
+
+    righe = []
+    for name, entry in sorted(known.items()):
+        # Ricalcolato, non letto dal registro: le etichette cambiano, e il
+        # riconoscimento usa due segnali perche' il nome dichiarato spesso non
+        # identifica niente (Kimi si presenta come `mcp`, il predefinito della
+        # libreria MCP).
+        target, segnale = identify_client(name, entry.get("process") or "")
+        righe.append(
+            (
+                name[:26],
+                (entry.get("version") or "—")[:18],
+                str(entry.get("connections", 0)),
+                (entry.get("process") or "—")[:16],
+                target.client if target else "—",
+                {"declared": "nome", "process": "processo", "none": "ignoto"}[segnale],
+            )
+        )
+
     typer.echo(f"registro: {registry}")
     typer.echo("")
-    for name, entry in sorted(known.items()):
-        riconosciuto = entry.get("recognised_as") or "NON RICONOSCIUTO"
-        typer.echo(
-            f"  {name:24s} v{entry.get('version', ''):10s} "
-            f"{entry.get('connections', 0):4d} connessioni   -> {riconosciuto}"
-        )
-    ignoti = [n for n, e in known.items() if not e.get("recognised_as")]
+    intestazione = ("CLIENT", "VERSIONE", "CONN", "PROCESSO PADRE", "RICONOSCIUTO", "DA")
+    larghezze = [max(len(r[i]) for r in [intestazione, *righe]) for i in range(6)]
+    def _riga(valori, intestazione=False):
+        return "  ".join(
+            v.rjust(w) if (i == 2 and not intestazione) else v.ljust(w)
+            for i, (v, w) in enumerate(zip(valori, larghezze))
+        ).rstrip()
+
+    typer.echo("  " + _riga(intestazione, intestazione=True))
+    typer.echo("  " + "  ".join("-" * w for w in larghezze))
+    for riga in righe:
+        typer.echo("  " + _riga(riga))
+
+    ignoti = [r[0] for r in righe if r[5] == "ignoto"]
+    senza_processo = [r[0] for r in righe if r[3] == "—"]
     if ignoti:
         typer.echo("")
-        typer.echo(f"{len(ignoti)} da mappare in CLIENT_INFO_ALIASES: {', '.join(ignoti)}")
+        typer.echo(f"non riconosciuti: {', '.join(ignoti)}")
+    if senza_processo:
+        typer.echo("")
+        typer.echo(
+            "il processo padre manca per le connessioni avvenute prima che venisse "
+            "registrato: si riempie da solo alla prossima."
+        )
 
 
 @profile_app.command("check")
@@ -2450,20 +2510,45 @@ def profile_check(
         typer.echo("nessun client si e' ancora collegato: niente da misurare")
         return
 
-    spiegazioni = {
-        "no-usage": "collegato, non ha MAI usato memoria -> profilo probabilmente non arrivato",
-        "ignores-scope": "cerca ma quasi senza scope -> profilo non arrivato o non seguito",
-        "search-only": "cerca con lo scope, non usa grafo ne' registra -> meta' profilo in vigore",
-        "follows-profile": "cerca con lo scope e usa le altre porte -> profilo in vigore",
+    stati = {
+        "no-usage": "mai usato",
+        "ignores-scope": "scope ignorato",
+        "search-only": "solo ricerca",
+        "follows-profile": "profilo in vigore",
     }
-    for r in rapporti:
-        nome = r["recognised_as"] or f"{r['name']} (non riconosciuto)"
-        tasso = "—" if r["scope_rate"] is None else f"{r['scope_rate']*100:.0f}%"
-        typer.echo(f"  {nome}")
-        typer.echo(
-            f"      chiamate {r['calls']:4d} | ricerche {r['searches']:4d} (con scope {tasso})"
-            f" | grafo {r['graph_calls']:3d} | registrazioni {r['task_steps']:3d}"
+    righe = [
+        (
+            (r["recognised_as"] or r["name"])[:22],
+            str(r["calls"]),
+            str(r["searches"]),
+            "—" if r["scope_rate"] is None else f"{r['scope_rate']*100:.0f}%",
+            str(r["graph_calls"]),
+            str(r["task_steps"]),
+            stati[r["verdict"]],
         )
-        typer.echo(f"      {spiegazioni[r['verdict']]}")
+        for r in rapporti
+    ]
+    intestazione = ("CLIENT", "CHIAM.", "RICER.", "SCOPE", "GRAFO", "REGISTR.", "STATO")
+    larghezze = [max(len(r[i]) for r in [intestazione, *righe]) for i in range(7)]
+
+    # I numeri a destra, il testo a sinistra: una colonna di cifre allineate a
+    # sinistra si legge male, e questa tabella serve a confrontare righe.
+    numeriche = {1, 2, 3, 4, 5}
+
+    def _riga(valori, intestazione=False):
+        celle = [
+            v.rjust(w) if (i in numeriche and not intestazione) else v.ljust(w)
+            for i, (v, w) in enumerate(zip(valori, larghezze))
+        ]
+        return "  ".join(celle).rstrip()
+
+    typer.echo("  " + _riga(intestazione, intestazione=True))
+    typer.echo("  " + "  ".join("-" * w for w in larghezze))
+    for riga in righe:
+        typer.echo("  " + _riga(riga))
     typer.echo("")
-    typer.echo("un tasso di scope basso puo' essere legittimo: le domande trasversali non lo usano")
+    typer.echo("  mai usato       collegato ma nessuna chiamata: il profilo probabilmente non e' arrivato")
+    typer.echo("  scope ignorato  cerca senza scope in oltre un caso su tre")
+    typer.echo("  solo ricerca    cerca bene, non usa il grafo ne' registra: meta' profilo in vigore")
+    typer.echo("")
+    typer.echo("  uno scope basso puo' essere legittimo: le domande trasversali non lo passano")

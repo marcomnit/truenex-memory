@@ -708,3 +708,102 @@ def test_the_handshake_and_the_calls_share_one_registry(tmp_path, monkeypatch) -
     rapporti = compliance(tmp_path / ".truenex-memory" / "clients.json")
     claude = next(r for r in rapporti if r["recognised_as"] == "Claude Code")
     assert claude["searches"] == 1 and claude["searches_with_scope"] == 1
+
+
+# ── il nome dichiarato non basta: serve un secondo segnale ────────────────
+
+def test_a_generic_declared_name_is_not_mapped_by_guessing() -> None:
+    """Kimi si presenta come `mcp` v0.1.0.
+
+    E' il valore predefinito delle librerie MCP, non un prodotto. Mapparlo su
+    Kimi funzionerebbe oggi e sarebbe un errore domani: un altro client con lo
+    stesso predefinito riceverebbe il profilo nella cartella di Kimi, e nessuno
+    se ne accorgerebbe — un file scritto nel posto sbagliato non da' errori.
+    """
+
+    from truenex_memory.adapters.profile import GENERIC_CLIENT_NAMES, identify_client
+
+    assert "mcp" in GENERIC_CLIENT_NAMES
+
+    target, segnale = identify_client("mcp", "node.exe")
+
+    assert target is None
+    assert segnale == "none"
+
+
+def test_the_parent_process_identifies_a_generic_client() -> None:
+    """Il secondo segnale, e in pratica il piu' solido.
+
+    Un server MCP su stdio e' avviato DAL client, quindi il processo padre e' il
+    client — e il nome di un eseguibile non e' un campo che qualcuno dimentica
+    di personalizzare, al contrario di `clientInfo.name`.
+    """
+
+    from truenex_memory.adapters.profile import identify_client
+
+    target, segnale = identify_client("mcp", "kimi.exe")
+
+    assert target is not None and target.client == "Kimi"
+    assert segnale == "process"
+
+
+def test_a_declared_name_wins_when_it_says_something() -> None:
+    """Il processo e' il ripiego, non la fonte principale.
+
+    Un client lanciato da PowerShell o da un terminale avrebbe un padre che non
+    dice niente su di lui, mentre il nome dichiarato e' esatto.
+    """
+
+    from truenex_memory.adapters.profile import identify_client
+
+    target, segnale = identify_client("claude-code", "pwsh.exe")
+
+    assert target.client == "Claude Code"
+    assert segnale == "declared"
+
+
+def test_the_signal_used_is_recorded_next_to_the_result(tmp_path: Path) -> None:
+    """Un riconoscimento dedotto dal processo e' piu' fragile di uno dichiarato.
+
+    Chi legge il registro deve poterli distinguere, altrimenti tratta come
+    certo qualcosa che e' un'inferenza.
+    """
+
+    from truenex_memory.adapters.profile import record_client
+
+    registro = tmp_path / "clients.json"
+    voce = record_client("claude-code", "1.0", registro)
+
+    assert voce["signal"] == "declared"
+    assert "process" in voce
+
+
+def test_the_parent_process_lookup_never_raises() -> None:
+    """Informazione in piu', non condizione per funzionare.
+
+    Gira su tre sistemi operativi con tre meccanismi diversi (ctypes, /proc,
+    ps): qualunque errore deve valere None, non un handshake fallito.
+    """
+
+    from truenex_memory.adapters.profile import parent_process_name
+
+    risultato = parent_process_name()
+
+    assert risultato is None or isinstance(risultato, str)
+
+
+def test_an_unrecognised_client_still_gets_recorded(tmp_path: Path) -> None:
+    """E' il caso di Kimi: si e' collegato e non sapevamo chi fosse.
+
+    Senza il registro l'unica traccia sarebbe stata la sua assenza dai file, che
+    non si vede.
+    """
+
+    from truenex_memory.adapters.profile import record_client
+
+    registro = tmp_path / "clients.json"
+    voce = record_client("mcp", "0.1.0", registro)
+
+    assert voce["recognised_as"] is None
+    assert voce["name"] == "mcp"
+    assert "mcp" in registro.read_text(encoding="utf-8")
