@@ -236,3 +236,91 @@ def test_upgrade_names_the_missing_backend(tmp_path: Path, monkeypatch) -> None:
     assert esito.exit_code == 0
     assert "manca il pacchetto" in esito.stdout
     assert '"truenex-memory[graph]"' in esito.stdout
+
+
+# ── graph forget ──────────────────────────────────────────────────────────
+
+def _cache_con_fantasmi(tmp_path: Path) -> Path:
+    """Una cache come quella trovata su una macchina vera: due cartelle di
+    configurazione finite fra i progetti."""
+
+    casa = tmp_path / "casa"
+    cache = casa / ".truenex-memory" / "code_graphs"
+    cache.mkdir(parents=True)
+    for nome in (".claude", ".truenex-memory", "AlboEsperti"):
+        radice = tmp_path / "progetti" / nome
+        radice.mkdir(parents=True)
+        grafo = FileGraph(root=radice.as_posix(), edges=[], stats={"files": 0})
+        (cache / f"{nome.lstrip('.')}.json").write_text(
+            json.dumps(grafo.to_dict()), encoding="utf-8"
+        )
+    return casa
+
+
+def test_status_flags_the_entries_that_are_not_projects(tmp_path: Path) -> None:
+    casa = _cache_con_fantasmi(tmp_path)
+
+    esito = runner.invoke(app, ["graph", "status", "--home", str(casa)])
+
+    assert esito.exit_code == 0
+    assert "non e' un progetto" in esito.stdout
+    assert "graph forget" in esito.stdout, "segnalare senza dire come rimediare e' meta' lavoro"
+
+
+def test_forget_removes_only_the_non_projects(tmp_path: Path) -> None:
+    """Il caso per cui il comando esiste: due voci su tre da togliere."""
+
+    casa = _cache_con_fantasmi(tmp_path)
+    cache = casa / ".truenex-memory" / "code_graphs"
+
+    esito = runner.invoke(
+        app, ["graph", "forget", "--not-projects", "--home", str(casa)]
+    )
+
+    assert esito.exit_code == 0
+    rimasti = sorted(p.stem for p in cache.glob("*.json"))
+    assert rimasti == ["AlboEsperti"], rimasti
+
+
+def test_forget_dry_run_touches_nothing(tmp_path: Path) -> None:
+    casa = _cache_con_fantasmi(tmp_path)
+    cache = casa / ".truenex-memory" / "code_graphs"
+
+    esito = runner.invoke(
+        app, ["graph", "forget", "--not-projects", "--dry-run", "--home", str(casa)]
+    )
+
+    assert esito.exit_code == 0
+    assert "toglierei" in esito.stdout
+    assert len(list(cache.glob("*.json"))) == 3, "la prova a vuoto non cancella"
+
+
+def test_forget_by_name(tmp_path: Path) -> None:
+    casa = _cache_con_fantasmi(tmp_path)
+    cache = casa / ".truenex-memory" / "code_graphs"
+
+    esito = runner.invoke(app, ["graph", "forget", "AlboEsperti", "--home", str(casa)])
+
+    assert esito.exit_code == 0
+    assert "AlboEsperti" not in [p.stem for p in cache.glob("*.json")]
+
+
+def test_forget_without_a_target_says_what_to_do(tmp_path: Path) -> None:
+    """Un comando che non fa niente senza spiegare perche' e' peggio di un errore."""
+
+    casa = _cache_con_fantasmi(tmp_path)
+
+    esito = runner.invoke(app, ["graph", "forget", "--home", str(casa)])
+
+    assert esito.exit_code == 1
+    assert "dimmi cosa dimenticare" in esito.stdout
+    assert "graph status" in esito.stdout
+
+
+def test_forget_reports_when_nothing_matches(tmp_path: Path) -> None:
+    casa = _cache_con_fantasmi(tmp_path)
+
+    esito = runner.invoke(app, ["graph", "forget", "ProgettoInesistente", "--home", str(casa)])
+
+    assert esito.exit_code == 1
+    assert "nessuna voce corrisponde" in esito.stdout

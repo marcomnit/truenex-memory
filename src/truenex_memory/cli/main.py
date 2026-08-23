@@ -2351,9 +2351,90 @@ def graph_status(
     if not entries:
         typer.echo("nessun grafo costruito")
         return
+    from truenex_memory.adapters.profile import is_project_root
+
+    fantasmi = 0
     for item in entries:
         typer.echo(f"  {item['root']}")
-        typer.echo(f"    {item.get('files', 0)} file, {item.get('file_edges', 0)} archi fra file")
+        riga = f"    {item.get('files', 0)} file, {item.get('file_edges', 0)} archi fra file"
+        # Una voce che non e' un progetto resta nell'elenco per sempre: si
+        # poteva creare e non rimuovere. Segnalarla e' il minimo; il comando
+        # per togliterla e' `graph forget`.
+        if not is_project_root(Path(item["root"])):
+            riga += "   ← non e' un progetto (cartella di configurazione)"
+            fantasmi += 1
+        typer.echo(riga)
+    if fantasmi:
+        typer.echo("")
+        typer.echo(f"{fantasmi} voci non sono progetti: truenex-mem graph forget --not-projects")
+
+
+@graph_app.command("forget")
+def graph_forget(
+    nomi: list[str] = typer.Argument(None, help="Nomi o percorsi dei grafi da dimenticare."),
+    not_projects: bool = typer.Option(
+        False, "--not-projects", help="Togli tutte le voci che non sono progetti."
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Di' cosa toglieresti, senza toglierlo."),
+    home: Path = typer.Option(Path.home(), "--home", help="User home directory for default paths."),
+    db: Path | None = typer.Option(None, "--db", help="Path to the SQLite database."),
+) -> None:
+    """Togli un grafo dalla cache.
+
+    Perche' esiste. Un grafo si poteva costruire e non rimuovere: una cartella
+    graficata per sbaglio — la configurazione di un client, la nostra cartella
+    dati, una cartella vuota — restava nell'elenco per sempre, e diventava una
+    radice nota che ogni `upgrade` ripercorreva. L'unica via era cancellare a
+    mano dei file JSON in un percorso che l'utente non deve conoscere.
+
+    Non e' distruttivo in senso proprio: un grafo si ricostruisce con
+    `graph build`. Ma resta una cancellazione, quindi dice sempre cosa tocca e
+    `--dry-run` permette di guardare prima.
+    """
+    from truenex_memory.adapters.profile import is_project_root
+    from truenex_memory.graph import FileGraph
+
+    cache_dir = _graph_cache_dir(db, home)
+    if not cache_dir.is_dir():
+        typer.echo("nessun grafo costruito")
+        return
+
+    voci: list[tuple[Path, str]] = []
+    for entry in sorted(cache_dir.glob("*.json")):
+        try:
+            radice = FileGraph.from_dict(json.loads(entry.read_text(encoding="utf-8"))).root
+        except (OSError, json.JSONDecodeError, KeyError):
+            continue
+        voci.append((entry, radice))
+
+    cercati = {n.strip().rstrip("/\\").lower() for n in (nomi or []) if n.strip()}
+    if not cercati and not not_projects:
+        # Un comando che non fa niente senza dire perche' e' peggio di un
+        # errore: qui l'utente ha chiesto di dimenticare senza dire cosa.
+        typer.echo("dimmi cosa dimenticare: un nome, un percorso, o --not-projects")
+        typer.echo("  truenex-mem graph status   per vedere l'elenco")
+        raise typer.Exit(1)
+
+    da_togliere = [
+        (entry, radice)
+        for entry, radice in voci
+        if (not_projects and not is_project_root(Path(radice)))
+        or Path(radice).name.lower() in cercati
+        or radice.lower() in cercati
+        or entry.stem.lower() in cercati
+    ]
+
+    if not da_togliere:
+        typer.echo("niente da togliere: nessuna voce corrisponde")
+        raise typer.Exit(1)
+
+    for entry, radice in da_togliere:
+        typer.echo(f"{'toglierei' if dry_run else 'tolto':10s} {radice}")
+        if not dry_run:
+            entry.unlink(missing_ok=True)
+    if dry_run:
+        typer.echo("")
+        typer.echo("nessun file toccato (--dry-run)")
 
 
 if __name__ == "__main__":

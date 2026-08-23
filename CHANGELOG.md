@@ -2,6 +2,69 @@
 
 ## [Unreleased]
 
+## [0.6.2] — 2026-08-23
+
+Quattro difetti mostrati dai 24 grafi di una macchina vera, tutti della
+stessa famiglia di 0.6.1: righe identiche per cause opposte.
+
+Il punto di partenza e' stato un `upgrade` reale su 24 progetti .NET, dove
+otto righe dicevano «ricostruito» con la colonna dei file vuota. Dietro
+quelle otto righe c'erano quattro situazioni diverse: due cartelle di
+configurazione nostre, due cartelle di soli binari, tre progetti in VB.NET
+che non sappiamo leggere, e una cartella vuota. La tabella le mostrava
+tutte allo stesso modo.
+
+### Fixed
+
+- **Le nostre cartelle non sono piu' progetti.** `.claude` e
+  `.truenex-memory` erano finite nella cache dei grafi, e da quel momento
+  `known_project_roots` le considerava progetti per sempre: ogni `upgrade`
+  le ripercorreva. La seconda contiene l'archivio e la cache dei grafi
+  stessi. Il filtro (`is_project_root`) prende i nomi dai `marker_dir` dei
+  client che conosciamo — la stessa fonte che dice se un client e'
+  installato — piu' la costante della cartella dati, quindi un client
+  aggiunto domani e' coperto senza che nessuno se ne ricordi.
+- **Un grafo vuoto non sembra piu' un successo.** La tabella di `upgrade`
+  scriveva il conteggio solo se diverso da zero, quindi «0 file» compariva
+  come colonna vuota — che si legge «non lo so», non «niente dentro».
+- **Il linguaggio viene nominato.** `unsupported_languages_seen` esisteva
+  gia' e distingue «non so leggere questo linguaggio» da «non ho trovato
+  relazioni», ma la usava solo `graph build`, dove scorre via fra decine di
+  progetti. Ora `upgrade` scrive `0 file — 79 .vb (VB.NET): grammatica
+  assente`.
+- **Un test che misurava l'ambiente.** `test_upgrade_says_the_graph_does_
+  not_exist_yet` verificava quale ramo capitasse a seconda di come era
+  installata la macchina: verde in sviluppo, rosso in CI, che e' il modo
+  peggiore di sbagliare un test.
+
+### Added
+
+- **`graph forget`.** Un grafo si poteva costruire e non rimuovere: una
+  cartella graficata per sbaglio restava nell'elenco per sempre, e l'unica
+  via era cancellare a mano dei file JSON in un percorso che l'utente non
+  deve conoscere. Accetta nomi o percorsi, ha `--not-projects` per togliere
+  in un colpo le voci che non sono progetti, e `--dry-run` per guardare
+  prima.
+- **`graph status` segnala le voci che non sono progetti** e dice quale
+  comando le toglie.
+
+### Removed
+
+- `releases/version.json`, copia locale di un manifest che vive in un altro
+  repository e che nessuna riga di codice leggeva. Era ferma a 0.5.0 mentre
+  il manifest servito annunciava 0.6.0: due copie della stessa verita' senza
+  niente che le tenga insieme divergono, e questa aveva gia' divergiato di
+  due versioni senza che nulla lo segnalasse.
+
+### Known limits
+
+- **VB.NET resta fuori dal grafo.** L'estrattore (`graphifyy`, di terzi,
+  pre-1.0) non elenca `.vb` fra le estensioni di codice e nessuna delle 25
+  grammatiche installate e' VB. Su PyPI esiste `tree-sitter-vbnet`, ma a
+  v0.1.0. La misura: 93 file su tre progetti su ventiquattro. La ricerca
+  testuale su quei file continua a funzionare — cio' che manca e' solo il
+  «chi chiama chi». Ora il grafo lo dichiara invece di tacerlo.
+
 ## [0.6.1] — 2026-08-23
 
 Tre difetti trovati aggiornando una macchina vera, nessuno dei quali era
