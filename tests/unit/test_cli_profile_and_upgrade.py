@@ -193,10 +193,20 @@ def test_upgrade_migrates_with_a_backup(tmp_path: Path) -> None:
     assert copie, "il backup e' la ragione per cui questo comando esiste"
 
 
-def test_upgrade_says_the_graph_does_not_exist_yet(tmp_path: Path) -> None:
+def test_upgrade_says_the_graph_does_not_exist_yet(tmp_path: Path, monkeypatch) -> None:
     """Su un PC nuovo non c'e' niente da ricostruire, e tacerlo lascerebbe
-    l'utente senza grafo senza sapere perche'."""
+    l'utente senza grafo senza sapere perche'.
 
+    L'estrattore viene dichiarato presente di proposito: e' un extra opzionale,
+    in CI non e' installato, e senza questa forzatura il test verificava quale
+    dei due rami capitava nell'ambiente invece di quello che voleva provare.
+    Difetto trovato dal rilascio, non da me — la prima versione passava qui e
+    cadeva in CI.
+    """
+
+    import truenex_memory.graph as graph_module
+
+    monkeypatch.setattr(graph_module, "graphify_available", lambda: True)
     casa = _casa(tmp_path)
     db = _archivio(casa / ".truenex-memory" / "truenex_memory.db", "7")
 
