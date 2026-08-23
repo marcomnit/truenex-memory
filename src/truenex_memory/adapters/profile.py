@@ -951,12 +951,46 @@ def apply_to_project(root: Path) -> TargetReport:
     return TargetReport(f"progetto {Path(root).name}", percorso, True, azione, prima)
 
 
+def non_project_dirs() -> frozenset[str]:
+    """I nomi di cartella che non possono essere la radice di un progetto.
+
+    Non e' un elenco scritto a mano: sono le cartelle dei client che gia'
+    conosciamo (`marker_dir`, la stessa fonte che dice se un client e'
+    installato) piu' la nostra cartella dati. Se domani aggiungiamo un client,
+    questo filtro lo copre senza che nessuno se ne ricordi.
+    """
+
+    from truenex_memory.core.config import DATA_DIR_NAME
+
+    return frozenset({t.marker_dir for t in CLIENT_TARGETS} | {DATA_DIR_NAME})
+
+
+def is_project_root(percorso: Path) -> bool:
+    """Se *percorso* puo' essere la radice di un progetto di codice.
+
+    Trovato su una macchina vera: fra i 24 grafi che `upgrade` ricostruiva
+    c'erano `.claude` e `.truenex-memory` — la cartella di configurazione di un
+    client e la nostra, quella che contiene l'archivio e la cache dei grafi
+    stessi. Nessuna delle due e' un progetto, ma essendo finite nella cache
+    diventavano radici note per sempre, e ogni aggiornamento le ripercorreva.
+
+    Il controllo guarda tutto il cammino, non solo il nome finale: un grafo
+    costruito su `.claude/qualcosa` non e' piu' un progetto di quanto lo sia
+    `.claude`.
+    """
+
+    esclusi = non_project_dirs()
+    return not any(parte in esclusi for parte in percorso.resolve().parts)
+
+
 def known_project_roots(home: Path | None = None) -> list[Path]:
     """Le radici dei progetti su cui memory ha già lavorato.
 
     Prese dalla cache dei grafi del codice: sono i progetti per cui qualcuno ha
     costruito un grafo, cioe' quelli su cui si lavora davvero. Dedurli
     dall'indice dei documenti darebbe anche cartelle sfiorate una volta.
+
+    Le cartelle di configurazione sono escluse: vedi `is_project_root`.
     """
 
     radice = profile_home() if home is None else home
@@ -973,6 +1007,8 @@ def known_project_roots(home: Path | None = None) -> list[Path]:
         if not percorso or not Path(percorso).is_dir():
             continue
         radice_progetto = repository_root(Path(percorso))
+        if not is_project_root(radice_progetto):
+            continue
         if radice_progetto not in trovate:
             trovate.append(radice_progetto)
     return trovate

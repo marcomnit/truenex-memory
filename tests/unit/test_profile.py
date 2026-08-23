@@ -1295,3 +1295,66 @@ def test_the_same_client_is_one_row_from_any_door(tmp_path: Path) -> None:
 
     assert len(righe) == 1, "una riga per client"
     assert righe[0]["searches"] == 1 and righe[0]["graph_calls"] == 1
+
+
+# ── cosa e' un progetto e cosa non lo e' ──────────────────────────────────
+
+def test_a_client_config_folder_is_not_a_project(tmp_path: Path) -> None:
+    """Trovato su una macchina vera, fra 24 grafi ricostruiti.
+
+    `.claude` e `.truenex-memory` erano finite nella cache dei grafi, e da
+    quel momento erano radici note per sempre: ogni `upgrade` le ripercorreva.
+    La seconda e' la cartella che contiene l'archivio e la cache dei grafi
+    stessi — costruirne il grafo e' guardarsi allo specchio.
+    """
+
+    from truenex_memory.adapters.profile import is_project_root
+
+    assert not is_project_root(tmp_path / ".claude")
+    assert not is_project_root(tmp_path / ".truenex-memory")
+    assert not is_project_root(tmp_path / ".codex")
+    assert is_project_root(tmp_path / "AlboEsperti")
+
+
+def test_a_project_nested_in_a_config_folder_is_not_a_project(tmp_path: Path) -> None:
+    """Il controllo guarda il cammino intero, non solo il nome finale."""
+
+    from truenex_memory.adapters.profile import is_project_root
+
+    assert not is_project_root(tmp_path / ".claude" / "qualcosa")
+
+
+def test_the_excluded_names_come_from_the_clients_we_know(tmp_path: Path) -> None:
+    """Se domani aggiungiamo un client, il filtro lo copre da solo.
+
+    Un elenco scritto a mano richiederebbe che qualcuno si ricordi di
+    aggiornarlo, e nessuno lo fa: e' la stessa ragione per cui questa riga
+    esiste invece di un `frozenset` letterale.
+    """
+
+    from truenex_memory.adapters.profile import CLIENT_TARGETS, non_project_dirs
+
+    esclusi = non_project_dirs()
+    assert {t.marker_dir for t in CLIENT_TARGETS} <= esclusi
+    assert ".truenex-memory" in esclusi
+
+
+def test_known_roots_skips_the_config_folders_in_the_cache(tmp_path: Path) -> None:
+    """Il difetto per come lo si vedeva: la cache le conteneva, il ciclo le usava."""
+
+    import json
+
+    from truenex_memory.adapters.profile import known_project_roots
+
+    cache = tmp_path / ".truenex-memory" / "code_graphs"
+    cache.mkdir(parents=True)
+    for nome in (".claude", ".truenex-memory", "AlboEsperti"):
+        (tmp_path / nome).mkdir(exist_ok=True)
+        (cache / f"{nome.lstrip('.')}.json").write_text(
+            json.dumps({"root": (tmp_path / nome).as_posix(), "edges": []}),
+            encoding="utf-8",
+        )
+
+    radici = [r.name for r in known_project_roots(tmp_path)]
+
+    assert radici == ["AlboEsperti"], radici

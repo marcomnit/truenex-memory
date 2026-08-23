@@ -2747,9 +2747,26 @@ def upgrade(
             try:
                 grafo = build_file_graph(radice)
                 save_file_graph(grafo, cache_dir)
-                rapporto["grafi"].append(
-                    {"progetto": radice.name, "file": grafo.stats.get("files", 0), "esito": "ricostruito"}
-                )
+                voce = {
+                    "progetto": radice.name,
+                    "file": grafo.stats.get("files", 0),
+                    "esito": "ricostruito",
+                }
+                if not voce["file"]:
+                    # Zero file non e' assenza di informazione: e' un grafo
+                    # vuoto. Senza la ragione — nessun sorgente riconosciuto,
+                    # oppure un linguaggio per cui non abbiamo la grammatica —
+                    # e' indistinguibile da un successo, ed e' esattamente
+                    # cosi' che si e' presentato sulla macchina vera: sei
+                    # progetti .NET marcati «ricostruito» e vuoti dentro.
+                    scartati = grafo.stats.get("skipped_by_suffix") or {}
+                    cima = ", ".join(f"{n} {e}" for e, n in list(scartati.items())[:3])
+                    voce["perche"] = (
+                        f"nessun sorgente riconosciuto (scartati {cima})"
+                        if cima
+                        else "nessun file nella cartella"
+                    )
+                rapporto["grafi"].append(voce)
             except GraphifyUnavailable:
                 rapporto["grafi"].append({"progetto": radice.name, "esito": "backend di estrazione assente"})
             except Exception as errore:  # pragma: no cover - un progetto rotto non ferma gli altri
@@ -2774,7 +2791,12 @@ def upgrade(
         typer.echo("")
         typer.echo("grafi del codice:")
         for g in rapporto["grafi"]:
-            dettaglio = f"{g.get('file', '')} file" if g.get("file") else ""
+            if "file" not in g:
+                dettaglio = ""
+            elif g["file"]:
+                dettaglio = f"{g['file']} file"
+            else:
+                dettaglio = f"0 file — {g.get('perche', 'motivo non registrato')}"
             typer.echo(f"  {g['progetto']:32s} {g['esito']:24s} {dettaglio}")
     elif not skip_graphs:
         # Su un'installazione nuova la cache dei grafi e' vuota, quindi non c'e'

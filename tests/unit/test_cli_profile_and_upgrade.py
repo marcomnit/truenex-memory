@@ -265,3 +265,46 @@ def test_upgrade_writes_the_profile_into_installed_clients(tmp_path: Path) -> No
     assert esito.exit_code == 0
     assert "Claude Code" in esito.stdout
     assert (casa / ".claude" / "CLAUDE.md").exists()
+
+
+def test_an_empty_graph_says_so_and_says_why(tmp_path: Path, monkeypatch) -> None:
+    """Il difetto piu' insidioso di ieri, e il piu' facile da non vedere.
+
+    Sulla macchina vera sei progetti .NET sono stati marcati «ricostruito» con
+    la colonna dei file vuota: il codice scriveva il conteggio solo se era
+    diverso da zero, quindi un grafo vuoto era indistinguibile da uno di cui
+    non si sapeva la dimensione. Sei grafi senza niente dentro leggevano come
+    sei successi.
+
+    Ora lo zero si vede, e accanto c'e' la ragione — cioe' le estensioni che
+    il filtro ha lasciato fuori, che e' l'informazione con cui si capisce se
+    manca una grammatica o se la cartella conteneva solo binari.
+    """
+
+    import truenex_memory.graph as graph_module
+    from truenex_memory.graph import FileGraph
+
+    casa = _casa(tmp_path)
+    progetto = tmp_path / "SoloVisualBasic"
+    progetto.mkdir()
+    db = _archivio(casa / ".truenex-memory" / "truenex_memory.db", "7")
+
+    vuoto = FileGraph(
+        root=progetto.as_posix(),
+        edges=[],
+        stats={"files": 0, "skipped_by_suffix": {".vb": 412, ".aspx": 88}, "skipped_total": 500},
+    )
+    monkeypatch.setattr(graph_module, "graphify_available", lambda: True)
+    monkeypatch.setattr(
+        "truenex_memory.adapters.profile.known_project_roots", lambda home: [progetto]
+    )
+    monkeypatch.setattr("truenex_memory.graph.build_file_graph", lambda radice: vuoto)
+    monkeypatch.setattr("truenex_memory.graph.save_file_graph", lambda grafo, cache: None)
+
+    esito = runner.invoke(
+        app, ["upgrade", "--db", str(db), "--home", str(casa), "--skip-profile"]
+    )
+
+    assert esito.exit_code == 0
+    assert "0 file" in esito.stdout, esito.stdout
+    assert "412 .vb" in esito.stdout, "senza le estensioni non si capisce cosa manca"
