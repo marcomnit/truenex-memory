@@ -2,6 +2,62 @@
 
 ## [Unreleased]
 
+## [0.6.1] — 2026-08-23
+
+Tre difetti trovati aggiornando una macchina vera, nessuno dei quali era
+visibile in sviluppo. Tutti della stessa famiglia: un limite che non si
+dichiarava.
+
+### Fixed
+
+- **Le esclusioni erano tarate su un ecosistema.** `bin` e `obj` non erano
+  escluse, quindi su codice .NET il grafo analizzava i `.cs` generati dalla
+  compilazione — AssemblyInfo, file di designer, output di Razor. Misurato su
+  quattordici progetti reali: **844 file C# su 1.851 stavano dentro `bin` o
+  `obj`, il 46%**; su un progetto Blazor erano 81 su 95. Il sintomo che ha fatto
+  guardare: un progetto con 1.132 file sorgente e 82 soli archi, un rapporto che
+  non appartiene a codice scritto da qualcuno. Dopo la correzione lo stesso
+  Blazor analizza 14 file e produce 184 archi fra entita', e un'applicazione web
+  di 168 file ne produce 4.035.
+
+  `packages` NON e' stata aggiunta benche' sia la cartella di NuGet: nei
+  monorepo JavaScript e' esattamente dove vive il codice, ed escluderla per
+  aiutare .NET cancellerebbe il progetto di qualcun altro.
+
+- **Il pacchetto del grafo non era dichiarato da nessuna parte.** Il grafo e' la
+  capacita' principale della 0.6.0 e dipende da un extra opzionale, ma niente lo
+  diceva prima di provare a costruirlo — un requisito che si scopre da un errore
+  e' un requisito nascosto. Ora `upgrade` lo verifica e lo nomina, e il messaggio
+  porta le **virgolette** attorno al nome: senza, PowerShell interpreta le
+  parentesi quadre e il rimedio suggerito fallisce senza nominare la causa.
+
+- **Uno zero muto sui linguaggi che non sappiamo leggere.** Un progetto di otto
+  file VB.NET produceva «0 file sorgente», che chi legge intende come «nessuna
+  relazione» mentre significa «non ho guardato niente»: due risposte opposte
+  scritte allo stesso modo. Ora il comando nomina il linguaggio e dice che la
+  grammatica non esiste — per VB.NET, ASP.NET Web Forms, Razor e SQL non e'
+  una questione di configurazione.
+
+### Added
+
+- Estensioni analizzate: `.ps1`, `.psm1`, `.groovy`, `.ex`, `.exs`, `.jl`.
+  Scelte guardando le grammatiche **davvero installate**, non a memoria. Restano
+  fuori `.vb`, `.aspx`, `.cshtml` e `.sql`, che su codice .NET servirebbero: il
+  parser non esiste, e dichiarare un'estensione senza parser darebbe un elenco
+  piu' lungo e nessun arco in piu'. Fuori anche `.m`, che e' Objective-C e anche
+  MATLAB: analizzare MATLAB come Objective-C produrrebbe entita' plausibili e
+  sbagliate.
+- Venticinque test sui comandi `profile`, `upgrade` e `graph`, che erano provati
+  soltanto a mano. Il rilascio 0.6.0 era fallito in CI per la copertura, e la
+  soglia aveva ragione: un comando che nessun test esegue e' un comando che si
+  scopre rotto dall'utente.
+
+### Note
+
+- Chi ha gia' costruito i grafi con la 0.6.0 li rifaccia: la cache precedente
+  contiene i file generati. `truenex-mem graph build <cartella>` per ciascun
+  progetto.
+
 ## [0.6.0] — 2026-08-22
 
 Due giorni su una domanda sola: perche' un agente che ha la memoria a

@@ -2114,6 +2114,24 @@ def graph_build(
     stats = graph.stats
     typer.echo(f"root:        {graph.root}")
     typer.echo(f"file sorgente: {stats.get('files', 0)}")
+    if not stats.get("files"):
+        # Uno zero muto si legge come «nessuna relazione», mentre significa
+        # «non ho guardato niente». Su una macchina reale un progetto di otto
+        # file VB.NET ha prodotto quello zero, e la differenza fra le due
+        # letture e' tutta.
+        from truenex_memory.graph import unsupported_languages_seen
+
+        non_letti = unsupported_languages_seen(stats.get("skipped_by_suffix") or {})
+        if non_letti:
+            elenco = ", ".join(f"{quanti} {suffisso} ({lingua})" for suffisso, lingua, quanti in non_letti[:4])
+            typer.echo("")
+            typer.echo(f"nessun file analizzabile, ma ce ne sono: {elenco}")
+            typer.echo("  l'estrattore non ha la grammatica per questi linguaggi, quindi il grafo")
+            typer.echo("  non puo' dire niente su questo progetto — non e' un progetto vuoto")
+        elif stats.get("skipped_total"):
+            typer.echo("")
+            typer.echo(f"nessun file analizzabile su {stats['skipped_total']} scartati per estensione")
+            typer.echo("  TRUENEX_GRAPH_SUFFIXES per includerne altre")
     typer.echo(f"entita:      {stats.get('entity_nodes', 0)} nodi, {stats.get('entity_edges', 0)} archi")
     typer.echo(f"archi fra file: {stats.get('file_edges', 0)}")
     # Cio' che il filtro sulle estensioni ha lasciato fuori, per estensione: un

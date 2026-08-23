@@ -145,6 +145,46 @@ LANGUAGE_TYPE_NAMES: frozenset[str] = frozenset(
 
 NOISY_RELATIONS: frozenset[str] = frozenset({"references"})
 
+# Linguaggi che riconosciamo dall'estensione e che NON possiamo analizzare,
+# perche' l'estrattore non ha la grammatica. Serve a trasformare uno zero muto
+# in una spiegazione: su una macchina reale un progetto di otto file `.vb` ha
+# prodotto «0 file sorgente», che si legge come «nessuna relazione» mentre in
+# realta' significa «non ho guardato niente». La differenza fra le due letture
+# e' tutta.
+UNSUPPORTED_LANGUAGES: dict[str, str] = {
+    ".vb": "VB.NET",
+    ".vbs": "VBScript",
+    ".aspx": "ASP.NET Web Forms",
+    ".ascx": "ASP.NET (controlli)",
+    ".cshtml": "Razor",
+    ".vbhtml": "Razor (VB)",
+    ".sql": "SQL",
+    ".pas": "Pascal/Delphi",
+    ".dpr": "Delphi",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+    ".dart": "Dart",
+    ".r": "R",
+    ".pl": "Perl",
+    ".scss": "SCSS",
+    ".xaml": "XAML",
+}
+
+
+def unsupported_languages_seen(skipped: dict[str, int]) -> list[tuple[str, str, int]]:
+    """``[(estensione, linguaggio, quanti)]`` fra gli scartati, dal piu' frequente.
+
+    Distingue «non ho trovato relazioni» da «non so leggere questo linguaggio»,
+    che per chi legge sono due risposte opposte.
+    """
+
+    trovati = [
+        (suffisso, UNSUPPORTED_LANGUAGES[suffisso], quanti)
+        for suffisso, quanti in skipped.items()
+        if suffisso in UNSUPPORTED_LANGUAGES and quanti
+    ]
+    return sorted(trovati, key=lambda voce: -voce[2])
+
 
 class GraphifyUnavailable(RuntimeError):
     """Raised when a caller asks for extraction and Graphify is not installed."""
@@ -553,7 +593,18 @@ def build_file_graph(
     skipped: dict[str, int] = {}
     paths = collect_source_files(root, limit=limit, skipped_out=skipped)
     if not paths:
-        return FileGraph(root=root.as_posix(), edges=[], stats={"files": 0})
+        # Le estensioni scartate viaggiano anche quando non c'e' niente da
+        # analizzare: sono l'unica informazione che distingue «progetto vuoto»
+        # da «linguaggio che non so leggere».
+        return FileGraph(
+            root=root.as_posix(),
+            edges=[],
+            stats={
+                "files": 0,
+                "skipped_by_suffix": dict(sorted(skipped.items(), key=lambda kv: -kv[1])[:10]),
+                "skipped_total": sum(skipped.values()),
+            },
+        )
 
     result = extract(paths, root=root, parallel=parallel)
     nodes = result.get("nodes", [])

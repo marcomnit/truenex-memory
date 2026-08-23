@@ -468,3 +468,97 @@ def test_candidates_never_enter_the_callers_list() -> None:
 
     assert "candidate_callers_from_text" in descrizione
     assert "never to be reported as graph-resolved" in descrizione
+
+
+# ── uno zero che si spiega ─────────────────────────────────────────────────
+
+def test_an_unreadable_language_is_named(tmp_path: Path) -> None:
+    """Trovato su una macchina vera, con ventiquattro progetti .NET.
+
+    Un progetto di otto file `.vb` produceva «0 file sorgente». Chi legge quello
+    zero capisce «nessuna relazione», mentre significa «non ho guardato niente»:
+    due risposte opposte scritte allo stesso modo. E la differenza non e'
+    rimediabile con la configurazione — per VB.NET la grammatica non esiste,
+    quindi l'unica cosa onesta e' dirlo.
+    """
+
+    from truenex_memory.graph import unsupported_languages_seen
+
+    trovati = unsupported_languages_seen({".vb": 8, ".config": 4, ".dll": 5})
+
+    assert trovati == [(".vb", "VB.NET", 8)]
+
+
+def test_the_most_frequent_language_comes_first(tmp_path: Path) -> None:
+    from truenex_memory.graph import unsupported_languages_seen
+
+    trovati = unsupported_languages_seen({".sql": 2, ".vb": 30, ".cshtml": 7})
+
+    assert [nome for _, nome, _ in trovati] == ["VB.NET", "Razor", "SQL"]
+
+
+def test_a_supported_language_is_not_reported_as_unreadable() -> None:
+    """`.py` e `.cs` si leggono: nominarli sarebbe un allarme falso."""
+
+    from truenex_memory.graph import unsupported_languages_seen
+
+    assert unsupported_languages_seen({".py": 10, ".cs": 4, ".json": 900}) == []
+
+
+def test_an_empty_project_still_reports_what_it_skipped(tmp_path: Path) -> None:
+    """Le estensioni scartate viaggiano anche quando non c'e' niente da analizzare.
+
+    Prima il ritorno anticipato perdeva quel conteggio, quindi proprio nel caso
+    in cui serviva spiegare non c'era niente con cui spiegare.
+    """
+
+    from truenex_memory.graph import collect_source_files
+
+    (tmp_path / "Modulo.vb").write_text("Public Class Prova\n", encoding="utf-8")
+    (tmp_path / "app.config").write_text("<config/>\n", encoding="utf-8")
+
+    scartati: dict[str, int] = {}
+    trovati = collect_source_files(tmp_path, skipped_out=scartati)
+
+    assert trovati == []
+    assert scartati[".vb"] == 1
+
+
+def test_dotnet_build_output_is_excluded(tmp_path: Path) -> None:
+    """1.132 file e 82 archi: erano i `.cs` generati dentro `obj`.
+
+    Misurato su ventiquattro progetti .NET reali. Gonfiano il conteggio, non
+    producono relazioni utili, e ricompaiono a ogni compilazione.
+    """
+
+    from truenex_memory.graph import collect_source_files
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Vero.cs").write_text("class Vero {}\n", encoding="utf-8")
+    for cartella in ("obj", "bin"):
+        (tmp_path / cartella).mkdir()
+        (tmp_path / cartella / "AssemblyInfo.cs").write_text("// generato\n", encoding="utf-8")
+
+    trovati = collect_source_files(tmp_path)
+
+    assert [p.name for p in trovati] == ["Vero.cs"]
+
+
+def test_a_javascript_monorepo_keeps_its_packages_folder(tmp_path: Path) -> None:
+    """`packages` non e' fra le esclusioni, benche' sia la cartella di NuGet.
+
+    Nei monorepo JavaScript e' esattamente dove vive il codice: escluderla per
+    aiutare .NET cancellerebbe il progetto intero di qualcun altro. Una regola
+    giusta per un ecosistema e' un disastro in un altro.
+    """
+
+    from truenex_memory.graph import collect_source_files
+
+    (tmp_path / "packages" / "core" / "src").mkdir(parents=True)
+    (tmp_path / "packages" / "core" / "src" / "indice.ts").write_text(
+        "export const x = 1\n", encoding="utf-8"
+    )
+
+    trovati = collect_source_files(tmp_path)
+
+    assert [p.name for p in trovati] == ["indice.ts"]

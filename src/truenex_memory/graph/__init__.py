@@ -28,6 +28,7 @@ from truenex_memory.graph.code_graph import (
     load_file_graph,
     save_file_graph,
     text_call_sites,
+    unsupported_languages_seen,
 )
 from truenex_memory.graph.refresh import (
     AUTO_REBUILD_ENV,
@@ -60,6 +61,7 @@ __all__ = [
     "load_file_graph",
     "save_file_graph",
     "text_call_sites",
+    "unsupported_languages_seen",
     "AUTO_REBUILD_ENV",
     "auto_rebuild_enabled",
     "ensure_current",
