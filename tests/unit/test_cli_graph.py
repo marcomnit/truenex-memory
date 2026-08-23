@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from truenex_memory.cli.main import app
@@ -174,3 +175,64 @@ def test_build_if_stale_does_nothing_when_current(tmp_path: Path) -> None:
 
     assert esito.exit_code == 0
     assert "aggiornato" in esito.stdout
+
+
+def test_the_missing_backend_message_quotes_the_package_name(tmp_path: Path, monkeypatch) -> None:
+    """Trovato aggiornando una macchina vera.
+
+    Il grafo e' la capacita' principale di questa versione e dipende da un
+    pacchetto opzionale, ma niente lo diceva prima di provare a costruirlo: un
+    requisito che si scopre da un errore e' un requisito nascosto.
+
+    E le virgolette intorno al nome non sono un vezzo: senza, PowerShell e zsh
+    interpretano le parentesi quadre e il comando suggerito fallisce con un
+    errore che non nomina nemmeno la causa. Un rimedio che non funziona quando
+    lo si incolla e' peggio di nessun rimedio.
+
+    La prima versione di questo test sollevava lui l'eccezione e poi ne
+    verificava il testo: una tautologia, che sarebbe passata anche cancellando
+    il messaggio dal codice. Qui si chiama la funzione vera.
+    """
+
+    from truenex_memory.graph import code_graph
+
+    monkeypatch.setattr(code_graph, "graphify_available", lambda: False)
+
+    with pytest.raises(code_graph.GraphifyUnavailable) as errore:
+        code_graph.build_file_graph(tmp_path)
+
+    messaggio = str(errore.value)
+    assert '"truenex-memory[graph]"' in messaggio, (
+        "senza virgolette PowerShell interpreta le parentesi quadre"
+    )
+    assert "pipx" in messaggio
+
+
+def test_upgrade_names_the_missing_backend(tmp_path: Path, monkeypatch) -> None:
+    """`upgrade` e' il momento in cui la mancanza va detta, non dopo."""
+
+    import truenex_memory.graph as graph_module
+    from typer.testing import CliRunner as _Runner
+
+    casa = tmp_path / "casa"
+    (casa / ".truenex-memory").mkdir(parents=True)
+    db = casa / ".truenex-memory" / "truenex_memory.db"
+    conn = __import__("sqlite3").connect(db)
+    conn.executescript(
+        "CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT);"
+        "INSERT INTO schema_migrations VALUES ('7', '2026-01-01');"
+        "CREATE TABLE documents (id TEXT PRIMARY KEY, path TEXT);"
+        "INSERT INTO documents VALUES ('a', 'x.md');"
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(graph_module, "graphify_available", lambda: False)
+
+    esito = _Runner().invoke(
+        app, ["upgrade", "--db", str(db), "--home", str(casa), "--skip-profile"]
+    )
+
+    assert esito.exit_code == 0
+    assert "manca il pacchetto" in esito.stdout
+    assert '"truenex-memory[graph]"' in esito.stdout

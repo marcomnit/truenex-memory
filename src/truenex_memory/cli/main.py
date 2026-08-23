@@ -2763,9 +2763,20 @@ def upgrade(
         # niente da ricostruire — e tacere lascerebbe l'utente senza grafo senza
         # sapere perche'. Il primo grafo lo costruisce solo un comando esplicito:
         # la ricostruzione automatica aggiorna cio' che esiste, non lo crea.
+        from truenex_memory.graph import graphify_available
+
         typer.echo("")
-        typer.echo("grafi del codice: nessuno da ricostruire (non ne esiste ancora)")
-        typer.echo("  il primo si costruisce con: truenex-mem graph build <cartella del progetto>")
+        if not graphify_available():
+            # Il caso trovato aggiornando una macchina vera: il grafo e' la
+            # capacita' principale di questa versione e dipende da un pacchetto
+            # opzionale, ma niente lo diceva prima di provare a costruirlo. Un
+            # requisito che si scopre da un errore e' un requisito nascosto.
+            typer.echo("grafi del codice: manca il pacchetto per estrarli")
+            typer.echo('  installalo con: pip install --upgrade "truenex-memory[graph]"')
+            typer.echo("  (con pipx: pipx install --force \"truenex-memory[graph]\")")
+        else:
+            typer.echo("grafi del codice: nessuno da ricostruire (non ne esiste ancora)")
+            typer.echo("  il primo si costruisce con: truenex-mem graph build <cartella del progetto>")
     if rapporto["profilo"]:
         typer.echo("")
         typer.echo("profilo nei client:")

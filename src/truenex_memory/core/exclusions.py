@@ -32,6 +32,20 @@ DEFAULT_EXCLUDED_DIRS = {
     # store). They also regenerate on every build, so excluding them at
     # the source is the only durable fix.
     "target", ".fingerprint",
+    # Output di compilazione .NET. Misurato su una macchina reale il
+    # 2026-08-23: su ventiquattro progetti .NET, uno mostrava 1.132 file
+    # sorgente e 82 soli archi, e un altro 2.076 file con 176 archi — rapporti
+    # che non appartengono a codice scritto da qualcuno. Erano i `.cs` generati
+    # dentro `obj` (AssemblyInfo, file di Razor, designer) contati come
+    # sorgenti: gonfiano il conteggio, non producono relazioni utili, e
+    # ricompaiono a ogni compilazione.
+    #
+    # `packages` NON e' in questa lista di proposito, benche' sia la cartella di
+    # NuGet: nei monorepo JavaScript (pnpm, lerna) `packages/` e' esattamente
+    # dove vive il codice sorgente, e escluderla cancellerebbe l'intero
+    # progetto. Una regola giusta per un ecosistema e' un disastro in un altro,
+    # ed e' lo stesso errore che il prefisso `.venv` ci aveva gia' insegnato.
+    "bin", "obj",
     ".idea", ".vscode", ".history", ".DS_Store",
     # Agent worktrees (e.g. `.claude/worktrees/agent-*`) are ephemeral
     # copies of the repository: indexing them makes search return outdated

@@ -74,6 +74,16 @@ DEFAULT_CODE_SUFFIXES: frozenset[str] = frozenset(
         ".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
         ".go", ".java", ".kt", ".swift", ".rb", ".php", ".lua",
         ".c", ".h", ".cpp", ".hpp", ".cc", ".cs", ".sh",
+        # Aggiunte dopo aver guardato le grammatiche davvero installate: di
+        # queste l'estrattore ha il parser, quindi produrranno relazioni vere.
+        # Non aggiungo `.vb`, `.aspx`, `.cshtml` ne' `.sql`, che pure servirebbero
+        # su codice .NET: la grammatica non esiste, e dichiarare un'estensione
+        # senza parser darebbe un elenco piu' lungo e nessun arco in piu'.
+        #  resta fuori: e' Objective-C e anche MATLAB, e l'unica grammatica
+        # installata e' quella di Objective-C. Analizzare MATLAB come Objective-C
+        # produrrebbe entita' plausibili e sbagliate — il difetto peggiore fra
+        # quelli possibili, perche' nessuno andrebbe a controllarle.
+        ".ps1", ".psm1", ".groovy", ".ex", ".exs", ".jl",
     }
 )
 
@@ -527,9 +537,14 @@ def build_file_graph(
     """
 
     if not graphify_available():
+        # Le virgolette intorno al nome non sono un vezzo: senza, PowerShell e
+        # zsh interpretano le parentesi quadre e il comando fallisce con un
+        # errore che non nomina la causa. Un rimedio suggerito che non funziona
+        # quando lo si incolla e' peggio di nessun rimedio.
         raise GraphifyUnavailable(
-            "code graph extraction needs the optional backend: "
-            "pip install truenex-memory[graph]"
+            "manca il pacchetto che estrae il grafo del codice. Installalo con:\n"
+            '    pip install --upgrade "truenex-memory[graph]"\n'
+            '    (con pipx: pipx install --force "truenex-memory[graph]")'
         )
 
     from graphify.extract import extract
