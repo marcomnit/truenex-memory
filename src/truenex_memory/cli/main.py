@@ -2758,6 +2758,14 @@ def upgrade(
         for g in rapporto["grafi"]:
             dettaglio = f"{g.get('file', '')} file" if g.get("file") else ""
             typer.echo(f"  {g['progetto']:32s} {g['esito']:24s} {dettaglio}")
+    elif not skip_graphs:
+        # Su un'installazione nuova la cache dei grafi e' vuota, quindi non c'e'
+        # niente da ricostruire — e tacere lascerebbe l'utente senza grafo senza
+        # sapere perche'. Il primo grafo lo costruisce solo un comando esplicito:
+        # la ricostruzione automatica aggiorna cio' che esiste, non lo crea.
+        typer.echo("")
+        typer.echo("grafi del codice: nessuno da ricostruire (non ne esiste ancora)")
+        typer.echo("  il primo si costruisce con: truenex-mem graph build <cartella del progetto>")
     if rapporto["profilo"]:
         typer.echo("")
         typer.echo("profilo nei client:")
