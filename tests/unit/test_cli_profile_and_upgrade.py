@@ -308,3 +308,8 @@ def test_an_empty_graph_says_so_and_says_why(tmp_path: Path, monkeypatch) -> Non
     assert esito.exit_code == 0
     assert "0 file" in esito.stdout, esito.stdout
     assert "412 .vb" in esito.stdout, "senza le estensioni non si capisce cosa manca"
+    assert "VB.NET" in esito.stdout, (
+        "nominare il linguaggio e' la differenza fra «non so leggerlo» e "
+        "«non c'e' niente dentro»"
+    )
+    assert "grammatica assente" in esito.stdout

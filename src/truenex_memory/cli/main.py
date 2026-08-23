@@ -2759,13 +2759,23 @@ def upgrade(
                     # e' indistinguibile da un successo, ed e' esattamente
                     # cosi' che si e' presentato sulla macchina vera: sei
                     # progetti .NET marcati «ricostruito» e vuoti dentro.
+                    # La ragione la sa gia' `unsupported_languages_seen`, che
+                    # distingue «non so leggere questo linguaggio» da «non ho
+                    # trovato niente»: due risposte opposte per chi legge. Era
+                    # usata solo da `graph build`, dove scorre via; qui e' il
+                    # punto in cui l'utente guarda davvero.
+                    from truenex_memory.graph import unsupported_languages_seen
+
                     scartati = grafo.stats.get("skipped_by_suffix") or {}
-                    cima = ", ".join(f"{n} {e}" for e, n in list(scartati.items())[:3])
-                    voce["perche"] = (
-                        f"nessun sorgente riconosciuto (scartati {cima})"
-                        if cima
-                        else "nessun file nella cartella"
-                    )
+                    non_letti = unsupported_languages_seen(scartati)
+                    if non_letti:
+                        suffisso, lingua, quanti = non_letti[0]
+                        voce["perche"] = f"{quanti} {suffisso} ({lingua}): grammatica assente"
+                    elif scartati:
+                        cima = ", ".join(f"{n} {e}" for e, n in list(scartati.items())[:3])
+                        voce["perche"] = f"nessun sorgente riconosciuto (scartati {cima})"
+                    else:
+                        voce["perche"] = "nessun file nella cartella"
                 rapporto["grafi"].append(voce)
             except GraphifyUnavailable:
                 rapporto["grafi"].append({"progetto": radice.name, "esito": "backend di estrazione assente"})
