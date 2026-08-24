@@ -902,7 +902,22 @@ def run_serve(
     port: int = 8000,
     project_root: str = ".",
 ) -> None:
-    radice = Path(project_root).resolve()
+    # `TRUENEX_PROJECT_ROOT` vince se `--project-root` non e' stato chiesto.
+    #
+    # Il difetto che questo chiude. La variabile d'ambiente e' il canale con cui
+    # l'app desktop dice al backend quale archivio aprire, e la passa
+    # correttamente. Ma qui veniva SOVRASCRITTA con il valore predefinito ".",
+    # cioe' la cartella corrente: un server avviato con `truenex-mem serve` da
+    # dentro il repo del sorgente apriva un archivio di prova da 171 documenti,
+    # ignorando in silenzio la variabile che gli diceva di aprirne uno da 18.426.
+    #
+    # Chi passa `--project-root` esplicitamente comanda ancora: e' una richiesta,
+    # non un valore ereditato, e deve battere l'ambiente.
+    dall_ambiente = os.environ.get("TRUENEX_PROJECT_ROOT", "").strip()
+    if project_root in (".", Path(".")) and dall_ambiente:
+        radice = Path(dall_ambiente).resolve()
+    else:
+        radice = Path(project_root).resolve()
     os.environ["TRUENEX_PROJECT_ROOT"] = str(radice)
 
     # Quale negozio si sta aprendo, DETTO ad alta voce prima di servire.

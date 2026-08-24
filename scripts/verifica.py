@@ -239,7 +239,12 @@ def prova_scope() -> None:
 def prova_api(atteso: dict) -> None:
     """Il server che serve l'app guarda lo STESSO archivio."""
 
-    for porta in (8777, 8000):
+    # La 8000 per prima perche' e' quella che il frontend usa per difetto: era
+    # l'errore di questa prova. Controllavo la 8777, dove avevo avviato io un
+    # server sull'archivio giusto, e dichiaravo OK — mentre l'app leggeva la
+    # 8000, dove ce n'era un altro sull'archivio sbagliato. Una prova che guarda
+    # una porta diversa da quella del prodotto non misura il prodotto.
+    for porta in (8000, 8777):
         try:
             with urllib.request.urlopen(f"http://127.0.0.1:{porta}/api/stats", timeout=5) as risposta:
                 d = json.loads(risposta.read().decode("utf-8"))
