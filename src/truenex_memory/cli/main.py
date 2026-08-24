@@ -146,6 +146,8 @@ app.add_typer(global_app, name="global")
 app.add_typer(profile_app, name="profile")
 app.add_typer(graph_app, name="graph")
 app.add_typer(agent_app, name="agent")
+from truenex_memory.cli.projects_commands import projects_app
+app.add_typer(projects_app, name="projects")
 app.add_typer(task_app, name="task")
 app.add_typer(orchestrate_app, name="orchestrate")
 app.add_typer(license_app, name="license")
