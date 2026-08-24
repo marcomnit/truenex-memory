@@ -14,7 +14,7 @@ import httpx
 
 from truenex_memory import __version__
 from truenex_memory.core.memory_service import MemoryService
-from truenex_memory.core.config import resolve_project_config
+from truenex_memory.core.config import DATA_DIR_NAME, DB_FILENAME, resolve_project_config
 from truenex_memory.core.llm_client import chat_with_llm
 from truenex_memory.core.chat_engine import gather_chat_context
 from truenex_memory.store.models import SearchHit
@@ -452,15 +452,52 @@ def get_source(source_id: str):
 
 @app.get("/api/stats")
 def stats():
+    """Cosa contiene il negozio aperto, e QUALE negozio e'.
+
+    Due difetti chiusi qui.
+
+    Il primo: `projects` era la costante `1`, scritta a mano. L'interfaccia
+    mostrava «1 progetto» mentre nel database ce n'erano cinquantotto. Un numero
+    inventato e' peggio di un numero assente, perche' nessuno lo mette in dubbio.
+
+    Il secondo: la risposta non diceva DA DOVE veniva. `serve` prende il negozio
+    da `<radice>/.truenex-memory/`, e la radice per difetto e' la cartella
+    corrente: avviarlo dentro il repo del sorgente apre un database di prova da
+    14 MB invece dell'archivio da 3,5 GB nella cartella utente. E' successo, per
+    un pomeriggio intero, e non c'era modo di accorgersene guardando l'app —
+    sembrava solo che l'archivio fosse quasi vuoto. Ora il percorso e' nella
+    risposta.
+    """
+
     svc = _get_service()
     s = svc.stats() if svc.config.db_path.exists() else {}
+
+    progetti = 0
+    if svc.config.db_path.exists():
+        from truenex_memory.store.sqlite import connect
+
+        with connect(svc.config.db_path) as conn:
+            progetti = conn.execute(
+                "SELECT COUNT(DISTINCT project_name) FROM source_ledger WHERE status = 'active'"
+            ).fetchone()[0]
+
     return {
-        "projects": 1,
+        "projects": progetti,
         "documents": s.get("documents", 0),
         "chunks": s.get("chunks", 0),
         "total_tokens": s.get("total_tokens", 0),
         "memory_nodes": s.get("memory_nodes", 0),
         "vector_backend": svc.vector_store_status,
+        # Quale negozio e' aperto. Chi legge deve poterlo verificare senza
+        # indovinare dalla quantita' di roba che ci trova.
+        "store": {
+            "project_root": str(svc.config.project_root),
+            "db_path": str(svc.config.db_path),
+            "db_exists": svc.config.db_path.exists(),
+            "db_size_bytes": (
+                svc.config.db_path.stat().st_size if svc.config.db_path.exists() else 0
+            ),
+        },
     }
 
 
@@ -865,7 +902,43 @@ def run_serve(
     port: int = 8000,
     project_root: str = ".",
 ) -> None:
-    os.environ["TRUENEX_PROJECT_ROOT"] = str(Path(project_root).resolve())
+    radice = Path(project_root).resolve()
+    os.environ["TRUENEX_PROJECT_ROOT"] = str(radice)
+
+    # Quale negozio si sta aprendo, DETTO ad alta voce prima di servire.
+    #
+    # `project_root` per difetto e' la cartella corrente. Avviare il server
+    # dentro il repo del sorgente apre `truenex-memory/.truenex-memory/`, che
+    # contiene un database di prova da 14 MB con un solo progetto, invece
+    # dell'archivio nella cartella utente: 3,5 GB, 58 progetti, 18.426
+    # documenti. E' capitato, e per un pomeriggio l'app e' sembrata vuota senza
+    # che niente lo segnalasse — l'unico indizio era che ci si trovava poca
+    # roba, e la poca roba non e' un errore riconoscibile.
+    db = radice / DATA_DIR_NAME / DB_FILENAME
+    if db.exists():
+        try:
+            from truenex_memory.store.sqlite import connect
+
+            with connect(db) as conn:
+                fonti, progetti = conn.execute(
+                    "SELECT COUNT(*), COUNT(DISTINCT project_name)"
+                    " FROM source_ledger WHERE status = 'active'"
+                ).fetchone()
+            print(
+                f"[truenex-memory] negozio: {db}"
+                f"  ({db.stat().st_size / 1e6:.0f} MB, {fonti} sorgenti, {progetti} progetti)",
+                flush=True,
+            )
+        except Exception as exc:  # pragma: no cover - diagnostica, non logica
+            print(f"[truenex-memory] negozio: {db}  (illeggibile: {exc})", flush=True)
+    else:
+        print(
+            f"[truenex-memory] ATTENZIONE: nessun database in {db}."
+            f"  Radice: {radice}."
+            "  Se non e' quella che ti aspetti, passa --project-root.",
+            flush=True,
+        )
+
     uvicorn.run(
         "truenex_memory.serve:app",
         host=host,
