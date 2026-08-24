@@ -203,37 +203,57 @@ def prova_ricerca() -> None:
 
 
 def prova_scope() -> None:
-    """DIFETTO NOTO: lo scope filtra i documenti e non le memorie.
+    """Lo scope dichiara a quale meta' del corpus e' arrivato.
 
-    Non e' una prova che deve passare: e' una prova che deve DIRE la verita' su
-    un difetto conosciuto, cosi' chi verifica non lo scopre da solo credendo di
-    aver trovato qualcosa di nuovo. Il giorno che il difetto viene chiuso, questa
-    riga cambia esito da sola.
+    Cosa misura, e perche' non misura quello che sembra. Lo scope filtra i chunk
+    dei documenti e NON i nodi di memoria: una memoria pertinente a un progetto,
+    ma scritta durante una sessione di un altro, entra comunque. Non e' una
+    dimenticanza — il percorso di una memoria registra dove e' stata scritta, non
+    di cosa parla, e filtrare per percorso escluderebbe la maggioranza delle
+    memorie giuste.
+
+    Quindi la prova non chiede che i risultati vengano da un solo progetto:
+    chiede che la risposta lo DICHIARI. Un limite dichiarato e' un limite; un
+    limite taciuto e' un difetto, ed e' quello che c'era prima — `applied: true`
+    accanto a risultati di un altro progetto, senza una parola.
     """
 
     from truenex_memory.mcp.tools import memory_search
 
     r = memory_search("routing system logs", top_k=3, scope="AI_Agent", project_root=Path.home())
-    da = (r.get("scope") or {}).get("answered_from") or []
-    applicato = (r.get("scope") or {}).get("applied")
+    blocco = r.get("scope") or {}
+    da = blocco.get("answered_from") or []
+    copertura = blocco.get("coverage") or {}
     estranei = [p for p in da if p != "AI_Agent"]
 
-    if applicato and estranei:
+    if not copertura:
         _riga(
-            "NOTO",
-            "Lo scope restringe davvero la ricerca",
-            f"chiesto AI_Agent, risposto anche da: {', '.join(estranei)}\n"
-            f"la risposta dichiara applied={applicato}, ma il filtro copre solo i chunk\n"
-            "dei documenti: _search_memories non ha il parametro scope.\n"
-            "Difetto conosciuto, in attesa di decisione. Non e' una scoperta nuova.",
+            "ROTTO",
+            "Lo scope dichiara a cosa e' stato applicato",
+            "la risposta non porta `scope.coverage`: chi legge non puo' sapere\n"
+            "se un risultato di un altro progetto e' un limite noto o un difetto",
         )
         return
-    if not estranei:
-        _riga("OK", "Lo scope restringe davvero la ricerca",
-              f"risposto solo da: {', '.join(da) or 'nessuna fonte'}")
+
+    dettaglio = (
+        f"documenti: {copertura.get('document_chunks')}, "
+        f"memorie: {copertura.get('memory_nodes')}\n"
+        f"risposto da: {', '.join(da) or 'nessuna fonte'}"
+    )
+    if estranei and not blocco.get("coverage_note"):
+        _riga(
+            "ROTTO",
+            "Lo scope dichiara a cosa e' stato applicato",
+            dettaglio + f"\nfuori dallo scope: {', '.join(estranei)}, e la risposta non"
+            " lo spiega",
+        )
         return
-    _riga("OK", "Lo scope restringe davvero la ricerca",
-          f"applied={applicato}, fonti dichiarate: {', '.join(da)}")
+    if estranei:
+        dettaglio += (
+            f"\nfuori dallo scope: {', '.join(estranei)} — dichiarato:"
+            " le memorie non sono ristrette (limite noto, non un difetto)"
+        )
+    _riga("OK", "Lo scope dichiara a cosa e' stato applicato", dettaglio)
 
 
 def prova_api(atteso: dict) -> None:

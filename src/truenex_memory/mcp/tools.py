@@ -202,9 +202,28 @@ def memory_search(
         payload["scope"] = {
             "requested": scope,
             "applied": diagnostics.get("scope_applied"),
+            # A quale meta' del corpus il filtro e' arrivato. `applied` da solo
+            # afferma piu' di quanto sia vero: i chunk dei documenti vengono
+            # filtrati, i nodi di memoria no. Il campo si AGGIUNGE invece di
+            # cambiare la forma di `applied`, perche' trasformare un booleano
+            # pubblico in un oggetto romperebbe chi lo legge oggi.
+            "coverage": diagnostics.get("scope_coverage"),
             "answered_from": diagnostics.get("answered_from"),
             "store": "project" if project_store else "global",
         }
+        # Le memorie non ristrette sono la ragione piu' probabile per cui
+        # `answered_from` elenca progetti che non sono stati chiesti. Dirlo qui
+        # evita che chi verifica lo scopra da solo credendo di aver trovato un
+        # difetto nuovo — e' un limite conosciuto, non una sorpresa.
+        estranei = [
+            p for p in (diagnostics.get("answered_from") or []) if scope and p != scope
+        ]
+        if estranei and diagnostics.get("scope_applied"):
+            payload["scope"]["coverage_note"] = (
+                "il filtro copre i documenti indicizzati, NON le memorie: una memoria"
+                f" pertinente scritta altrove entra comunque. Fuori da '{scope}': "
+                + ", ".join(estranei)
+            )
         if project_store:
             payload["scope"]["note"] = (
                 "archivio di questo solo progetto: lo scope non restringe niente "

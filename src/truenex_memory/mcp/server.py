@@ -331,7 +331,18 @@ def _tool_definitions() -> list[dict[str, Any]]:
                             "answers found (2/32 -> 4/32 on a held-out set, MRR "
                             "0.042 -> 0.094). Omit it for genuinely "
                             "cross-project questions; a WRONG scope makes the "
-                            "answer unreachable rather than merely worse."
+                            "answer unreachable rather than merely worse. "
+                            "IT RESTRICTS DOCUMENTS ONLY: memory nodes — the "
+                            "decisions and notes written while working — are "
+                            "searched unrestricted, because a memory's path "
+                            "records where it was WRITTEN, not what it is "
+                            "about (measured: 85 of 3120 memories carry their "
+                            "project's name in the path; the rest sit under the "
+                            "session file they were born in). So a result from "
+                            "another project is a declared limit, not a bug: "
+                            "the reply's `scope.coverage` names which half was "
+                            "filtered, and `answered_from` names every project "
+                            "the answer came from."
                         ),
                     },
                 },

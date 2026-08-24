@@ -521,6 +521,31 @@ class MemoryRepository:
                     answered_from=sorted(
                         {hit.project for hit in results if hit.project}
                     ),
+                    # A QUALE META' del corpus lo scope e' stato applicato.
+                    #
+                    # La ricerca fonde due sorgenti: i chunk dei documenti e i
+                    # nodi di memoria. `scope` arriva solo al primo ramo —
+                    # `_search_memories` non ha nemmeno il parametro — quindi
+                    # `scope_applied=True` da solo afferma piu' di quanto sia
+                    # vero: chiedendo AI_Agent puo' arrivare in cima una memoria
+                    # scritta durante una sessione di un altro progetto, e chi
+                    # legge non ha modo di sapere se e' un difetto o il
+                    # comportamento.
+                    #
+                    # Perche' non si filtra anche il secondo ramo: il
+                    # `source_path` di una memoria registra DOVE e' stata
+                    # scritta, non di cosa parla. Misurato su questo archivio,
+                    # su 3.120 memorie solo 85 hanno il nome del progetto nel
+                    # percorso: le altre sono archiviate sotto il file della
+                    # sessione in cui sono nate. Filtrare per percorso
+                    # escluderebbe la maggioranza delle memorie pertinenti e
+                    # farebbe passare quelle irrilevanti scritte per caso nel
+                    # posto giusto. Serve prima un'attribuzione di progetto
+                    # esplicita, ed e' un lavoro a parte.
+                    scope_coverage={
+                        "document_chunks": "filtered" if bool(scope) and not scope_fell_back else "unfiltered",
+                        "memory_nodes": "unfiltered",
+                    },
                 )
             self.last_trace_id = self._record_retrieval_log(conn, query, top_k, results)
             conn.commit()
