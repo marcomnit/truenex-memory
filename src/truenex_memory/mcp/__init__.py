@@ -14,7 +14,10 @@ from typing import Any, Callable
 from truenex_memory.adapters import render_agents_md, render_claude_md, write_agent_docs
 from truenex_memory.diagnostics import run_diagnostics
 from truenex_memory.export import export_json, import_json
-from truenex_memory.mcp.tools import global_project_context, global_status, memory_add, memory_search
+from truenex_memory.mcp.tools import (
+    global_project_context, global_status, memory_add, memory_get, memory_graph,
+    memory_search, task_close, task_open, task_step_add,
+)
 
 Tool = Callable[..., Any]
 
@@ -34,11 +37,24 @@ def _tool_write_agent_docs(directory: str, project_name: str = "Truenex Memory",
     return {name: str(path) for name, path in written.items()}
 
 
+# Il registro della riga di comando deve contenere TUTTI i tool che il server
+# stdio espone agli agenti. Prima ne conteneva quattro su nove: mancavano
+# `memory_graph`, `memory_get` e i tre `task_*`. La conseguenza pratica e' che il
+# tool piu' utile del prodotto — le relazioni del codice — non era provabile da
+# terminale: chi voleva verificarlo doveva collegare un client MCP.
+#
+# La verifica a mano non e' un extra. Chi non puo' provare una cosa da terminale
+# la prova in produzione.
 TOOLS: dict[str, Tool] = {
     "global_project_context": global_project_context,
     "global_status": global_status,
     "memory_add": memory_add,
+    "memory_get": memory_get,
+    "memory_graph": memory_graph,
     "memory_search": memory_search,
+    "task_open": task_open,
+    "task_step_add": task_step_add,
+    "task_close": task_close,
     "diagnostics.run": run_diagnostics,
     "export.json": _tool_export_json,
     "import.json": _tool_import_json,
