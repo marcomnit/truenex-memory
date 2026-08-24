@@ -940,6 +940,150 @@ def load_file_graph(cache_dir: Path, root: Path) -> FileGraph | None:
     return FileGraph.from_dict(data)
 
 
+@dataclass(frozen=True)
+class CachedGraph:
+    """Una voce della cache dei grafi, con il suo stato dichiarato.
+
+    `status` e' un enumerato ASCII stabile — `ok`, `unreadable`, `old_version`,
+    `root_missing` — perche' un client ci scrive dei confronti sopra: valori in
+    italiano sarebbero etichette d'interfaccia dentro un contratto. La frase
+    leggibile sta in `detail`.
+
+    Una voce che non si riesce a leggere NON scompare dall'elenco: resta con la
+    sua ragione e i conteggi a zero, perche' un grafo che manca in silenzio e'
+    indistinguibile da un progetto che non esiste.
+
+    `stats` conserva il dizionario INTERO del grafo: contiene anche
+    `skipped_by_suffix`, `skipped_total` e `relations`, cioe' i limiti che il
+    grafo dichiara. Tenerne solo tre chiavi li avrebbe buttati in silenzio.
+    """
+
+    root: str
+    name: str
+    cache_file: str
+    files: int
+    file_edges: int
+    entity_edges: int
+    status: str
+    detail: str | None = None
+    root_exists: bool | None = True
+    stats: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "root": self.root,
+            "name": self.name,
+            "cache_file": self.cache_file,
+            "files": self.files,
+            "file_edges": self.file_edges,
+            "entity_edges": self.entity_edges,
+            "status": self.status,
+            "detail": self.detail,
+            "root_exists": self.root_exists,
+        }
+
+
+def _conteggio(valore: Any) -> int:
+    """Un intero, o zero — senza mai sollevare.
+
+    `int(stats.get("files") or 0)` andava in ValueError su un valore malformato
+    e faceva cadere l'intera enumerazione: una sola cache scritta male
+    nascondeva tutti gli altri grafi, che e' l'opposto di cio' che questa
+    funzione promette.
+    """
+
+    try:
+        return int(valore)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _nome_da_radice(radice: str) -> str:
+    """L'ultimo segmento del percorso, con entrambi i separatori.
+
+    `Path(radice).name` su POSIX restituisce l'intera stringa per un percorso
+    Windows: le cache si scambiano fra macchine, quindi il separatore non si
+    puo' dare per scontato.
+    """
+
+    pezzi = [p for p in re.split(r"[\\/]+", radice) if p]
+    return pezzi[-1] if pezzi else ""
+
+
+def _radice_esiste(radice: str) -> bool | None:
+    """True, False, oppure None quando non si puo' sapere."""
+
+    if not radice:
+        return None
+    try:
+        return Path(radice).is_dir()
+    except OSError:
+        return None
+
+
+def list_cached_graphs(cache_dir: Path) -> list[CachedGraph]:
+    """Tutti i grafi in cache, compresi quelli che non si possono leggere.
+
+    Usata sia da `truenex-mem graph status` sia da `/api/code-graphs`: una sola
+    enumerazione, perche' due copie della stessa scansione divergono e una
+    delle due finisce per nascondere cio' che l'altra mostra.
+    """
+
+    if not cache_dir.is_dir():
+        return []
+
+    voci: list[CachedGraph] = []
+    for entry in sorted(cache_dir.glob("*.json")):
+        def _illeggibile(motivo: str) -> CachedGraph:
+            return CachedGraph(
+                root="", name=entry.stem, cache_file=str(entry),
+                files=0, file_edges=0, entity_edges=0,
+                status="unreadable", detail=motivo[:200],
+                root_exists=None,   # non si sa: il file non si legge
+            )
+
+        try:
+            data = json.loads(entry.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as errore:
+            voci.append(_illeggibile(f"{type(errore).__name__}: {errore}"))
+            continue
+
+        if not isinstance(data, dict):
+            # json valido ma non un oggetto: `data.get` esploderebbe.
+            voci.append(_illeggibile(f"il file contiene {type(data).__name__}, non un oggetto"))
+            continue
+
+        radice = str(data.get("root") or "")
+        nome = _nome_da_radice(radice) or entry.stem
+        esiste = _radice_esiste(radice)
+
+        if data.get("cache_version") != CACHE_VERSION:
+            voci.append(CachedGraph(
+                root=radice, name=nome, cache_file=str(entry),
+                files=0, file_edges=0, entity_edges=0,
+                status="old_version",
+                detail=f"cache_version {data.get('cache_version')}, attesa {CACHE_VERSION}",
+                root_exists=esiste,
+            ))
+            continue
+
+        stats = data.get("stats")
+        if not isinstance(stats, dict):
+            stats = {}
+
+        voci.append(CachedGraph(
+            root=radice, name=nome, cache_file=str(entry),
+            files=_conteggio(stats.get("files")),
+            file_edges=_conteggio(stats.get("file_edges")),
+            entity_edges=_conteggio(stats.get("entity_edges")),
+            status="ok" if esiste is not False else "root_missing",
+            detail=None if esiste is not False else "la cartella del progetto non esiste piu'",
+            root_exists=esiste,
+            stats=stats,
+        ))
+    return voci
+
+
 def default_cache_dirs(db_path: Path) -> list[Path]:
     """Where to look for cached graphs, most specific first.
 

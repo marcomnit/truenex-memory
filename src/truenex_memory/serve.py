@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from pathlib import Path
 import logging
 import sys
@@ -201,6 +202,62 @@ def list_projects():
             "indexed_at": None,
         }
     ]
+
+
+@app.get("/api/code-graphs")
+def code_graphs():
+    """I grafi del codice in cache, ognuno col proprio stato dichiarato.
+
+    Esiste perche' `/api/projects` restituisce UNA voce sola, costruita dal
+    `project_root` con cui il server e' stato avviato: l'app desktop non aveva
+    alcun modo di chiedere i grafi degli altri progetti, e ne mostrava uno su
+    sei. Non era un difetto di grafica: era un dato che non arrivava.
+
+    I grafi illeggibili o scritti da una versione precedente restano
+    nell'elenco con la ragione, e i conteggi a zero: un grafo che scompare in
+    silenzio e' indistinguibile da un progetto che non esiste.
+    """
+
+    from truenex_memory.graph import default_cache_dirs, list_cached_graphs
+
+    svc = _get_service()
+    cartelle = default_cache_dirs(svc.config.db_path)
+
+    def _chiave(voce) -> str:
+        # I percorsi vanno normalizzati prima di confrontarli: su Windows le
+        # maiuscole non contano, e barre finali o separatori diversi
+        # produrrebbero due voci per la stessa radice.
+        grezzo = voce.root or voce.cache_file
+        return re.sub(r"[\\/]+", "/", grezzo).rstrip("/").casefold()
+
+    migliori: dict[str, object] = {}
+    for cache_dir in cartelle:
+        for voce in list_cached_graphs(cache_dir):
+            k = _chiave(voce)
+            precedente = migliori.get(k)
+            if precedente is None:
+                migliori[k] = voce
+                continue
+            # La stessa radice puo' stare in due cache. Non vince la prima:
+            # vince quella LEGGIBILE. Far vincere la prima significava che una
+            # voce rotta accanto al database nascondeva quella sana nella
+            # cartella utente, insieme ai suoi conteggi.
+            if precedente.status != "ok" and voce.status == "ok":
+                migliori[k] = voce
+
+    voci = list(migliori.values())
+
+    return {
+        "graphs": [v.to_dict() for v in voci],
+        "totals": {
+            "graphs": len(voci),
+            "files": sum(v.files for v in voci),
+            "file_edges": sum(v.file_edges for v in voci),
+            "entity_edges": sum(v.entity_edges for v in voci),
+            "unreadable": sum(1 for v in voci if v.status != "ok"),
+        },
+        "cache_dirs": [str(c) for c in cartelle],
+    }
 
 
 @app.post("/api/projects/init")

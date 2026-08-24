@@ -2330,17 +2330,29 @@ def graph_status(
     json_output: bool = typer.Option(False, "--json", help="Print the report as JSON."),
 ) -> None:
     """List the cached code graphs, without building anything."""
-    from truenex_memory.graph import FileGraph, graphify_available
+    from truenex_memory.graph import graphify_available, list_cached_graphs
 
+    # La stessa enumerazione che serve `/api/code-graphs`: due scansioni scritte
+    # a mano dello stesso disco divergono, e una delle due nasconderebbe cio'
+    # che l'altra mostra.
     cache_dir = _graph_cache_dir(db, home)
-    entries = []
-    for entry in sorted(cache_dir.glob("*.json")) if cache_dir.is_dir() else []:
-        try:
-            data = json.loads(entry.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        graph = FileGraph.from_dict(data)
-        entries.append({"root": graph.root, "cache": str(entry), **graph.stats})
+    # `**v.stats` e non tre chiavi scelte a mano: stats contiene anche
+    # skipped_by_suffix, skipped_total e relations, cioe' i limiti che il grafo
+    # dichiara. Tenerne solo alcune li buttava in silenzio — ed e' proprio il
+    # difetto che questi dati servono a rendere visibile.
+    entries = [
+        {
+            "root": v.root,
+            "cache": v.cache_file,
+            "status": v.status,
+            "detail": v.detail,
+            **v.stats,
+            "files": v.files,
+            "file_edges": v.file_edges,
+            "entity_edges": v.entity_edges,
+        }
+        for v in list_cached_graphs(cache_dir)
+    ]
 
     if json_output:
         typer.echo(json.dumps({"backend_installed": graphify_available(), "graphs": entries}, indent=2))
@@ -2357,10 +2369,12 @@ def graph_status(
     for item in entries:
         typer.echo(f"  {item['root']}")
         riga = f"    {item.get('files', 0)} file, {item.get('file_edges', 0)} archi fra file"
+        if item.get("status") and item["status"] != "ok":
+            riga += f"   ← {item['status']}" + (f": {item['detail']}" if item.get("detail") else "")
         # Una voce che non e' un progetto resta nell'elenco per sempre: si
         # poteva creare e non rimuovere. Segnalarla e' il minimo; il comando
         # per togliterla e' `graph forget`.
-        if not is_project_root(Path(item["root"])):
+        if item["root"] and not is_project_root(Path(item["root"])):
             riga += "   ← non e' un progetto (cartella di configurazione)"
             fantasmi += 1
         typer.echo(riga)
