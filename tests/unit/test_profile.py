@@ -61,11 +61,26 @@ def test_the_mcp_handshake_serves_the_same_text() -> None:
 
     Si serve perche' costa zero, non perche' ci si possa contare: la specifica
     dice che il client «puo'» aggiungerlo al prompt di sistema.
+
+    Davanti al profilo c'e' ora una riga che dichiara QUALE archivio serve
+    l'istanza. Nasce da un episodio vero: erano vive tre istanze con radici
+    diverse, due delle quali aprivano archivi con 18.426 e 171 documenti, e chi
+    faceva le domande non aveva modo di sapere a quale le stava facendo. Costa
+    una riga per sessione. Il profilo dietro deve restare IDENTICO — se lo
+    riscrivessimo qui esisterebbero due versioni della stessa istruzione, che e'
+    il difetto che questo test esiste per impedire.
     """
 
     from truenex_memory.mcp.server import _initialize
 
-    assert _initialize({"protocolVersion": "2024-11-05"})["instructions"] == profile_text()
+    testo = _initialize({"protocolVersion": "2024-11-05"})["instructions"]
+
+    assert testo.endswith(profile_text())
+    assert testo.count(profile_text()) == 1
+    prefisso = testo[: -len(profile_text())]
+    assert prefisso.rstrip().startswith(("Archivio servito", "ATTENZIONE"))
+    # Una riga, non un secondo blocco di istruzioni.
+    assert len(prefisso.strip().splitlines()) == 1
 
 
 def test_the_block_stays_short() -> None:

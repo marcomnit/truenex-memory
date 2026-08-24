@@ -13,6 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from truenex_memory import __version__
+from truenex_memory.mcp.identity import (
+    Cronometro, Diario, identita_archivio, istruzioni,
+)
 from truenex_memory.mcp.tools import (
     global_project_context, global_status, memory_add, memory_get, memory_search,
     task_open, task_step_add, task_close,
@@ -31,17 +34,90 @@ JSONRPC_VERSION = "2.0"
 
 
 def run_stdio_server(project_root: Path | str = ".") -> None:
-    """Run the MCP stdio server."""
+    """Run the MCP stdio server.
+
+    Il ciclo esce solo su EOF di stdin. Non ha timeout e non si chiude da se':
+    quindi una chiusura viene sempre da fuori — il client, una terminazione, o
+    la pipe rotta. Distinguere quei casi era impossibile, perche' il server non
+    scriveva niente da nessuna parte: un tool che fallisce con «Connection
+    closed» lasciava quattro spiegazioni ugualmente plausibili (richiesta non
+    arrivata, arrivata e non elaborata, elaborata e risposta perduta, errore in
+    scrittura) e nessun modo di scegliere. Ora ognuna lascia la sua traccia.
+
+    La scrittura della risposta e' racchiusa: prima era fuori da qualsiasi
+    gestore, quindi una pipe chiusa mentre si scriveva uccideva il processo
+    senza lasciare niente. Lo ha fatto notare la revisione di Codex — l'avevo
+    letto come «esce solo su EOF» e non era vero.
+    """
 
     root = Path(project_root).resolve()
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        response = handle_jsonrpc_line(line, project_root=root)
-        if response is None:
-            continue
-        print(json.dumps(response, separators=(",", ":"), sort_keys=True), flush=True)
+    diario = Diario()
+    identita = identita_archivio(root)
+    diario.avvio(identita)
+
+    contate = 0
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            contate += 1
+            crono = Cronometro()
+            richiesta = _riferimento_richiesta(line)
+            diario.evento("request_in", **richiesta)
+
+            response = handle_jsonrpc_line(line, project_root=root)
+            if response is None:
+                diario.evento("request_done", **richiesta, ms=crono.ms(), risposta="nessuna")
+                continue
+
+            try:
+                print(json.dumps(response, separators=(",", ":"), sort_keys=True), flush=True)
+            except (BrokenPipeError, OSError) as exc:
+                # Il client ha chiuso stdout mentre rispondevamo. La richiesta
+                # e' stata ELABORATA e la risposta e' andata perduta: e' un caso
+                # diverso da «mai arrivata», e sapere quale dei due e' avvenuto
+                # decide se un ritentativo e' sicuro.
+                diario.evento(
+                    "write_error",
+                    **richiesta,
+                    ms=crono.ms(),
+                    errore=f"{type(exc).__name__}: {exc}",
+                )
+                diario.uscita("stdout_chiuso", richieste_servite=contate)
+                return
+            diario.evento("response_written", **richiesta, ms=crono.ms())
+    except Exception as exc:  # pragma: no cover - confine del processo
+        diario.uscita(
+            "eccezione_nel_ciclo",
+            errore=f"{type(exc).__name__}: {exc}",
+            richieste_servite=contate,
+        )
+        raise
+
+    # Fine naturale: stdin ha dato EOF. Il peer ha chiuso la pipe; da qui non si
+    # puo' sapere CHI, e dirlo sarebbe un'invenzione.
+    diario.uscita("stdin_eof", richieste_servite=contate)
+
+
+def _riferimento_richiesta(line: str) -> dict[str, Any]:
+    """Come chiamare questa richiesta nel diario.
+
+    Il solo scopo e' correlare: il log del client parla di `Tool 'x' failed`, il
+    nostro deve poter essere messo accanto. Se la riga non e' JSON valido non e'
+    un problema di questa funzione — sara' `handle_jsonrpc_line` a rispondere
+    con un errore di parsing — quindi qui si degrada senza lamentarsi.
+    """
+
+    try:
+        m = json.loads(line)
+    except Exception:
+        return {"req": None, "metodo": None, "tool": None}
+    if not isinstance(m, dict):
+        return {"req": None, "metodo": "batch" if isinstance(m, list) else None, "tool": None}
+    params = m.get("params")
+    tool = params.get("name") if isinstance(params, dict) else None
+    return {"req": m.get("id"), "metodo": m.get("method"), "tool": tool}
 
 
 def handle_jsonrpc_line(line: str, *, project_root: Path | str = ".") -> dict[str, Any] | list[dict[str, Any]] | None:
@@ -95,7 +171,7 @@ def handle_jsonrpc_message(message: object, *, project_root: Path | str = ".") -
 
 def _dispatch(method: str, params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
     if method == "initialize":
-        return _initialize(params)
+        return _initialize(params, project_root=project_root)
     if method == "ping":
         return {}
     if method == "tools/list":
@@ -124,7 +200,7 @@ def _dispatch(method: str, params: dict[str, Any], *, project_root: Path) -> dic
 _CLIENT_NAME: str | None = None
 
 
-def _initialize(params: dict[str, Any]) -> dict[str, Any]:
+def _initialize(params: dict[str, Any], *, project_root: Path | str = ".") -> dict[str, Any]:
     requested = params.get("protocolVersion")
     protocol_version = requested if requested in SUPPORTED_PROTOCOL_VERSIONS else DEFAULT_PROTOCOL_VERSION
     from truenex_memory.adapters.profile import (
@@ -162,7 +238,23 @@ def _initialize(params: dict[str, Any]) -> dict[str, Any]:
         # prompt di sistema, quindi un client conforme puo' ignorarlo — e ci
         # sono client che lo fanno (il gateway di LiteLLM lo perde, langchain4j
         # lo riceve e non lo espone). Il canale su cui si conta e' il file.
-        "instructions": profile_text(),
+        #
+        # In testa, QUALE archivio serve questa istanza. Su questa macchina
+        # erano vive tre istanze con radici diverse — due sulla cartella utente,
+        # una sul repo del sorgente — e chi faceva le domande non aveva modo di
+        # sapere a quale archivio le stava facendo. Un archivio quasi vuoto
+        # risponde «non ho trovato niente», che e' indistinguibile da «non
+        # esiste niente da trovare».
+        # Una riga davanti al profilo: la prima cosa che chi legge vede e'
+        # a quale archivio sta parlando.
+        # Prima QUALE archivio, poi il profilo: chi legge deve sapere a chi
+        # sta parlando prima di sapere come parlargli.
+        "instructions": istruzioni(identita_archivio(project_root), profile_text()),
+        # La stessa cosa in forma leggibile da un programma, accanto a
+        # `serverInfo` che identifica il software: il software e l'archivio sono
+        # due identita' diverse e confonderle e' l'errore che ha aperto questa
+        # indagine.
+        "_meta": {"truenex/archive": identita_archivio(project_root)},
     }
 
 
@@ -481,7 +573,7 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
         elif name == "memory_add":
             payload = _call_memory_add(arguments, project_root=project_root)
         elif name == "global_status":
-            payload = _call_global_status(arguments)
+            payload = _call_global_status(arguments, project_root=project_root)
         elif name == "global_project_context":
             payload = _call_global_project_context(arguments)
         elif name == "task_open":
@@ -578,7 +670,22 @@ def _call_memory_add(arguments: dict[str, Any], *, project_root: Path) -> dict[s
     )
 
 
-def _call_global_status(arguments: dict[str, Any]) -> dict[str, object]:
+def _call_global_status(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
+    """Lo stato del negozio globale, PIU' l'archivio che questa istanza serve.
+
+    Il difetto che questo chiude. `global_status` guarda sempre la cartella
+    utente, mentre `memory_search` e `memory_graph` guardano la radice con cui il
+    server e' stato avviato. Su questa macchina era vivo un server avviato sul
+    repo del sorgente: quel processo cercava in un archivio con 171 documenti e
+    riferiva lo stato di uno con 18.426. Chi chiedeva lo stato vedeva un archivio
+    pieno e riceveva ricerche vuote, e le due cose non erano collegabili.
+
+    Il contratto di `global_status` resta quello che dice il nome — il negozio
+    globale — perche' cambiarlo sarebbe un'altra bugia. Ma la risposta porta
+    accanto l'archivio SERVITO, e quando i due non coincidono lo dichiara: cosi'
+    lo scarto e' leggibile invece di essere un compito di attenzione.
+    """
+
     home = arguments.get("home")
     catalog = arguments.get("catalog")
     db = arguments.get("db")
@@ -587,7 +694,19 @@ def _call_global_status(arguments: dict[str, Any]) -> dict[str, object]:
         if val is not None and not isinstance(val, str):
             raise ValueError(f"{name} must be a string")
 
-    return global_status(home=home, catalog=catalog, db=db)
+    report = global_status(home=home, catalog=catalog, db=db)
+
+    servito = identita_archivio(project_root)
+    globale = identita_archivio(Path(home) if home else Path.home())
+    if isinstance(report, dict):
+        report = {
+            **report,
+            "served_archive": servito,
+            # Vero quando le ricerche di QUESTA istanza vanno in un archivio
+            # diverso da quello descritto qui sopra.
+            "served_archive_differs": servito["archive_id"] != globale["archive_id"],
+        }
+    return report
 
 
 def _call_global_project_context(arguments: dict[str, Any]) -> dict[str, object]:
