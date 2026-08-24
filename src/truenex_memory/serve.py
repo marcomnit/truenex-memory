@@ -474,11 +474,130 @@ def catalog_status():
 
 # ── Project graph ──────────────────────────────────────────────────────────
 
+def _grafo_dal_solo_codice(project_name: str, db_path: Path) -> dict[str, Any] | None:
+    """Nodi e archi presi DAL GRAFO, per un progetto senza documenti indicizzati.
+
+    `/api/project-graph` costruiva i nodi dal `source_ledger`: per un progetto
+    non indicizzato erano zero, quindi zero archi e schermata vuota — anche con
+    2.994 file gia' mappati in cache. Qui i nodi sono i FILE del grafo e gli
+    archi sono le relazioni fra loro, che e' la sola cosa che quel progetto ha
+    e la piu' utile.
+
+    Ritorna `None` quando non esiste nessun grafo con quel nome: l'endpoint
+    prosegue col suo percorso normale invece di inventare una risposta.
+    """
+
+    from truenex_memory.graph import default_cache_dirs, list_cached_graphs, load_file_graph
+
+    atteso = project_name.strip().lower()
+    for cache_dir in default_cache_dirs(db_path):
+        for voce in list_cached_graphs(cache_dir):
+            if voce.name.lower() != atteso and Path(voce.root or "").name.lower() != atteso:
+                continue
+            if voce.status != "ok":
+                # Il grafo c'e' ma non si legge: si dichiara, non si finge.
+                return {
+                    "nodes": [], "edges": [],
+                    "code_graph": {"status": voce.status, "detail": voce.detail},
+                    "summary": {"project_name": project_name, "total_files": 0,
+                                "total_chunks": 0, "total_tokens": 0, "breakdown": {},
+                                "top_files": []},
+                    "project_root": voce.root,
+                    "source": "code_graph",
+                }
+
+            grafo = load_file_graph(cache_dir, Path(voce.root))
+            if grafo is None:
+                continue
+
+            # I nodi sono i file che compaiono negli archi, piu' quelli che il
+            # grafo elenca nella propria impronta: un file senza relazioni
+            # esiste comunque, e ometterlo lo farebbe sparire in silenzio.
+            percorsi: set[str] = set(grafo.fingerprint or {})
+            for arco in grafo.edges:
+                percorsi.add(arco.source_file)
+                percorsi.add(arco.target_file)
+
+            nodes = []
+            conteggio: dict[str, int] = {}
+            for percorso in sorted(percorsi):
+                suffisso = Path(percorso).suffix.lstrip(".").lower() or "altro"
+                conteggio[suffisso] = conteggio.get(suffisso, 0) + 1
+                nodes.append({
+                    "id": percorso,
+                    "label": Path(percorso).name,
+                    "path": percorso,
+                    "file_type": suffisso,
+                    # Non ci sono chunk ne' token: questo progetto non e'
+                    # indicizzato. Zero e' la risposta vera, non un ripiego.
+                    "chunk_count": 0,
+                    "token_count": 0,
+                    "heading_preview": [],
+                })
+
+            edges = [
+                {
+                    "source": arco.source_file,
+                    "target": arco.target_file,
+                    "relation_type": arco.relation_type,
+                    "weight": arco.weight,
+                }
+                for arco in grafo.edges
+            ]
+
+            return {
+                "nodes": nodes,
+                "edges": edges,
+                "code_graph": {
+                    "root": grafo.root,
+                    "files": voce.files,
+                    "file_edges": voce.file_edges,
+                    "mapped_edges": len(edges),
+                    "entity_nodes": voce.entity_edges,
+                    "status": "ok",
+                },
+                "summary": {
+                    "project_name": project_name,
+                    "total_files": len(nodes),
+                    "total_chunks": 0,
+                    "total_tokens": 0,
+                    "breakdown": dict(sorted(conteggio.items(), key=lambda kv: -kv[1])),
+                    "top_files": [],
+                },
+                "project_root": grafo.root,
+                # Chi legge deve sapere DA DOVE viene la risposta: un grafo del
+                # codice non e' un indice di documenti, e confonderli porta a
+                # cercare testo che non esiste.
+                "source": "code_graph",
+            }
+    return None
+
+
 @app.get("/api/project-graph")
 def project_graph(project_name: str = Query(..., description="Project name")):
     svc = _get_service()
     if not svc.config.db_path.exists():
         raise HTTPException(status_code=404, detail="Database not found")
+
+    # Prima di tutto: esiste un grafo del codice per questo nome e il progetto
+    # NON e' indicizzato? Allora la risposta viene dal grafo. Senza questo, un
+    # progetto con 2.994 file mappati restituiva 0 nodi e 0 archi, perche' i
+    # nodi nascono dal source_ledger e la' non c'era niente.
+    from truenex_memory.store.sqlite import connect as _connect
+
+    with _connect(svc.config.db_path) as _c:
+        _indicizzato = _c.execute(
+            """
+            SELECT 1 FROM source_ledger
+            WHERE status = 'active' AND (project_name = ? OR source_path_or_alias LIKE ?)
+            LIMIT 1
+            """,
+            (project_name, f"%{project_name}%"),
+        ).fetchone()
+    if not _indicizzato:
+        dal_grafo = _grafo_dal_solo_codice(project_name, svc.config.db_path)
+        if dal_grafo is not None:
+            return dal_grafo
 
     from truenex_memory.store.sqlite import connect
 
