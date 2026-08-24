@@ -130,7 +130,7 @@ def test_to_dict_porta_tutto_cio_che_serve_all_interfaccia(tmp_path: Path) -> No
 
     assert set(d) == {
         "root", "name", "cache_file", "files", "file_edges",
-        "entity_edges", "status", "detail", "root_exists",
+        "entity_edges", "status", "detail", "root_exists", "by_suffix",
     }
     assert d["files"] == 3 and d["file_edges"] == 8 and d["entity_edges"] == 40
 
@@ -263,3 +263,54 @@ def test_gli_stati_sono_un_enumerato_stabile_e_ascii(tmp_path: Path) -> None:
 
     assert stati <= {"ok", "unreadable", "old_version", "root_missing"}
     assert all(s.isascii() for s in stati)
+
+
+def test_by_suffix_dice_di_cosa_e_fatto_il_progetto(tmp_path: Path) -> None:
+    """Quanti file per estensione, dall'impronta del grafo.
+
+    Senza questo conteggio, nell'interfaccia un progetto non indicizzato era una
+    pallina nuda: nessun satellite, la stessa forma di un progetto vuoto. Il
+    grafo sa di cosa e' fatto quel progetto — bastava chiederglielo.
+    """
+
+    cache = tmp_path / "code_graphs"
+    cache.mkdir()
+    radice = tmp_path / "Misto"
+    radice.mkdir()
+    (cache / "misto.json").write_text(
+        json.dumps({
+            "cache_version": CACHE_VERSION,
+            "root": radice.as_posix(),
+            "edges": [],
+            "stats": {"files": 6, "file_edges": 0, "entity_edges": 0},
+            "fingerprint": {
+                "src/a.py": "1", "src/b.py": "1", "src/c.py": "1",
+                "web/x.ts": "1", "web/y.ts": "1",
+                "README": "1",
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    voce = list_cached_graphs(cache)[0]
+
+    assert voce.by_suffix == {"py": 3, "ts": 2, "altro": 1}
+    # Ordinato per quantita' decrescente: chi mostra i primi tre senza ordinare
+    # mostrerebbe i tre piu' rari.
+    assert list(voce.by_suffix) == ["py", "ts", "altro"]
+    assert voce.to_dict()["by_suffix"] == voce.by_suffix
+
+
+def test_by_suffix_senza_impronta_e_vuoto_non_inventato(tmp_path: Path) -> None:
+    """Un grafo scritto prima che il conteggio esistesse non ha l'impronta.
+
+    Un dizionario vuoto e' la risposta vera. Inventare un totale sotto la voce
+    «altro» darebbe l'aria di sapere una cosa che non si sa.
+    """
+
+    cache = tmp_path / "code_graphs"
+    radice = tmp_path / "Antico"
+    radice.mkdir()
+    _scrivi(cache, "antico", radice, files=9)
+
+    assert list_cached_graphs(cache)[0].by_suffix == {}

@@ -968,6 +968,11 @@ class CachedGraph:
     detail: str | None = None
     root_exists: bool | None = True
     stats: dict[str, Any] = field(default_factory=dict)
+    #: Quanti file per estensione, dal grafo stesso. Serve a mostrare DI COSA e'
+    #: fatto un progetto che non ha documenti indicizzati: senza, nell'interfaccia
+    #: era una pallina nuda senza niente attaccato, indistinguibile da un
+    #: progetto vuoto.
+    by_suffix: dict[str, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -980,6 +985,7 @@ class CachedGraph:
             "status": self.status,
             "detail": self.detail,
             "root_exists": self.root_exists,
+            "by_suffix": self.by_suffix,
         }
 
 
@@ -1071,6 +1077,18 @@ def list_cached_graphs(cache_dir: Path) -> list[CachedGraph]:
         if not isinstance(stats, dict):
             stats = {}
 
+        # Di cosa e' fatto questo progetto. Le chiavi dell'impronta sono i
+        # percorsi dei file analizzati: contarle per estensione costa poco (il
+        # JSON e' gia' stato letto) e da' l'unica descrizione disponibile per un
+        # progetto senza documenti indicizzati.
+        per_estensione: dict[str, int] = {}
+        impronta = data.get("fingerprint")
+        if isinstance(impronta, dict):
+            for percorso in impronta:
+                suffisso = Path(str(percorso)).suffix.lstrip(".").lower() or "altro"
+                per_estensione[suffisso] = per_estensione.get(suffisso, 0) + 1
+        per_estensione = dict(sorted(per_estensione.items(), key=lambda kv: -kv[1]))
+
         voci.append(CachedGraph(
             root=radice, name=nome, cache_file=str(entry),
             files=_conteggio(stats.get("files")),
@@ -1080,6 +1098,7 @@ def list_cached_graphs(cache_dir: Path) -> list[CachedGraph]:
             detail=None if esiste is not False else "la cartella del progetto non esiste piu'",
             root_exists=esiste,
             stats=stats,
+            by_suffix=per_estensione,
         ))
     return voci
 
