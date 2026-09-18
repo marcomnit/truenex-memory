@@ -60,6 +60,21 @@ DEFAULT_EXCLUDED_DIRS = {
     # makes search return a superseded duplicate of a file that has since
     # changed in the live tree.
     ".archive",
+    # Raw tool-call output cached under a Claude Code session
+    # (~/.claude/projects/<slug>/<uuid>/tool-results/*.txt) — SQL column
+    # dumps, grep results, file listings, never authored content. Found on
+    # a real archive (2026-09-18): 23 such files indexed and outranking the
+    # actual answer for a real query ("dove siamo arrivati con l'ultima
+    # sessione"), because generic dumps share more surface tokens with a
+    # generic question than the specific document that actually answers it.
+    #
+    # NOT `.claude` itself: a first version of this fix excluded the whole
+    # directory, and a dry-run against the live archive (same day) caught
+    # it before it shipped — ``.claude/projects/*.jsonl`` holds the agent
+    # session transcripts, which this project indexes ON PURPOSE (13,299
+    # `agent_session` ledger rows, a real and used source type). Excluding
+    # `.claude` wholesale would have silently discarded almost all of it.
+    "tool-results",
 }
 
 DEFAULT_EXCLUDED_DIR_PREFIXES = (

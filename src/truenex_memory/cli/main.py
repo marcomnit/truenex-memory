@@ -75,6 +75,8 @@ from truenex_memory.ingestion.global_source_health import (
 )
 from truenex_memory.ingestion.ledger_purge import (
     format_ledger_purge_report,
+    format_path_purge_report,
+    purge_by_path_pattern,
     purge_missing_ledger_entries,
 )
 from truenex_memory.ingestion.global_auto_status import (
@@ -1205,6 +1207,68 @@ def sources_purge_missing(
         typer.echo(json.dumps(report.to_dict(), indent=2, sort_keys=True))
     else:
         typer.echo(format_ledger_purge_report(report))
+        if not yes:
+            typer.echo("\n(dry-run, pass --yes to apply the purge)")
+
+
+@sources_app.command("purge-path")
+def sources_purge_path(
+    path_filter: list[str] = typer.Option(
+        ...,
+        "--path-filter",
+        help="Case-insensitive substring on source paths; repeatable. "
+        "REQUIRED and must be non-empty — this is what keeps the blast "
+        "radius to what you actually asked for.",
+    ),
+    home: Path = typer.Option(
+        Path.home(),
+        "--home",
+        help="User home directory for default paths.",
+    ),
+    db: Path | None = typer.Option(
+        None,
+        "--db",
+        help="Path to the SQLite database (default: <home>/.truenex-memory/truenex_memory.db).",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Apply the purge (delete rows)."),
+    sample: int = typer.Option(
+        10, "--sample", min=0, max=100, help="Max sample paths to show in dry-run.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print report as JSON."),
+) -> None:
+    """Delete already-indexed content whose path matches a filter, by path alone.
+
+    Unlike `sources purge-missing`, this does NOT require the source to be
+    marked 'missing': it targets files that still exist on disk but should
+    never have been indexed in the first place — typically because a
+    directory was added to the exclusion list (core/exclusions.py) AFTER
+    that content was already ingested. Exclusions only stop future
+    discovery; they never retroactively remove what is already indexed,
+    which is exactly the gap this command closes.
+
+    Dry-run by default. With --yes, the whole database is backed up to
+    .truenex-memory/backups/ FIRST (see `truenex-mem migrate backup-list`
+    to find it), then matching documents, their chunks, and matching
+    source_ledger rows are deleted. memory_nodes are never deleted, only
+    reported as affected.
+    """
+    if not any(item.strip() for item in path_filter):
+        raise typer.BadParameter("--path-filter must be a non-empty string")
+
+    db_path = db if db is not None else home / ".truenex-memory" / "truenex_memory.db"
+    backups_dir = db_path.parent / "backups"
+    report = purge_by_path_pattern(
+        db_path,
+        patterns=path_filter,
+        apply=yes,
+        sample_limit=sample,
+        backups_dir=backups_dir,
+    )
+
+    if json_output:
+        typer.echo(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        typer.echo(format_path_purge_report(report))
         if not yes:
             typer.echo("\n(dry-run, pass --yes to apply the purge)")
 

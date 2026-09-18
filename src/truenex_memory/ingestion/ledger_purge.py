@@ -260,6 +260,206 @@ def purge_missing_ledger_entries(
     return report
 
 
+@dataclass
+class PathPurgeReport:
+    """Planned or applied purge of documents matching a path pattern.
+
+    Separate from `LedgerPurgeReport` on purpose: that one only ever touches
+    ledger rows already marked ``missing`` — files already known gone, the
+    safest possible blast radius. This purge targets files that STILL EXIST
+    on disk but should never have been indexed (e.g. a directory added to
+    `DEFAULT_EXCLUDED_DIRS` after it was already ingested — the exclusion
+    only stops future discovery, it does not retroactively remove what is
+    already in the corpus). Deciding the blast radius by a path substring
+    instead of an already-established "gone" signal is a bigger risk, so
+    `apply` always backs up the whole database first.
+    """
+
+    db_path: str
+    dry_run: bool
+    db_exists: bool = False
+    path_filters: list[str] = field(default_factory=list)
+    documents_matched: int = 0
+    chunks_to_delete: int = 0
+    ledger_rows_matched: int = 0
+    memory_nodes_affected: int = 0
+    backup_path: str | None = None
+    documents_deleted: int = 0
+    chunks_deleted: int = 0
+    ledger_deleted: int = 0
+    sample_paths: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "db_path": self.db_path,
+            "dry_run": self.dry_run,
+            "db_exists": self.db_exists,
+            "path_filters": self.path_filters,
+            "documents_matched": self.documents_matched,
+            "chunks_to_delete": self.chunks_to_delete,
+            "ledger_rows_matched": self.ledger_rows_matched,
+            "memory_nodes_affected": self.memory_nodes_affected,
+            "backup_path": self.backup_path,
+            "documents_deleted": self.documents_deleted,
+            "chunks_deleted": self.chunks_deleted,
+            "ledger_deleted": self.ledger_deleted,
+            "sample_paths": self.sample_paths,
+            "warnings": self.warnings,
+        }
+
+
+def purge_by_path_pattern(
+    db_path: Path,
+    *,
+    patterns: list[str],
+    apply: bool = False,
+    sample_limit: int = 10,
+    backups_dir: Path | None = None,
+) -> PathPurgeReport:
+    """Delete documents/chunks (and matching ledger rows) by path substring.
+
+    ``patterns`` is REQUIRED and must be non-empty (case-insensitive
+    substrings, matched against the path with separators normalised): an
+    empty pattern list must never be able to match every document. Matching
+    is by path alone, independent of `source_ledger.status` — unlike
+    `purge_missing_ledger_entries`, a matched row can be ``active``, because
+    the file legitimately still exists; it just should never have been
+    indexed (see `PathPurgeReport`).
+
+    ``memory_nodes`` referencing purged documents are counted, never
+    deleted — same policy as `purge_missing_ledger_entries`.
+
+    When ``apply`` is true and ``backups_dir`` is given, the whole database
+    is copied to a timestamped backup BEFORE any delete runs (see
+    `core.migration.backup_database`). Without ``backups_dir`` the caller
+    is asserting it already has a backup elsewhere; the CLI always passes
+    one.
+    """
+
+    filters = [item.strip().lower() for item in patterns if item.strip()]
+    if not filters:
+        raise ValueError("patterns must contain at least one non-empty filter")
+
+    report = PathPurgeReport(db_path=str(db_path), dry_run=not apply, path_filters=list(patterns))
+    if not db_path.exists():
+        report.warnings.append(f"Database not found: {db_path}")
+        return report
+
+    report.db_exists = True
+
+    def _matches(path: str) -> bool:
+        needle = _normalize_path_key(path)
+        return any(term in needle for term in filters)
+
+    try:
+        with connect(db_path) as conn:
+            conn.row_factory = sqlite3.Row
+
+            doc_rows = conn.execute("SELECT id, path FROM documents").fetchall()
+            matched_docs = [(str(r["id"]), str(r["path"])) for r in doc_rows if _matches(str(r["path"]))]
+            document_ids = [doc_id for doc_id, _ in matched_docs]
+            report.documents_matched = len(document_ids)
+            report.sample_paths = [path for _, path in matched_docs[:sample_limit]]
+
+            chunk_count_by_doc: dict[str, int] = {
+                str(doc_id): int(count)
+                for doc_id, count in conn.execute(
+                    "SELECT document_id, COUNT(*) FROM chunks GROUP BY document_id"
+                ).fetchall()
+            }
+            report.chunks_to_delete = sum(chunk_count_by_doc.get(doc_id, 0) for doc_id in document_ids)
+
+            ledger_rows = conn.execute(
+                "SELECT source_id, source_path_or_alias FROM source_ledger"
+            ).fetchall()
+            matched_ledger_ids = [
+                str(r["source_id"]) for r in ledger_rows
+                if _matches(str(r["source_path_or_alias"] or ""))
+            ]
+            report.ledger_rows_matched = len(matched_ledger_ids)
+
+            document_id_set = set(document_ids)
+            matched_path_keys = {_normalize_path_key(path) for _, path in matched_docs}
+            memory_refs = conn.execute(
+                """
+                SELECT source_document_id, source_path FROM memory_nodes
+                WHERE source_document_id IS NOT NULL OR source_path IS NOT NULL
+                """
+            ).fetchall()
+            report.memory_nodes_affected = sum(
+                1
+                for row in memory_refs
+                if (row["source_document_id"] and str(row["source_document_id"]) in document_id_set)
+                or (
+                    row["source_path"]
+                    and _normalize_path_key(str(row["source_path"])) in matched_path_keys
+                )
+            )
+
+            if apply:
+                if backups_dir is not None:
+                    from truenex_memory.core.migration import backup_database
+
+                    backup_path = backup_database(db_path, backups_dir)
+                    report.backup_path = str(backup_path) if backup_path else None
+
+                pending_documents = 0
+                for batch in _batched(document_ids, _DELETE_BATCH_SIZE):
+                    placeholders = ", ".join("?" for _ in batch)
+                    conn.execute(f"DELETE FROM chunks WHERE document_id IN ({placeholders})", batch)
+                    conn.execute(f"DELETE FROM documents WHERE id IN ({placeholders})", batch)
+                    pending_documents += len(batch)
+                pending_chunks = sum(chunk_count_by_doc.get(doc_id, 0) for doc_id in document_ids)
+
+                pending_ledger = 0
+                for batch in _batched(matched_ledger_ids, _DELETE_BATCH_SIZE):
+                    placeholders = ", ".join("?" for _ in batch)
+                    conn.execute(f"DELETE FROM source_ledger WHERE source_id IN ({placeholders})", batch)
+                    pending_ledger += len(batch)
+
+                conn.commit()
+                # Published only after the commit succeeds, same guarantee
+                # as purge_missing_ledger_entries: a mid-apply exception
+                # rolls back and the report must not claim phantom deletes.
+                report.documents_deleted = pending_documents
+                report.chunks_deleted = pending_chunks
+                report.ledger_deleted = pending_ledger
+    except sqlite3.DatabaseError as exc:
+        report.warnings.append(f"Database could not be purged: {type(exc).__name__}: {exc}")
+
+    return report
+
+
+def format_path_purge_report(report: PathPurgeReport) -> str:
+    """Render a human-readable path-pattern purge report."""
+
+    mode = "dry-run" if report.dry_run else "applied"
+    lines = [f"Path Purge ({mode})", "=" * 60]
+    lines.append(f"Database: {report.db_path}")
+    lines.append(f"  exists: {'yes' if report.db_exists else 'no'}")
+    lines.append(f"  path filters: {', '.join(report.path_filters)}")
+    lines.append(f"  documents matched: {report.documents_matched}")
+    lines.append(f"  chunks to delete: {report.chunks_to_delete}")
+    lines.append(f"  ledger rows matched: {report.ledger_rows_matched}")
+    lines.append(f"  memory nodes referencing matched content (kept): {report.memory_nodes_affected}")
+    if report.backup_path:
+        lines.append(f"  backup: {report.backup_path}")
+    if not report.dry_run:
+        lines.append(f"  documents deleted: {report.documents_deleted}")
+        lines.append(f"  chunks deleted: {report.chunks_deleted}")
+        lines.append(f"  ledger rows deleted: {report.ledger_deleted}")
+    if report.sample_paths:
+        lines.append(f"\nSample matched paths ({len(report.sample_paths)} shown):")
+        for path in report.sample_paths:
+            lines.append(f"  - {path}")
+    if report.warnings:
+        lines.append("\nWarnings:")
+        for warning in report.warnings:
+            lines.append(f"  - {warning}")
+    return "\n".join(lines)
+
+
 def format_ledger_purge_report(report: LedgerPurgeReport) -> str:
     """Render a human-readable purge report."""
     mode = "dry-run" if report.dry_run else "applied"

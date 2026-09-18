@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-09-18
+
+Fast-follow su 0.7.0, trovato lo stesso giorno da una domanda vera contro
+l'archivio reale ("dove siamo arrivati con l'ultima sessione"): la ricerca
+restituiva dump grezzi di chiamate a tool invece del documento che
+rispondeva davvero.
+
+### Fixed
+
+- **Indicizzazione**: `~/.claude/projects/<sessione>/tool-results/*.txt` —
+  output grezzo di chiamate a tool passate (dump SQL, risultati di grep) —
+  non era mai escluso. Trovati 17-23 file cosi' su un archivio reale,
+  capaci di vincere il ranking su query generiche perche' un dump condivide
+  piu' parole con una domanda vaga di quante ne condivida il documento
+  specifico che risponde davvero. `tool-results` e' ora in
+  `DEFAULT_EXCLUDED_DIRS`.
+  Nota di processo: una prima versione di questo fix escludeva l'intera
+  cartella `.claude`. Un dry-run del comando di pulizia sotto contro una
+  COPIA dell'archivio reale ha mostrato che avrebbe cancellato 4690
+  documenti — quasi tutti trascrizioni di sessione (`.claude/projects/*.jsonl`,
+  13.299 righe nel ledger), che questo progetto indicizza di proposito. La
+  prova sul campo ha bloccato la regressione prima che venisse pubblicata.
+
+### Added
+
+- **`truenex-mem sources purge-path --path-filter <substring>`**: rimuove
+  documenti/chunk gia' indicizzati il cui percorso combacia un filtro,
+  indipendentemente dallo stato nel ledger (a differenza di
+  `sources purge-missing`, che tocca solo sorgenti gia' segnate `missing`).
+  Serve perche' una nuova esclusione impedisce solo le indicizzazioni
+  FUTURE: non rimuove da sola cio' che era gia' stato indicizzato prima
+  del fix. Dry-run per default; con `--yes` esegue prima un backup
+  timestampato dell'intero database, poi cancella. Non tocca mai
+  `memory_nodes` (le note curate restano valide anche se il documento
+  sorgente sparisce). Verificato su una copia del database reale di
+  produzione: conteggi prima/dopo esatti, backup integro, idempotente,
+  `global_status`/ricerca funzionanti dopo la pulizia.
+
 ## [0.7.0] — 2026-09-18
 
 Quattro difetti diagnosticati usando lo strumento su un progetto reale, non

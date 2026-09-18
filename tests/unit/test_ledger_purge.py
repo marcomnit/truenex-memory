@@ -6,7 +6,9 @@ from pathlib import Path
 
 from truenex_memory.core.chunker import chunk_text
 from truenex_memory.core.exclusions import should_exclude
-from truenex_memory.ingestion.ledger_purge import purge_missing_ledger_entries
+import pytest
+
+from truenex_memory.ingestion.ledger_purge import purge_by_path_pattern, purge_missing_ledger_entries
 from truenex_memory.store.repository import MemoryRepository
 from truenex_memory.store.sqlite import connect
 
@@ -427,3 +429,143 @@ def test_purge_batches_more_than_500_documents(tmp_path: Path) -> None:
         "chunks": 0,
         "fts": 0,
     }
+
+
+# ── purge_by_path_pattern ───────────────────────────────────────────────
+#
+# Different premise from `purge_missing_ledger_entries` on purpose: these
+# fixtures mark the noisy sources ACTIVE (the file genuinely still exists on
+# disk — e.g. `.claude/projects/<session>/tool-results/*.txt`, which is a
+# real directory added to DEFAULT_EXCLUDED_DIRS on 2026-09-18 after content
+# under it was already indexed on a live archive). A status-gated purge
+# would never touch these; that gap is exactly what this command closes.
+
+def _repository_with_active_noise(tmp_path: Path) -> MemoryRepository:
+    """One real document, two 'tool-results' dumps, all status='active'."""
+    repository = MemoryRepository(tmp_path / "memory.db")
+    _index_doc(repository, tmp_path, "README.md", "the real answer to a real question")
+    _index_doc(
+        repository, tmp_path,
+        ".claude/projects/slug/session-1/tool-results/dump.txt",
+        "DATA_INSERIMENTO DATA_LAST_CHG oracle column dump noise",
+    )
+    _index_doc(
+        repository, tmp_path,
+        "tool-results/call_00_test.txt",
+        "raw tool call output noise",
+    )
+    db_path = tmp_path / "memory.db"
+    with connect(db_path) as conn:
+        conn.execute("UPDATE source_ledger SET status = 'active'")
+        conn.commit()
+    return repository
+
+
+def test_path_purge_requires_at_least_one_non_empty_filter(tmp_path: Path) -> None:
+    """An empty pattern list must never be able to match every document."""
+
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+
+    with pytest.raises(ValueError):
+        purge_by_path_pattern(db_path, patterns=[])
+    with pytest.raises(ValueError):
+        purge_by_path_pattern(db_path, patterns=["   "])
+
+
+def test_path_purge_dry_run_matches_active_noise_without_deleting(tmp_path: Path) -> None:
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+    before = _counts(db_path)
+
+    report = purge_by_path_pattern(db_path, patterns=["tool-results"])
+
+    assert report.dry_run is True
+    assert report.documents_matched == 2
+    assert report.chunks_to_delete == 2
+    assert report.ledger_rows_matched == 2
+    assert report.documents_deleted == 0
+    assert _counts(db_path) == before, "un dry-run non deve cambiare niente"
+
+
+def test_path_purge_apply_deletes_only_matched_active_content(tmp_path: Path) -> None:
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+    backups_dir = tmp_path / "backups"
+
+    report = purge_by_path_pattern(
+        db_path, patterns=["tool-results"], apply=True, backups_dir=backups_dir
+    )
+
+    assert report.documents_deleted == 2
+    assert report.chunks_deleted == 2
+    assert report.ledger_deleted == 2
+    assert not report.warnings
+    remaining = _counts(db_path)
+    assert remaining["documents"] == 1
+    assert remaining["chunks"] == 1
+    with connect(db_path) as conn:
+        surviving_path = conn.execute("SELECT path FROM documents").fetchone()[0]
+    assert surviving_path == "README.md", "il documento vero non deve essere toccato"
+
+
+def test_path_purge_apply_backs_up_the_database_first(tmp_path: Path) -> None:
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+    backups_dir = tmp_path / "backups"
+
+    report = purge_by_path_pattern(
+        db_path, patterns=["tool-results"], apply=True, backups_dir=backups_dir
+    )
+
+    assert report.backup_path is not None
+    backup_file = Path(report.backup_path)
+    assert backup_file.exists()
+    # Il backup e' stato preso PRIMA della cancellazione: deve ancora
+    # contenere i tre documenti originali, non i sopravvissuti dopo la purga.
+    assert _counts(backup_file)["documents"] == 3
+
+
+def test_path_purge_never_deletes_memory_nodes_only_reports_them(tmp_path: Path) -> None:
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+    with connect(db_path) as conn:
+        noisy_doc_id = conn.execute(
+            "SELECT id FROM documents WHERE path = ?",
+            (".claude/projects/slug/session-1/tool-results/dump.txt",),
+        ).fetchone()[0]
+        conn.execute(
+            """
+            INSERT INTO memory_nodes (
+                id, project_id, type, title, content, status, source_kind,
+                source_document_id, created_by, created_at, updated_at
+            ) VALUES ('mem_1', 'default', 'note', 'nota curata',
+                      'contenuto curato indipendente', 'active', 'manual',
+                      ?, 'human', 'now', 'now')
+            """,
+            (noisy_doc_id,),
+        )
+        conn.commit()
+
+    report = purge_by_path_pattern(
+        db_path, patterns=["tool-results"], apply=True, backups_dir=tmp_path / "backups"
+    )
+
+    assert report.memory_nodes_affected == 1
+    with connect(db_path) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM memory_nodes").fetchone()[0] == 1
+
+
+def test_path_purge_is_idempotent(tmp_path: Path) -> None:
+    """Applying twice in a row must be safe: nothing left to delete."""
+
+    _repository_with_active_noise(tmp_path)
+    db_path = tmp_path / "memory.db"
+    backups_dir = tmp_path / "backups"
+
+    purge_by_path_pattern(db_path, patterns=["tool-results"], apply=True, backups_dir=backups_dir)
+    second = purge_by_path_pattern(db_path, patterns=["tool-results"], apply=True, backups_dir=backups_dir)
+
+    assert second.documents_matched == 0
+    assert second.documents_deleted == 0
+    assert second.ledger_deleted == 0
