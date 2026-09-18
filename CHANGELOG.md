@@ -2,6 +2,70 @@
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-09-18
+
+0.7.1 non bastava. Dopo la pubblicazione, la stessa domanda reale
+("dove siamo arrivati con l'ultima sessione sul rinnovo accreditamento
+standard Abruzzo") continuava a restituire lo stesso identico rumore,
+anche dopo aver pulito il database e riavviato il server MCP.
+
+Causa radice reale: `core/exclusions.py` (corretto in 0.7.1) e' usato
+dall'indicizzatore GENERICO di progetto. La scoperta dei file sotto
+`~/.claude/projects/` passa invece da un modulo di discovery
+completamente separato (`discovery/agent_discovery.py`), con una propria
+scansione senza filtri — l'esclusione di 0.7.1 non lo toccava mai. E anche
+con il database pulito, il rumore tornava dopo un refresh: le entry
+`tool-results` erano gia' `confirmation_status: confirmed` nel catalogo
+sorgenti (`sources.json`), e `global_refresh` reindicizza le entry
+confermate leggendo il catalogo direttamente, senza mai ripetere la
+discovery — quindi non riapplica mai una regola di esclusione nuova a una
+sorgente gia' fidata.
+
+Due revisioni indipendenti (Codex, DeepSeek) sul fix, la seconda dopo la
+prima stesura: hanno trovato e fatto correggere un confronto
+case-sensitive sulla cartella `tool-results` e una scrittura non atomica
+del catalogo (entrambi sistemati sotto), oltre a un quarto percorso di
+codice (`_iter_candidate_files`/`_iter_project_doc_files`, entry a singolo
+file che saltano `should_exclude`) — verificato reale ma non sfruttabile
+per le entry disabilitate da questo fix, perche' `global_refresh` filtra
+per `confirmation_status == "confirmed"` prima di arrivarci.
+
+### Fixed
+
+- **`discovery/agent_discovery.py::_scan_agent_root`**: la scansione salta
+  ora ogni file sotto una cartella `tool-results` (case-insensitive) — il
+  contenuto non viene piu' letto affatto, quindi non puo' piu' essere
+  minato per menzioni di percorsi. Verificato con una scansione REALE di
+  `discover_from_agents` contro l'archivio dell'utente: 0 candidati
+  "document" con tool-results su 10.173 candidati totali (prima: rumore
+  costante).
+- **`EXCLUDED_DOCUMENT_PATH_FRAGMENTS`**: aggiunta `tool-results/` (e
+  variante con slash iniziale), per il caso in cui un percorso del genere
+  sia MENZIONATO dentro un altro testo invece di essere il file scansionato.
+
+### Added
+
+- **`truenex-mem global sources disable-path --path-filter <substring>`**:
+  marca `confirmation_status: disabled` per le entry gia' confermate nel
+  catalogo il cui percorso combacia un filtro — il pezzo che manca perche'
+  un'esclusione aggiunta DOPO che una sorgente e' stata confermata resti
+  effettiva. Va sempre abbinato a `sources purge-path` (che pulisce quanto
+  gia' indicizzato): l'uno senza l'altro lascia il lavoro a metà. Dry-run
+  per default; con `--yes`, backup del catalogo (`<catalogo>.bak-<timestamp>`)
+  scritto PRIMA di qualunque modifica, poi scrittura atomica
+  (write-then-rename) del catalogo aggiornato.
+
+### Known limitation
+
+Le note automatiche (`memory_nodes` generate da `global_auto_memory`, non
+scritte da una persona) non vengono toccate né da `purge-path` né da
+`disable-path` — di proposito, per non cancellare mai contenuto senza una
+decisione esplicita. Se `global_auto_memory` ha promosso contenuto di
+`tool-results` a nota prima di questo fix, quella nota puo' ancora
+comparire in una ricerca. Verificato: zero note del genere sull'archivio di
+sviluppo; da controllare caso per caso su archivi dove `global auto run` e'
+stato usato regolarmente.
+
 ## [0.7.1] — 2026-09-18
 
 Fast-follow su 0.7.0, trovato lo stesso giorno da una domanda vera contro
@@ -27,7 +91,7 @@ rispondeva davvero.
 
 ### Added
 
-- **`truenex-mem sources purge-path --path-filter <substring>`**: rimuove
+- **`truenex-mem global sources purge-path --path-filter <substring>`**: rimuove
   documenti/chunk gia' indicizzati il cui percorso combacia un filtro,
   indipendentemente dallo stato nel ledger (a differenza di
   `sources purge-missing`, che tocca solo sorgenti gia' segnate `missing`).

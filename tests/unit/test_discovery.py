@@ -1303,3 +1303,80 @@ class TestBoundedDiscovery:
         assert len(truncation_warnings) > 0, (
             "Expected truncation warnings in report"
         )
+
+
+# ── tool-results noise (2026-09-18) ─────────────────────────────────────
+#
+# `core.exclusions.should_exclude` (used by the regular project indexer)
+# has nothing to do with this module: `_scan_agent_root` walks agent roots
+# with its own `rglob`, so excluding a directory there had zero effect
+# here. Found on a real archive when raw tool-call output
+# (`.claude/projects/<slug>/<session>/tool-results/*.txt` — SQL column
+# dumps, grep results) kept outranking the document that actually answered
+# a real query, and kept reappearing after the DB was purged because this
+# module kept re-discovering and re-confirming the same files as document
+# candidates on every refresh.
+
+class TestToolResultsAreExcluded:
+    def test_tool_results_content_is_never_scanned(self) -> None:
+        """The walk itself must skip the directory — not just filter what
+        it later extracts — so its content is never even read."""
+
+        home = _workdir("disco_tool_results_walk")
+        session_dir = home / ".claude" / "projects" / "slug" / "session-1"
+        results_dir = session_dir / "tool-results"
+        results_dir.mkdir(parents=True)
+        (results_dir / "dump.txt").write_text(
+            "DATA_INSERIMENTO DATA_LAST_CHG oracle column dump, "
+            "mentions D:/some/real/project/notes.md",
+            encoding="utf-8",
+        )
+
+        report = discover_from_agents(home)
+
+        assert not any("tool-results" in d.path.lower() for d in report.documents)
+        # Se il file fosse stato letto, il percorso .md menzionato al suo
+        # interno sarebbe comparso come candidato: la sua assenza prova che
+        # il contenuto non e' mai stato letto, non solo filtrato dopo.
+        assert not any("notes.md" in d.path.lower() for d in report.documents)
+
+    def test_a_legitimate_session_transcript_next_to_it_is_still_scanned(self) -> None:
+        """Regression guard for the FIRST version of this fix: excluding
+        too much (the whole `.claude` dir) would have silently discarded
+        real, wanted content. Only `tool-results` is skipped."""
+
+        home = _workdir("disco_tool_results_sibling")
+        session_dir = home / ".claude" / "projects" / "slug"
+        session_dir.mkdir(parents=True)
+        (session_dir / "tool-results").mkdir()
+        (session_dir / "tool-results" / "dump.txt").write_text("noise", encoding="utf-8")
+        (session_dir / "session-1.jsonl").write_text(
+            json.dumps({"role": "user", "content": "please check /opt/real-project/readme.md"}) + "\n",
+            encoding="utf-8",
+        )
+
+        report = discover_from_agents(home)
+
+        assert any("readme.md" in d.path.lower() for d in report.documents)
+
+    def test_tool_results_exclusion_is_case_insensitive(self) -> None:
+        home = _workdir("disco_tool_results_case")
+        results_dir = home / ".claude" / "projects" / "slug" / "session-1" / "Tool-Results"
+        results_dir.mkdir(parents=True)
+        (results_dir / "dump.txt").write_text(
+            "noise mentioning D:/some/real/project/notes.md", encoding="utf-8"
+        )
+
+        report = discover_from_agents(home)
+
+        assert not any("notes.md" in d.path.lower() for d in report.documents)
+
+    def test_a_mention_of_a_tool_results_path_is_never_confirmed_as_a_document(self) -> None:
+        """Second layer: even if some OTHER text mentions a tool-results
+        path (e.g. a directory listing), it must not become a candidate."""
+
+        docs = _find_doc_paths(
+            "Listing: C:/Users/dev/.claude/projects/slug/session/tool-results/dump.txt"
+        )
+
+        assert docs == []

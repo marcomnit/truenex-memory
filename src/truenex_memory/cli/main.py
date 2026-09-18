@@ -40,7 +40,9 @@ from truenex_memory.discovery.source_catalog import (
     CatalogEntry,
     SourceCatalog,
     default_catalog_path,
+    disable_entries_by_path_pattern,
     entries_to_dict,
+    format_catalog_disable_report,
     format_entries,
     report_to_entries,
     source_id,
@@ -1271,6 +1273,62 @@ def sources_purge_path(
         typer.echo(format_path_purge_report(report))
         if not yes:
             typer.echo("\n(dry-run, pass --yes to apply the purge)")
+
+
+@sources_app.command("disable-path")
+def sources_disable_path(
+    path_filter: list[str] = typer.Option(
+        ...,
+        "--path-filter",
+        help="Case-insensitive substring on source paths; repeatable. "
+        "REQUIRED and must be non-empty.",
+    ),
+    home: Path = typer.Option(
+        Path.home(), "--home", help="User home directory for default paths.",
+    ),
+    catalog: Path | None = typer.Option(
+        None,
+        "--catalog",
+        help="Path to the source catalog JSON file (default: <home>/.truenex-memory/sources.json).",
+    ),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Apply (disable matching entries)."),
+    sample: int = typer.Option(
+        10, "--sample", min=0, max=100, help="Max sample paths to show in dry-run.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Print report as JSON."),
+) -> None:
+    """Stop already-confirmed catalog entries from being re-indexed, by path.
+
+    Excluding a path from discovery (core.exclusions, or the document-path
+    fragments in agent_discovery.py) only stops NEW candidates from being
+    proposed — an entry confirmed before the exclusion existed stays
+    confirmed, and `global refresh` re-indexes confirmed entries directly
+    by their catalog path without ever re-running discovery. This is the
+    piece that makes an exclusion added after the fact actually stick:
+    pair it with `sources purge-path` (which removes what is already in
+    the database) — this command stops it from coming back on the next
+    refresh.
+
+    Dry-run by default. With --yes, the catalog is backed up to
+    ``<catalog>.bak-<timestamp>`` first, then matching entries (by
+    substring on ``path_or_alias``) get ``confirmation_status: "disabled"``.
+    Entries are disabled, never removed: still visible, still reversible
+    by hand.
+    """
+    if not any(item.strip() for item in path_filter):
+        raise typer.BadParameter("--path-filter must be a non-empty string")
+
+    catalog_path = catalog if catalog is not None else default_catalog_path(home)
+    report = disable_entries_by_path_pattern(
+        catalog_path, patterns=path_filter, apply=yes, sample_limit=sample
+    )
+
+    if json_output:
+        typer.echo(json.dumps(report.to_dict(), indent=2, sort_keys=True))
+    else:
+        typer.echo(format_catalog_disable_report(report))
+        if not yes:
+            typer.echo("\n(dry-run, pass --yes to apply)")
 
 
 def _filter_catalog_entries(

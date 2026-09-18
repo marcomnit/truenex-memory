@@ -465,6 +465,18 @@ EXCLUDED_DOCUMENT_PATH_FRAGMENTS = (
     "/.agents/skills/",
     "/.claude/shell-snapshots/",
     "/.codex/skills/",
+    # Raw tool-call output cached under a Claude Code session
+    # (.claude/projects/<slug>/<uuid>/tool-results/*.txt). A path fragment
+    # here, not a dir-name check like `core.exclusions`, because these
+    # paths reach this filter as STRINGS MENTIONED inside session/tool text
+    # (see `_find_doc_paths` -> `_normalize_document_path`), not as
+    # filesystem entries being walked. `_scan_agent_root` skips them at the
+    # walk too (see its own comment) — both layers matter: the walk stops
+    # their CONTENT from being mined for path mentions at all, this stops a
+    # mention of one FROM ELSEWHERE (e.g. another tool-results dump listing
+    # filenames) from being confirmed as a document candidate.
+    "tool-results/",
+    "/tool-results/",
 )
 
 # Common English words that can follow "SSH" in prose but aren't aliases
@@ -889,9 +901,22 @@ def _scan_agent_root(
         return AgentRoot(label=label, path=path, exists=False, warnings=[]), texts
 
     # Gather files and count
+    #
+    # Unfiltered on purpose until 2026-09-18: this walk is a SEPARATE code
+    # path from `core.exclusions.should_exclude` (used by the regular
+    # project indexer), so adding `tool-results` there had no effect here.
+    # Found the hard way: a real query against a real archive kept
+    # returning raw tool-call output (`.claude/projects/<slug>/<session>/
+    # tool-results/*.txt` — SQL column dumps, grep results) even after that
+    # fix shipped and the DB was purged, because this walk kept
+    # re-discovering freshly-created tool-results files on every session.
     files: list[Path] = []
     if path.is_dir():
-        files = sorted(p for p in path.rglob("*") if p.is_file())
+        files = sorted(
+            p for p in path.rglob("*")
+            if p.is_file()
+            and "tool-results" not in (part.lower() for part in p.parts)
+        )
     elif path.is_file():
         files = [path]
 

@@ -250,6 +250,154 @@ class SourceCatalog:
         return ("added", entry)
 
 
+# ── disable confirmed entries by path pattern ────────────────────────
+#
+# Excluding a path from discovery (core.exclusions, or the
+# EXCLUDED_DOCUMENT_PATH_FRAGMENTS in agent_discovery.py) only stops NEW
+# candidates from being proposed. An entry that was already confirmed
+# before the exclusion existed stays confirmed, and `global refresh`
+# re-indexes confirmed entries directly by their catalog path — it never
+# re-runs discovery, so it never re-applies an exclusion rule to a source
+# it already trusts. Found on a real archive (2026-09-18): after excluding
+# `tool-results` from discovery AND purging the already-indexed content,
+# search kept re-surfacing the same noise, because the confirmed catalog
+# entries for those exact files were still there and `global refresh` kept
+# re-indexing them on every automatic run.
+
+@dataclass
+class CatalogDisableReport:
+    """Planned or applied disabling of confirmed catalog entries by path."""
+
+    catalog_path: str
+    dry_run: bool
+    catalog_exists: bool = False
+    path_filters: list[str] = field(default_factory=list)
+    matched: int = 0
+    already_disabled: int = 0
+    disabled: int = 0
+    backup_path: str | None = None
+    sample_paths: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "catalog_path": self.catalog_path,
+            "dry_run": self.dry_run,
+            "catalog_exists": self.catalog_exists,
+            "path_filters": self.path_filters,
+            "matched": self.matched,
+            "already_disabled": self.already_disabled,
+            "disabled": self.disabled,
+            "backup_path": self.backup_path,
+            "sample_paths": self.sample_paths,
+            "warnings": self.warnings,
+        }
+
+
+def disable_entries_by_path_pattern(
+    catalog_path: Path,
+    *,
+    patterns: list[str],
+    apply: bool = False,
+    sample_limit: int = 10,
+) -> CatalogDisableReport:
+    """Set ``confirmation_status`` to ``disabled`` for entries matching a path substring.
+
+    ``patterns`` is REQUIRED and non-empty, same guard as
+    `ingestion.ledger_purge.purge_by_path_pattern`: an empty pattern list
+    must never be able to match every entry. Matching is a case-insensitive
+    substring against ``path_or_alias`` with separators normalised.
+
+    Disabled, not removed: a disabled entry stays visible in the catalog
+    (inspectable, reversible by hand) but `global refresh` and future
+    re-confirmation sweeps skip it. The catalog is copied to
+    ``<catalog_path>.bak-<timestamp>`` before any write.
+    """
+
+    filters = [item.strip().lower() for item in patterns if item.strip()]
+    if not filters:
+        raise ValueError("patterns must contain at least one non-empty filter")
+
+    report = CatalogDisableReport(
+        catalog_path=str(catalog_path), dry_run=not apply, path_filters=list(patterns)
+    )
+    if not catalog_path.exists():
+        report.warnings.append(f"Catalog not found: {catalog_path}")
+        return report
+    report.catalog_exists = True
+
+    try:
+        data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        report.warnings.append(f"Catalog could not be read: {type(exc).__name__}: {exc}")
+        return report
+
+    raw_entries = data.get("entries", [])
+    if not isinstance(raw_entries, list):
+        report.warnings.append("Catalog entries is not a list")
+        return report
+
+    def _matches(path: str) -> bool:
+        needle = path.replace("\\", "/").casefold()
+        return any(term in needle for term in filters)
+
+    matched = [
+        e for e in raw_entries
+        if isinstance(e, dict) and _matches(str(e.get("path_or_alias", "")))
+    ]
+    report.matched = len(matched)
+    report.already_disabled = sum(1 for e in matched if e.get("confirmation_status") == "disabled")
+    report.sample_paths = [str(e.get("path_or_alias", "")) for e in matched[:sample_limit]]
+
+    if apply:
+        to_disable = [e for e in matched if e.get("confirmation_status") != "disabled"]
+        if to_disable:
+            from datetime import datetime, timezone
+
+            timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            backup_path = catalog_path.with_name(f"{catalog_path.stem}.bak-{timestamp}{catalog_path.suffix}")
+            backup_path.write_text(catalog_path.read_text(encoding="utf-8"), encoding="utf-8")
+            report.backup_path = str(backup_path)
+
+            for entry in to_disable:
+                entry["confirmation_status"] = "disabled"
+            # Write-then-rename: a crash mid-write leaves the temp file
+            # broken, never the live catalog. `os.replace` is atomic on
+            # both POSIX and Windows (unlike a direct write_text, which can
+            # leave a half-written, unreadable sources.json on interruption).
+            import os as _os
+
+            tmp_path = catalog_path.with_suffix(f"{catalog_path.suffix}.tmp")
+            tmp_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
+            _os.replace(tmp_path, catalog_path)
+        report.disabled = len(to_disable)
+
+    return report
+
+
+def format_catalog_disable_report(report: CatalogDisableReport) -> str:
+    mode = "dry-run" if report.dry_run else "applied"
+    lines = [f"Catalog Disable-By-Path ({mode})", "=" * 60]
+    lines.append(f"Catalog: {report.catalog_path}")
+    lines.append(f"  exists: {'yes' if report.catalog_exists else 'no'}")
+    lines.append(f"  path filters: {', '.join(report.path_filters)}")
+    lines.append(f"  entries matched: {report.matched}")
+    lines.append(f"  already disabled: {report.already_disabled}")
+    if report.backup_path:
+        lines.append(f"  backup: {report.backup_path}")
+    if not report.dry_run:
+        lines.append(f"  entries disabled: {report.disabled}")
+    if report.sample_paths:
+        lines.append(f"\nSample matched paths ({len(report.sample_paths)} shown):")
+        for path in report.sample_paths:
+            lines.append(f"  - {path}")
+    if report.warnings:
+        lines.append("\nWarnings:")
+        for warning in report.warnings:
+            lines.append(f"  - {warning}")
+    return "\n".join(lines)
+
+
 # ── formatting ────────────────────────────────────────────────────────
 
 def format_entries(entries: list[CatalogEntry]) -> str:
