@@ -16,7 +16,7 @@ from truenex_memory.diagnostics import run_diagnostics
 from truenex_memory.export import export_json, import_json
 from truenex_memory.mcp.tools import (
     global_project_context, global_status, memory_add, memory_get, memory_graph,
-    memory_search, task_close, task_open, task_step_add,
+    memory_resume, memory_search, task_close, task_open, task_step_add,
 )
 
 Tool = Callable[..., Any]
@@ -51,6 +51,7 @@ TOOLS: dict[str, Tool] = {
     "memory_add": memory_add,
     "memory_get": memory_get,
     "memory_graph": memory_graph,
+    "memory_resume": memory_resume,
     "memory_search": memory_search,
     "task_open": task_open,
     "task_step_add": task_step_add,

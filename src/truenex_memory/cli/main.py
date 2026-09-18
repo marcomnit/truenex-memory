@@ -1318,12 +1318,20 @@ def global_refresh(
             typer.echo(f"Error: Catalog file not found: {catalog_path}")
         raise typer.Exit(code=1)
 
-    report = run_global_refresh(
-        catalog_path=catalog_path,
-        db_path=db_path,
-        dry_run=dry_run,
-        stability_seconds=stability_seconds,
-    )
+    try:
+        report = run_global_refresh(
+            catalog_path=catalog_path,
+            db_path=db_path,
+            dry_run=dry_run,
+            stability_seconds=stability_seconds,
+        )
+    finally:
+        # Toglie il lucchetto lasciato da ensure_global_fresh() quando questo
+        # comando e' stato avviato in disparte da un tool MCP. Idempotente e
+        # innocuo quando il lucchetto non c'e' (refresh lanciato a mano).
+        from truenex_memory.ingestion.reactive_refresh import release_lock
+
+        release_lock(db_path)
     if json_output:
         limit = None if full_details else detail_limit
         typer.echo(json.dumps(report.to_dict(detail_limit=limit), indent=2, sort_keys=True))

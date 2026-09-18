@@ -72,6 +72,7 @@ def test_stdio_tool_surface_is_safe_subset_of_local_registry() -> None:
         "memory_get",
         "memory_graph",
         "memory_add",
+        "memory_resume",
         "global_status",
         "global_project_context",
         "task_open",
@@ -111,6 +112,126 @@ def test_tools_call_add_and_search() -> None:
     payload = json.loads(result_text)
     assert payload["results"]
     assert payload["results"][0]["memory_type"] == "decision"
+
+
+def _call(project_root: Path, name: str, arguments: dict) -> dict:
+    response = handle_jsonrpc_message(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}},
+        project_root=project_root,
+    )
+    return json.loads(response["result"]["content"][0]["text"])
+
+
+def test_every_tool_call_is_logged_for_memory_resume(monkeypatch) -> None:
+    """Il dispatcher registra da solo, senza che l'agente chiami task_open.
+
+    Questo e' il punto centrale del fix: la cronologia non dipende dalla
+    disciplina di chi chiama, perche' viene scritta dal server stesso a ogni
+    `tools/call`, qualunque sia il tool.
+    """
+
+    project_root = _workdir("mcp_activity_log")
+    # I task vivono nell'archivio HOME globale (vedi memory_resume): un HOME
+    # finto isola il test dal vero archivio dell'utente che esegue la suite.
+    monkeypatch.setenv("HOME", str(_workdir("mcp_activity_log_home")))
+    monkeypatch.setenv("USERPROFILE", str(_workdir("mcp_activity_log_home2")))
+
+    _call(project_root, "memory_add", {"content": "Prima nota", "memory_type": "note"})
+    _call(project_root, "memory_search", {"query": "prima nota"})
+    recap = _call(project_root, "memory_resume", {})
+
+    tool_names = [entry["tool_name"] for entry in recap["activity"]]
+    assert "memory_add" in tool_names
+    assert "memory_search" in tool_names
+    assert recap["recent_memories"][0]["title"] == "Prima nota"
+    assert "coverage" in recap
+
+
+def test_memory_resume_reports_empty_project_honestly(monkeypatch) -> None:
+    """Nessuna chiamata precedente: liste vuote, non un errore.
+
+    E il `coverage` deve restare presente, cosi' un recap vuoto si legge
+    come «nessuna attivita' registrata», non come «lo strumento e' rotto».
+    """
+
+    monkeypatch.setenv("HOME", str(_workdir("mcp_activity_empty_home")))
+    monkeypatch.setenv("USERPROFILE", str(_workdir("mcp_activity_empty_home2")))
+    recap = _call(_workdir("mcp_activity_empty"), "memory_resume", {})
+
+    assert recap["activity"] == []
+    assert recap["tasks"] == []
+    assert recap["recent_memories"] == []
+    assert set(recap["coverage"]) == {"activity", "tasks", "recent_memories"}
+
+
+def test_memory_resume_reads_tasks_from_the_global_store_not_the_local_one(monkeypatch) -> None:
+    """Regressione: task_open scrive nell'archivio HOME globale, non in
+    quello locale del progetto (`<project_root>/.truenex-memory`).
+
+    Trovato con una domanda vera, non con un test: un `memory_resume` che
+    leggeva i task dal db locale del progetto non vedeva MAI un task appena
+    aperto nella stessa sessione — solo righe residue di un percorso di
+    codice precedente rimaste in quel file. Questo test blocca la
+    regressione: un task aperto con `task_open` deve comparire nel recap.
+    """
+
+    project_root = _workdir("mcp_resume_tasks_project")
+    fake_home = _workdir("mcp_resume_tasks_home")
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.setenv("USERPROFILE", str(fake_home))
+
+    opened = _call(
+        project_root,
+        "task_open",
+        {"title": "Task aperto in questa sessione", "project": project_root.name},
+    )
+    recap = _call(project_root, "memory_resume", {})
+
+    assert opened["task_id"] in {t["task_id"] for t in recap["tasks"]}
+
+
+def test_memory_add_can_target_a_different_project_over_stdio(monkeypatch) -> None:
+    """Il parametro `project` di memory_add deve arrivare da un client REALE.
+
+    Prima di questo test lo schema stdio non lo dichiarava e il dispatcher
+    non lo inoltrava: un client MCP non poteva usarlo, anche se la funzione
+    Python sottostante lo supportava gia'. E' esattamente il tipo di lacuna
+    che una prova solo unitaria (sulla funzione, non sul protocollo) lascia
+    passare.
+    """
+
+    session_root = _workdir("mcp_add_project_stdio_session")
+    other_root = _workdir("mcp_add_project_stdio_other")
+    fake_home = _workdir("mcp_add_project_stdio_home")
+    (fake_home / ".truenex-memory").mkdir(parents=True, exist_ok=True)
+    (fake_home / ".truenex-memory" / "sources.json").write_text(
+        json.dumps(
+            {
+                "version": "1",
+                "entries": [
+                    {
+                        "id": "other",
+                        "source_type": "project_root",
+                        "path_or_alias": str(other_root.resolve()),
+                        "project_name": "OtherProj",
+                        "confirmation_status": "confirmed",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HOME", str(fake_home.resolve()))
+    monkeypatch.setenv("USERPROFILE", str(fake_home.resolve()))
+
+    result = _call(
+        session_root,
+        "memory_add",
+        {"content": "Nota per l'altro progetto", "project": "OtherProj"},
+    )
+
+    assert "error" not in result
+    assert Path(result["project_root"]).resolve() == other_root.resolve()
 
 
 def test_tool_errors_are_reported_as_tool_results() -> None:

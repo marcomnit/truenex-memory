@@ -61,12 +61,12 @@ def memory_graph(
             "backend_installed": graphify_available(),
         }
 
-    # Il grafo giusto e' quello la cui radice contiene lo scope richiesto;
-    # senza scope si prende quello che nomina il bersaglio.
+    # Il grafo giusto e' quello la cui radice corrisponde allo scope
+    # richiesto; senza scope si prende quello che nomina il bersaglio.
     from truenex_memory.graph import FileGraph
     import json as _json
 
-    best: FileGraph | None = None
+    loaded: list[FileGraph] = []
     stale: list[str] = []
     for entry in graphs:
         try:
@@ -78,9 +78,33 @@ def memory_graph(
             # risponderebbe "non trovato" a qualunque funzione.
             stale.append(str(data.get("root", entry.name)))
             continue
-        graph = FileGraph.from_dict(data)
-        if scope and scope.replace("\\", "/").lower() not in graph.root.lower():
-            continue
+        loaded.append(FileGraph.from_dict(data))
+
+    candidates = loaded
+    if scope:
+        # Corrispondenza esatta sul nome dell'ultima cartella prima di
+        # quella per sottostringa: "truenex" contenuto sia in
+        # "truenex-memory" che in "truenex-engine" sceglieva in silenzio il
+        # primo dei due invece di dirlo. Un nome di cartella intero non ha
+        # questa ambiguita' nel caso comune, quindi ha la precedenza.
+        exact = [g for g in loaded if Path(g.root).name.lower() == scope.strip().lower()]
+        if exact:
+            candidates = exact
+        else:
+            scope_norm = scope.replace("\\", "/").strip().lower()
+            substring = [g for g in loaded if scope_norm in g.root.replace("\\", "/").lower()]
+            distinct_roots = sorted({g.root for g in substring})
+            if len(distinct_roots) > 1:
+                return {
+                    "target": target,
+                    "error": f"scope '{scope}' matches {len(distinct_roots)} code graphs",
+                    "candidates": distinct_roots,
+                    "hint": "re-call memory_graph with one of these roots as `scope`",
+                }
+            candidates = substring
+
+    best: FileGraph | None = None
+    for graph in candidates:
         if explain_entity(graph, target, limit=1)["matched"]:
             best = graph
             break
@@ -283,20 +307,181 @@ def memory_get(
     return repository.get_document_text(str(document_id))
 
 
+def memory_resume(
+    *,
+    limit_activity: int = 20,
+    limit_tasks: int = 5,
+    limit_memories: int = 10,
+    project_root: Path | str = ".",
+) -> dict[str, object]:
+    """Chronological recap of recent work on THIS project — not a search.
+
+    A different door again from `memory_search` and `memory_graph`, for a
+    question neither answers: "what happened last, in what order, what's
+    still open". That is a question about RECENCY and STRUCTURE, not about
+    relevance to a query — lexical and semantic ranking both optimise for
+    "what matches these words", and a diagnosis-then-measurement on this
+    project's own corpus (2026-08-21, 53 held-out cases) found dense cosine
+    ranking does not surface "what's most recent" any better than chance,
+    because recency is not a property of a chunk's text. Asking
+    memory_search "where did we leave off" is asking the wrong tool.
+
+    Three sources, each labeled by how much to trust it:
+
+    - ``activity`` — every MCP tool call made against this project's own
+      store, logged by the stdio server itself (`mcp/server.py::_call_tool`)
+      regardless of which tool was called or which client called it. This
+      is the reliable signal: it does not depend on an agent remembering to
+      narrate its own work.
+    - ``tasks`` — from the adaptive task pipeline (`task_open`/
+      `task_step_add`/`task_close`), matched to this project BY NAME
+      (the global task store has no path-based link to a project root).
+      Best-effort: a task never opened, or opened under a different name,
+      will not show up here. Never treat an empty list as "nothing
+      happened" — check ``activity`` for that.
+    - ``recent_memories`` — this project's own `memory_add` notes/decisions,
+      most recent first. As reliable as ``activity``: same local store.
+
+    ``coverage`` names what each source can and cannot promise, so an empty
+    or thin recap reads as "little was logged", never as "nothing to
+    report" when something in fact happened outside these three sources
+    (e.g. work done through a client that bypasses this server, or from
+    before this feature existed).
+    """
+
+    from truenex_memory.store.activity_log import recent as recent_activity
+    from truenex_memory.store.task_store import TaskStore
+
+    service = MemoryService(project_root)
+    service.init_project()
+    project_id = service.repository.project_id
+    project_name = service.config.project_root.name
+
+    activity = recent_activity(service.config.db_path, project_id=project_id, limit=limit_activity)
+
+    # I task vivono nell'archivio GLOBALE (~/.truenex-memory), non in quello
+    # locale del progetto: e' dove task_open/task_step_add scrivono davvero
+    # (vedi mcp.tools._default_task_store). Leggerli dal db locale — come
+    # faceva una prima versione di questa funzione — trovava solo righe
+    # residue di un percorso di codice precedente e mai i task appena
+    # aperti: un collaudo con una domanda vera, non un test unitario, e' cio'
+    # che lo ha mostrato.
+    global_db_path = Path.home() / ".truenex-memory" / "truenex_memory.db"
+    task_store = TaskStore(global_db_path)
+    try:
+        matched_tasks = task_store.task_list(project=project_name, limit=limit_tasks)
+    except Exception:
+        matched_tasks = []
+    tasks: list[dict[str, object]] = []
+    for task in matched_tasks:
+        try:
+            steps = task_store.step_list(task.task_id)
+        except Exception:
+            steps = []
+        last_step = steps[-1] if steps else None
+        tasks.append(
+            {
+                "task_id": task.task_id,
+                "title": task.title,
+                "status": task.status,
+                "created_at": task.created_at,
+                "closed_at": task.closed_at,
+                "human_outcome": task.human_outcome,
+                "step_count": len(steps),
+                "last_step": (
+                    {
+                        "brain_judgment": last_step.brain_judgment,
+                        "output": (last_step.output or "")[:200],
+                        "created_at": last_step.created_at,
+                    }
+                    if last_step is not None
+                    else None
+                ),
+            }
+        )
+
+    memory_nodes = sorted(
+        service.list_memory_nodes(status="active"),
+        key=lambda node: node.created_at,
+        reverse=True,
+    )[:limit_memories]
+    recent_memories = [
+        {
+            "memory_id": node.id,
+            "memory_type": node.type,
+            "title": node.title,
+            "created_at": node.created_at,
+        }
+        for node in memory_nodes
+    ]
+
+    return {
+        "project": project_name,
+        "activity": activity,
+        "tasks": tasks,
+        "recent_memories": recent_memories,
+        "coverage": {
+            "activity": (
+                "every MCP tool call against this project's own store since this "
+                "feature shipped; empty means none were made through this server, "
+                "not that nothing happened"
+            ),
+            "tasks": (
+                "matched to this project by NAME against the global task store "
+                "(task_open has no path-based link to a project root); a task "
+                "opened under a different name will not appear here"
+            ),
+            "recent_memories": "this project's own memory_add notes/decisions, exact",
+        },
+    }
+
+
 def memory_add(
     content: str,
     memory_type: str = "note",
     *,
     supersedes: str | None = None,
+    project: str | None = None,
     project_root: Path | str = ".",
+    home: str | Path | None = None,
+    catalog: str | Path | None = None,
 ) -> dict[str, object]:
-    """Add a local memory node."""
+    """Add a local memory node.
+
+    Writes into the project resolved from ``project_root`` (the session's
+    cwd) unless ``project`` names a DIFFERENT project — a name, basename, or
+    path already confirmed in the global source catalog. Without this, a
+    note discovered while working in project A but relevant to project B
+    could only ever be written into A, because ``project_root`` tracks the
+    session, not the note's subject.
+    """
+
+    if project:
+        from truenex_memory.ingestion.global_context import resolve_project_root
+
+        _home = Path(home) if home else Path.home()
+        catalog_path = Path(catalog) if catalog else _home / ".truenex-memory" / "sources.json"
+        root, ambiguous, error = resolve_project_root(project, catalog_path)
+        if ambiguous:
+            return {
+                "error": f"project '{project}' is ambiguous",
+                "candidates": ambiguous,
+                "hint": "re-call with one of these paths as `project`",
+            }
+        if root is None:
+            return {"error": error or f"project '{project}' not found"}
+        project_root = root
 
     service = MemoryService(project_root)
     memory_id = service.add(
         content, memory_type=memory_type, supersedes=supersedes
     )
-    return {"id": memory_id, "status": "active", "memory_type": memory_type}
+    return {
+        "id": memory_id,
+        "status": "active",
+        "memory_type": memory_type,
+        "project_root": str(service.config.project_root),
+    }
 
 
 def global_status(
@@ -304,14 +489,33 @@ def global_status(
     catalog: str | Path | None = None,
     db: str | Path | None = None,
 ) -> dict[str, object]:
-    """Read-only global status report for the Truenex Memory global store."""
+    """Global status report for the Truenex Memory global store.
+
+    Reads without mutating the catalog or the database. It DOES, as a side
+    effect, start a background reindex when the corpus is older than
+    ``TRUENEX_GLOBAL_REFRESH_MAX_AGE_SECONDS`` (default 6h) — the same
+    fire-and-forget mechanism ``memory_graph`` already uses for the code
+    graph. Without it, ``last_indexed_at`` stays frozen at whatever the last
+    manual ``truenex-mem global refresh`` happened to be, which is exactly
+    the failure this closes: an agent reading a status report has no way to
+    run that command itself, so a purely-manual refresh means the report
+    silently goes stale.
+    """
+
+    from truenex_memory.ingestion.reactive_refresh import ensure_global_fresh
 
     _home = Path(home) if home else Path.home()
     catalog_path = Path(catalog) if catalog else _home / ".truenex-memory" / "sources.json"
     db_path = Path(db) if db else _home / ".truenex-memory" / "truenex_memory.db"
 
     report = build_global_status(catalog_path=catalog_path, db_path=db_path)
-    return report.to_dict()
+    payload = report.to_dict()
+    payload["reactive_refresh"] = ensure_global_fresh(
+        catalog_path=catalog_path,
+        db_path=db_path,
+        last_indexed_at=report.last_indexed_at,
+    )
+    return payload
 
 
 def global_project_context(
@@ -328,6 +532,8 @@ def global_project_context(
     if not isinstance(limit, int) or limit < 1 or limit > 100:
         raise ValueError("limit must be an integer between 1 and 100")
 
+    from truenex_memory.ingestion.reactive_refresh import ensure_global_fresh
+
     _home = Path(home) if home else Path.home()
     catalog_path = Path(catalog) if catalog else _home / ".truenex-memory" / "sources.json"
     db_path = Path(db) if db else _home / ".truenex-memory" / "truenex_memory.db"
@@ -338,7 +544,22 @@ def global_project_context(
         db_path=db_path,
         limit=limit,
     )
-    return report.to_dict()
+    payload = report.to_dict()
+    if report.resolved:
+        # L'eta' che conta qui e' quella delle sorgenti DI QUESTO progetto, non
+        # del corpus intero: un progetto silenzioso mentre altri 59 vengono
+        # aggiornati avrebbe last_indexed_at globale fresco e contesto vecchio
+        # lo stesso.
+        project_last_indexed = max(
+            (entry.get("last_indexed_at") for entry in report.ledger_entries if entry.get("last_indexed_at")),
+            default=None,
+        )
+        payload["reactive_refresh"] = ensure_global_fresh(
+            catalog_path=catalog_path,
+            db_path=db_path,
+            last_indexed_at=project_last_indexed,
+        )
+    return payload
 
 
 from truenex_memory.store.task_store import TaskStore, TASK_TYPES, BRAIN_JUDGMENTS

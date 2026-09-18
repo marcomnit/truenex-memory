@@ -193,3 +193,52 @@ def test_the_tool_reports_a_missing_graph_instead_of_failing(tmp_path: Path, mon
 
     assert "error" in result
     assert "graph build" in result["hint"]
+
+
+def _cache_two_graphs(tmp_path: Path) -> tuple[Path, Path]:
+    """Due grafi con radici che condividono una sottostringa ma non il nome.
+
+    Riproduce il caso segnalato in diagnosi (2026-09-17): uno scope come
+    "truenex" e' contenuto sia in "truenex-memory" che in "truenex-engine",
+    e prima del fix il primo file letto vinceva in silenzio.
+    """
+
+    from truenex_memory.core.config import resolve_project_config
+    from truenex_memory.graph import save_file_graph
+
+    root_memory = tmp_path / "truenex-memory"
+    root_engine = tmp_path / "truenex-engine"
+    cache_dir = resolve_project_config(tmp_path).db_path.parent / "code_graphs"
+
+    save_file_graph(FileGraph(root=str(root_memory), entities=[_edge("a.py::f", "b.py::g", "calls")]), cache_dir)
+    save_file_graph(FileGraph(root=str(root_engine), entities=[_edge("c.py::h", "d.py::i", "calls")]), cache_dir)
+    return root_memory, root_engine
+
+
+def test_ambiguous_scope_is_reported_with_candidates_instead_of_guessing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from truenex_memory.mcp.tools import memory_graph
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root_memory, root_engine = _cache_two_graphs(tmp_path)
+
+    result = memory_graph("f", scope="truenex", project_root=tmp_path)
+
+    assert "error" in result
+    assert set(result["candidates"]) == {str(root_memory), str(root_engine)}
+
+
+def test_exact_folder_name_scope_resolves_without_ambiguity(tmp_path: Path, monkeypatch) -> None:
+    from truenex_memory.mcp.tools import memory_graph
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    root_memory, root_engine = _cache_two_graphs(tmp_path)
+
+    result = memory_graph("h", scope="truenex-engine", project_root=tmp_path)
+
+    assert "error" not in result
+    assert result["project"] == str(root_engine)
+    assert result["matched"] == ["c.py::h"]

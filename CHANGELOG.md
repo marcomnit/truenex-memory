@@ -2,6 +2,97 @@
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-18
+
+Quattro difetti diagnosticati usando lo strumento su un progetto reale, non
+scoperti leggendo il codice: un indice globale che invecchiava in silenzio,
+una nota impossibile da scrivere nel progetto giusto quando non era quello
+della sessione corrente, un `memory_graph` che poteva agganciarsi al
+progetto sbagliato quando lo scope era una sottostringa condivisa da piu'
+radici (es. "truenex" contenuto sia in "truenex-memory" che in
+"truenex-engine" — confermato su 11 progetti reali durante il collaudo), e
+l'assenza di un modo affidabile per rispondere a "dove eravamo rimasti".
+Analisi indipendente di tre modelli diversi (Codex, Kimi, DeepSeek), DUE
+volte — la seconda dopo che il collaudo sul campo ha smentito la prima
+ipotesi sul quarto punto — per lo stesso motivo per cui il progetto gia'
+separa `memory_graph` da `memory_search`: un secondo parere costa poco e un
+difetto silenzioso su un layer di memoria costa la fiducia in tutto quello
+che ha registrato.
+
+**Nota sul quarto punto, per chi si aspettava un fix sull'embedder.** La
+prima ipotesi — che la ricerca "sembra lessicale" perche' l'embedder di
+default e' `hashing` — era incompleta. Verificato sul campo: il ranking
+denso/e5 e' gia' spento da un flag SEPARATO e gia' esistente,
+`TRUENEX_DENSE` (default `off`, indipendente da `TRUENEX_EMBEDDER`), spento
+il 21/08/2026 dopo una misurazione reale (201.282 chunk, 53 casi) che ha
+mostrato che il ranking per cosine-similarity NON migliora i risultati su
+questo corpus — non e' un difetto, e' una decisione gia' presa e gia'
+corretta. Il problema vero, isolato con l'aiuto dei tre modelli consultati
+una seconda volta: "dove eravamo rimasti" e' una domanda sulla RECENZA
+dello stato di un progetto, non sulla RILEVANZA di un testo rispetto a una
+query — nessun ranking, lessicale o semantico, per quanto lo si ottimizzi,
+risponde a "cosa e' successo per ultimo". Il fix e' quindi un tool nuovo,
+non un tuning del ranking esistente: vedi `memory_resume` sotto.
+
+### Added
+
+- **`memory_resume`**: risposta deterministica, non di ranking, a "dove
+  eravamo rimasti / qual e' lo stato attuale / prossimi passi". Aggrega tre
+  fonti ordinate per tempo: la cronologia automatica delle chiamate a questo
+  progetto (vedi punto successivo), i task recenti del pipeline adattivo
+  (`task_open`/`task_step_add`/`task_close`, associati per nome — limite
+  dichiarato in `coverage`, non nascosto), e le ultime note/decisioni
+  (`memory_add`) di questo progetto. Nessun punteggio, nessuna soglia:
+  ordinamento cronologico puro. Ogni risposta porta un campo `coverage` che
+  dichiara cosa ciascuna fonte puo' e non puo' promettere, cosi' un recap
+  vuoto si legge come "poco e' stato registrato", mai come "non e'
+  successo niente" quando invece qualcosa e' sfuggito alle tre fonti.
+- **Cronologia automatica delle chiamate** (`store/activity_log.py`): il
+  server stdio registra da solo, per ogni `tools/call` che gli arriva —
+  qualunque tool, qualunque client (Claude, Codex, Cursor, Kimi) — una riga
+  con progetto, strumento, breve riassunto ed esito. E' il punto che chiude
+  davvero il problema: prima, "sapere cosa e' successo" dipendeva
+  dall'agente che si ricordava di chiamare `task_open`/`task_step_add`; ora
+  non dipende da nessuna cooperazione del client, perche' il dispatcher e'
+  l'unico punto per cui passano tutte le chiamate. Una riga di cronologia
+  persa non fa mai fallire la risposta del tool che l'ha generata.
+- **Reindex reattivo del corpus globale** (`ingestion/reactive_refresh.py`):
+  `global_status` e `global_project_context` ora avviano da soli un refresh
+  in background quando l'indice e' piu' vecchio di
+  `TRUENEX_GLOBAL_REFRESH_MAX_AGE_SECONDS` (default 6h), con lo stesso
+  meccanismo gia' validato in `graph.refresh` — lock esclusivo, processo
+  senza console su Windows, risposta mai bloccata. Si spegne con
+  `TRUENEX_GLOBAL_AUTO_REFRESH=0`. Prima esisteva solo il refresh manuale
+  (`truenex-mem global refresh`), e un indice che nessuno ricordava di
+  aggiornare restava fermo a settimane fa — verificato sul campo: passato da
+  20 giorni di eta' a "aggiornato ora" alla prima chiamata di `global_status`.
+- **`memory_add(project=...)`**: scrive in un progetto diverso da quello
+  della cwd della sessione corrente, risolvendolo per nome/basename/percorso
+  contro il catalogo sorgenti confermato (la stessa risoluzione gia' usata
+  da `global_project_context`). Un nome ambiguo torna un errore con la lista
+  dei percorsi candidati invece di scegliere in silenzio. Esposto anche sul
+  server stdio (schema e dispatcher) — la sola funzione Python non bastava,
+  perche' nessun client MCP reale poteva raggiungerla.
+
+### Fixed
+
+- **`memory_graph`**: uno scope che e' sottostringa di piu' radici cache
+  (es. `truenex` per `truenex-memory` e `truenex-engine`) restituiva in
+  silenzio il primo grafo letto dal disco. Ora un nome di cartella esatto ha
+  la precedenza sulla sottostringa, e una sottostringa che corrisponde a piu'
+  radici distinte torna un errore con l'elenco dei candidati invece di
+  indovinare.
+
+### Migration
+
+Nessuna azione richiesta per chi aggiorna: tutti i fix sono additivi (nuovo
+parametro opzionale, nuovo tool, nuova tabella creata al bisogno, nuovo
+comportamento di background che non cambia la forma delle risposte
+esistenti se non aggiungendo campi) e nessuno schema di embedding e'
+cambiato. Ne' `TRUENEX_EMBEDDER` ne' `TRUENEX_DENSE` cambiano default in
+questa release: la decisione di tenere il ranking denso spento resta quella
+misurata il 21/08/2026, e non e' in discussione qui.
+
 ## [0.6.2] — 2026-08-23
 
 Quattro difetti mostrati dai 24 grafi di una macchina vera, tutti della

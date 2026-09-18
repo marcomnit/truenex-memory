@@ -147,6 +147,121 @@ def test_call_tool_dispatches_global_project_context_with_path_home() -> None:
     assert result["catalog"]["roots"][0]["id"] == "root-path"
 
 
+def test_memory_add_targets_a_different_project_via_catalog() -> None:
+    """`project=` scrive altrove dalla cwd della sessione, non nel progetto attivo.
+
+    E' esattamente il caso che ha motivato il parametro: una nota scoperta
+    lavorando su A ma pertinente a B, senza dover aprire una sessione con la
+    cwd in B solo per salvarla.
+    """
+
+    session_root = _workdir("mcp_add_project_session")
+    other_root = _workdir("mcp_add_project_other")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        truenex_dir = home / ".truenex-memory"
+        truenex_dir.mkdir(parents=True)
+        (truenex_dir / "sources.json").write_text(
+            json.dumps(
+                {
+                    "version": "1",
+                    "entries": [
+                        {
+                            "id": "other-root",
+                            "source_type": "project_root",
+                            "path_or_alias": str(other_root),
+                            "project_name": "OtherProject",
+                            "confirmation_status": "confirmed",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = memory_add(
+            "Nota pertinente a OtherProject.",
+            "note",
+            project="OtherProject",
+            project_root=session_root,
+            home=str(home),
+        )
+
+    assert "error" not in result
+    assert Path(result["project_root"]).resolve() == other_root.resolve()
+
+    found_elsewhere = memory_search("pertinente a OtherProject", project_root=session_root)
+    assert not found_elsewhere["results"], "non deve finire nel progetto della sessione"
+
+    found_target = memory_search("pertinente a OtherProject", project_root=other_root)
+    assert found_target["results"]
+
+
+def test_memory_add_reports_ambiguous_project_with_candidates() -> None:
+    """Due radici diverse che condividono solo il nome di cartella.
+
+    Diverso dal caso "stesso project_name in due posti" (che il catalogo
+    tratta di proposito come un unico progetto tenuto in piu' copie — vedi
+    `_resolve_project`, fase 1): qui i due `project_name` sono distinti, e
+    solo il basename del percorso coincide, quindi non c'e' un progetto
+    "vero" da preferire.
+    """
+
+    session_root = _workdir("mcp_add_project_ambiguous")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        truenex_dir = home / ".truenex-memory"
+        truenex_dir.mkdir(parents=True)
+        (truenex_dir / "sources.json").write_text(
+            json.dumps(
+                {
+                    "version": "1",
+                    "entries": [
+                        {
+                            "id": "root-a",
+                            "source_type": "project_root",
+                            "path_or_alias": "/repo/dup-a/shared",
+                            "project_name": "SharedFromA",
+                            "confirmation_status": "confirmed",
+                        },
+                        {
+                            "id": "root-b",
+                            "source_type": "project_root",
+                            "path_or_alias": "/repo/dup-b/shared",
+                            "project_name": "SharedFromB",
+                            "confirmation_status": "confirmed",
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = memory_add(
+            "Nota ambigua.", "note", project="shared", project_root=session_root, home=str(home)
+        )
+
+    assert "error" in result
+    assert len(result["candidates"]) == 2
+
+
+def test_memory_add_reports_unknown_project() -> None:
+    session_root = _workdir("mcp_add_project_unknown")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        result = memory_add(
+            "Nota per un progetto mai catalogato.",
+            "note",
+            project="NonEsiste",
+            project_root=session_root,
+            home=tmp,
+        )
+
+    assert "error" in result
+
+
 def test_global_project_context_validates_limit() -> None:
     from truenex_memory.mcp.tools import global_project_context as gpc
 

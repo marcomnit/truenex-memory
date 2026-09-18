@@ -183,6 +183,50 @@ def build_project_context(
     return report
 
 
+def resolve_project_root(
+    project_query: str, catalog_path: Path
+) -> tuple[Path | None, list[str], str | None]:
+    """Resolve *project_query* to a single project root, via the confirmed catalog.
+
+    Returns ``(root, ambiguous_candidates, error)``. Exactly one of ``root``
+    or (``ambiguous_candidates`` / ``error``) is meaningful: a caller that
+    wants to act on a different project than its own cwd (``memory_add``'s
+    ``project`` parameter) needs the same exact-match-then-disambiguate
+    resolution ``global context`` already uses, not a second, looser one
+    that would silently pick a different root for the same query string.
+    """
+
+    if not catalog_path.exists():
+        return None, [], f"Catalog not found: {catalog_path}"
+    try:
+        catalog_data = json.loads(catalog_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None, [], f"Catalog exists but is invalid/unreadable: {catalog_path}"
+    if not isinstance(catalog_data, dict):
+        return None, [], f"Catalog must be a JSON object: {catalog_path}"
+
+    raw_entries = catalog_data.get("entries", [])
+    if not isinstance(raw_entries, list):
+        return None, [], "Catalog entries is not a list"
+
+    confirmed = [
+        entry for entry in raw_entries
+        if isinstance(entry, dict) and entry.get("confirmation_status") == "confirmed"
+    ]
+    if not confirmed:
+        return None, [], "No confirmed entries in catalog"
+
+    matched_roots, _docs, _servers, _method, _notes, ambiguous = _resolve_project(
+        project_query, confirmed
+    )
+    if ambiguous:
+        return None, ambiguous, None
+    if not matched_roots:
+        return None, [], f"Project '{project_query}' not found in confirmed catalog entries"
+
+    return Path(str(matched_roots[0].get("path_or_alias"))), [], None
+
+
 # ── Internal: resolution ──────────────────────────────────────────────
 
 def _looks_like_file(path_or_alias: object) -> bool:

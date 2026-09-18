@@ -17,8 +17,8 @@ from truenex_memory.mcp.identity import (
     Cronometro, Diario, identita_archivio, istruzioni,
 )
 from truenex_memory.mcp.tools import (
-    global_project_context, global_status, memory_add, memory_get, memory_search,
-    task_open, task_step_add, task_close,
+    global_project_context, global_status, memory_add, memory_get, memory_resume,
+    memory_search, task_open, task_step_add, task_close,
 )
 
 
@@ -431,7 +431,14 @@ def _tool_definitions() -> list[dict[str, Any]]:
         },
         {
             "name": "memory_add",
-            "description": "Add a local memory note or decision for the current project.",
+            "description": (
+                "Add a local memory note or decision for the current project. "
+                "Pass `project` to target a DIFFERENT project than the one this "
+                "session is running in — a name, basename, or path already "
+                "confirmed in the global source catalog — for a note "
+                "discovered while working elsewhere but relevant there. "
+                "Without it, the note always goes to the current project."
+            ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -453,8 +460,62 @@ def _tool_definitions() -> list[dict[str, Any]]:
                         "description": "Memory type, such as note or decision.",
                         "default": "note",
                     },
+                    "project": {
+                        "type": "string",
+                        "description": (
+                            "Write into this project instead of the current "
+                            "session's own project. Resolved against the global "
+                            "source catalog; an ambiguous or unknown name comes "
+                            "back as an error naming the candidates instead of "
+                            "guessing."
+                        ),
+                    },
                 },
                 "required": ["content"],
+                "additionalProperties": False,
+            },
+        },
+        {
+            "name": "memory_resume",
+            "description": (
+                "Chronological recap of recent work on THIS project: what "
+                "happened last, in what order, what tasks are still open. Use "
+                "this for 'where did we leave off', 'what's the current "
+                "status', 'what's next' — questions about RECENCY, not "
+                "relevance. memory_search ranks content by similarity to a "
+                "query, which measurably does not answer 'what happened last' "
+                "(dense/lexical ranking both optimise for topical match, not "
+                "time); memory_resume instead lists this project's own "
+                "activity log, recent tasks, and recent notes/decisions, "
+                "strictly ordered by time, with an explicit `coverage` field "
+                "naming what each source can and cannot promise. Call this "
+                "FIRST when resuming a session, before memory_search."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "limit_activity": {
+                        "type": "integer",
+                        "description": "Maximum recent tool-call log entries.",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "default": 20,
+                    },
+                    "limit_tasks": {
+                        "type": "integer",
+                        "description": "Maximum recent tasks (name-matched, best-effort).",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 5,
+                    },
+                    "limit_memories": {
+                        "type": "integer",
+                        "description": "Maximum recent memory_add notes/decisions.",
+                        "minimum": 1,
+                        "maximum": 50,
+                        "default": 10,
+                    },
+                },
                 "additionalProperties": False,
             },
         },
@@ -574,6 +635,7 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
     if not isinstance(arguments, dict):
         raise ValueError("tool arguments must be an object")
 
+    ok = True
     try:
         if name == "memory_search":
             payload = _call_memory_search(arguments, project_root=project_root)
@@ -583,6 +645,8 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
             payload = _call_memory_graph(arguments, project_root=project_root)
         elif name == "memory_add":
             payload = _call_memory_add(arguments, project_root=project_root)
+        elif name == "memory_resume":
+            payload = _call_memory_resume(arguments, project_root=project_root)
         elif name == "global_status":
             payload = _call_global_status(arguments, project_root=project_root)
         elif name == "global_project_context":
@@ -595,9 +659,52 @@ def _call_tool(params: dict[str, Any], *, project_root: Path) -> dict[str, Any]:
             payload = _call_task_close(arguments)
         else:
             raise ValueError(f"unknown tool: {name}")
-        return _tool_result(payload, is_error=False)
     except Exception as exc:
-        return _tool_result({"error": str(exc)}, is_error=True)
+        ok = False
+        payload = {"error": str(exc)}
+    _log_activity(name, arguments, payload, ok=ok, project_root=project_root)
+    return _tool_result(payload, is_error=not ok)
+
+
+def _log_activity(
+    name: str, arguments: dict[str, Any], payload: object, *, ok: bool, project_root: Path
+) -> None:
+    """Registra la chiamata nella cronologia automatica del progetto.
+
+    Non deve MAI far fallire una risposta gia' calcolata: una riga di
+    cronologia persa e' un'informazione in meno per `memory_resume`, un
+    errore qui sarebbe un danno vero al chiamante che non c'entra niente con
+    questa registrazione. Vedi `store.activity_log` per il perche' questo e'
+    l'unico punto dove la scrittura non dipende dalla disciplina del client.
+    """
+
+    try:
+        from truenex_memory.core.config import resolve_project_config
+        from truenex_memory.store.activity_log import record
+
+        config = resolve_project_config(project_root)
+        import os
+
+        project_id = os.environ.get("TRUENEX_PROJECT_ID") or config.project_root.name
+        record(
+            config.db_path,
+            project_id=project_id,
+            tool_name=name,
+            summary=_activity_summary(arguments, payload),
+            ok=ok,
+        )
+    except Exception:  # pragma: no cover - la cronologia non deve mai rompere una risposta
+        pass
+
+
+def _activity_summary(arguments: dict[str, Any], payload: object) -> str | None:
+    for key in ("content", "query", "target", "title", "project"):
+        value = arguments.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    if isinstance(payload, dict) and isinstance(payload.get("error"), str):
+        return f"error: {payload['error']}"
+    return None
 
 
 def _call_memory_graph(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
@@ -667,8 +774,11 @@ def _call_memory_add(arguments: dict[str, Any], *, project_root: Path) -> dict[s
     content = arguments.get("content")
     memory_type = arguments.get("memory_type", "note")
     supersedes = arguments.get("supersedes")
+    project = arguments.get("project")
     if supersedes is not None and (not isinstance(supersedes, str) or not supersedes.strip()):
         raise ValueError("supersedes must be a non-empty string")
+    if project is not None and (not isinstance(project, str) or not project.strip()):
+        raise ValueError("project must be a non-empty string")
     if not isinstance(content, str) or not content.strip():
         raise ValueError("content must be a non-empty string")
     if not isinstance(memory_type, str) or not memory_type.strip():
@@ -677,8 +787,25 @@ def _call_memory_add(arguments: dict[str, Any], *, project_root: Path) -> dict[s
         content,
         memory_type=memory_type,
         supersedes=supersedes,
+        project=project.strip() if isinstance(project, str) else None,
         project_root=project_root,
     )
+
+
+def _call_memory_resume(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
+    limits: dict[str, int] = {}
+    for key, default in (
+        ("limit_activity", 20),
+        ("limit_tasks", 5),
+        ("limit_memories", 10),
+    ):
+        value = arguments.get(key, default)
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"{key} must be an integer")
+        if value < 1 or value > 100:
+            raise ValueError(f"{key} must be between 1 and 100")
+        limits[key] = value
+    return memory_resume(project_root=project_root, **limits)
 
 
 def _call_global_status(arguments: dict[str, Any], *, project_root: Path) -> dict[str, object]:
