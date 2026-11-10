@@ -2,6 +2,64 @@
 
 ## [Unreleased]
 
+## [0.7.3] — 2026-11-10
+
+Ogni server MCP (`truenex-mem mcp`, uno per sessione Claude/Codex) teneva
+~1,25 GB di VRAM dedicata per tutta la vita del processo. Con quattro
+sessioni aperte erano ~5 GB sulla stessa scheda, sottratti alle altre
+applicazioni locali: MedDesk, che usa al massimo il 40% della memoria
+libera di una scheda condivisa, finiva con il suo LLM per due terzi sulla
+CPU.
+
+Causa radice: ogni tool MCP costruisce un `MemoryService` e quindi un nuovo
+embedder e5, che veniva caricato da disco sulla GPU a ogni chiamata
+(~10 s per `memory_search`, misurato) e lasciava memoria nella cache
+dell'allocatore di torch. Il modello, inoltre, serviva solo raramente: con
+il ranker denso spento (`TRUENEX_DENSE` off, il difetto) la ricerca calcola
+l'embedding della query solo nel fallback senza risultati lessicali.
+
+Revisione indipendente (Codex) sul fix: ha trovato e fatto correggere uno
+scarico che poteva colpire un modello appena usato, l'inattivita' misurata
+dall'inizio invece che dalla fine di un encode lungo, e valori `inf`/`nan`
+accettati per il timeout.
+
+### Fixed
+
+- **`core/embedder.py`**: l'embedder e5 e' ora un'istanza unica per
+  processo (`shared_sentence_transformer_embedder`), caricata solo al primo
+  encode o alla prima lettura delle dimensioni. La maggior parte dei server
+  non carica mai il modello.
+- Il modello condiviso si scarica dopo un periodo di inattivita' e si
+  ricarica da solo alla richiesta successiva.
+- Un device non utilizzabile su questa macchina (`cuda` senza GPU, torch
+  solo CPU, `cuda:N` inesistente, `mps` fuori da Apple Silicon) o non valido
+  ricade su `cpu` con un solo avviso nel log, invece di far fallire la
+  ricerca: una configurazione copiata da una workstation con GPU funziona
+  anche su un PC di sviluppo qualsiasi.
+
+### Changed
+
+- **L'embedder dei server gira sulla CPU per difetto.** Nuove variabili:
+  - `TRUENEX_EMBED_DEVICE`: `cpu` (difetto), `auto` (cuda, poi mps, poi
+    cpu: il comportamento precedente), oppure `cuda`, `cuda:N`, `mps`;
+  - `TRUENEX_EMBED_IDLE_SECONDS`: secondi di inattivita' prima dello
+    scarico (difetto `900`, `0` = mai).
+- `global reindex-embeddings` resta su `auto` (GPU se presente): e' un
+  lavoro in blocco e a termine, dove la GPU conviene.
+
+### Misure (archivio reale, ~183k chunk, client MCP stdio vero)
+
+| | prima | dopo |
+|---|---|---|
+| `memory_search` a caldo | 12–14 s | 0,18–0,34 s |
+| VRAM per server | ~1,25 GB | 0 |
+| ricerca di fallback (carica e5 su CPU) | — | 5,3 s |
+| RAM liberata dallo scarico per inattivita' | — | ~620 MB |
+
+Note: con `TRUENEX_EMBED_DEVICE=cuda` lo scarico libera i pesi ma lascia
+~200 MB di contesto CUDA fino all'uscita del processo. I server gia' avviati
+continuano con il codice vecchio finche' le sessioni non si riavviano.
+
 ## [0.7.2] — 2026-09-18
 
 0.7.1 non bastava. Dopo la pubblicazione, la stessa domanda reale
