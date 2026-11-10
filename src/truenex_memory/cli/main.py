@@ -1633,7 +1633,7 @@ def global_reindex_embeddings(
     device: str | None = typer.Option(
         None,
         "--device",
-        help="Torch device for the embedder (default: cuda if available, else cpu).",
+        help="Torch device for the embedder (default: auto = cuda if available, else cpu).",
     ),
     yes: bool = typer.Option(
         False,
@@ -1676,7 +1676,9 @@ def global_reindex_embeddings(
             ModelNameOnlyEmbedder(sentence_transformers_model_name())
         )
     else:
-        embedder = SentenceTransformerEmbedder(device=device)
+        # Lavoro in blocco e a termine: qui la GPU conviene, a differenza del
+        # server MCP che vive a lungo (vedi TRUENEX_EMBED_DEVICE).
+        embedder = SentenceTransformerEmbedder(device=device or "auto")
     report = reindex_embeddings(
         db_path,
         embedder=embedder,
