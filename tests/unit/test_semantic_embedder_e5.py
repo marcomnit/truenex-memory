@@ -150,13 +150,27 @@ def test_embedder_from_env_invalid_value_falls_back(
     assert isinstance(embedder_from_env(), HashingEmbedder)
 
 
+def _fake_hardware(
+    monkeypatch: pytest.MonkeyPatch, *, cuda_devices: int = 0, mps: bool = False
+) -> None:
+    def available(kind: str, index: int | None = None) -> bool:
+        if kind == "cuda":
+            return cuda_devices > 0 and (index is None or index < cuda_devices)
+        if kind == "mps":
+            return mps and not index
+        return False
+
+    monkeypatch.setattr(embedder_module, "_accelerator_available", available)
+    embedder_module._WARNED_DEVICES.clear()
+
+
 # --- device, cache di processo e scarico per inattivita' -------------------
 
 
 def test_device_defaults_to_cpu_even_with_a_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
     # Regressione 10/11/2026: ogni server MCP teneva ~1,25 GB di VRAM perche'
     # il difetto era "cuda se disponibile".
-    monkeypatch.setattr(embedder_module, "_cuda_if_available", lambda: "cuda")
+    _fake_hardware(monkeypatch, cuda_devices=2)
     assert resolve_embed_device() == "cpu"
     monkeypatch.setenv(EMBED_DEVICE_ENV_VAR, "auto")
     assert resolve_embed_device() == "cuda"
@@ -168,7 +182,7 @@ def test_device_defaults_to_cpu_even_with_a_gpu(monkeypatch: pytest.MonkeyPatch)
 def test_embedder_from_env_uses_cpu_by_default(
     monkeypatch: pytest.MonkeyPatch, fake_st_module
 ) -> None:
-    monkeypatch.setattr(embedder_module, "_cuda_if_available", lambda: "cuda")
+    _fake_hardware(monkeypatch, cuda_devices=1)
     monkeypatch.setenv(EMBEDDER_ENV_VAR, "e5")
     embedder = embedder_from_env()
     assert embedder.device == "cpu"
@@ -303,3 +317,67 @@ def test_idle_is_measured_from_the_end_of_a_long_encode(
         assert embedder.loaded, "a batch that just finished is not idle"
     finally:
         embedder.unload()
+
+
+# --- macchine senza GPU (es. PC di sviluppo) e valori sbagliati -------------
+
+
+@pytest.mark.parametrize("requested", ["cuda", "cuda:0", "CUDA:3", "mps"])
+def test_unavailable_accelerator_falls_back_to_cpu(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, requested: str
+) -> None:
+    # Una config copiata da una workstation con GPU su un portatile normale
+    # deve continuare a funzionare, non rompere ogni ricerca semantica.
+    _fake_hardware(monkeypatch, cuda_devices=0)
+    monkeypatch.setenv(EMBED_DEVICE_ENV_VAR, requested)
+    with caplog.at_level("WARNING", logger=embedder_module.__name__):
+        assert resolve_embed_device() == "cpu"
+        assert resolve_embed_device() == "cpu"
+    warnings = [r for r in caplog.records if "not available" in r.getMessage()]
+    assert len(warnings) == 1, "one warning per value, not one per tool call"
+
+
+def test_missing_gpu_index_falls_back_to_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_hardware(monkeypatch, cuda_devices=1)
+    assert resolve_embed_device("cuda:1") == "cpu"
+    assert resolve_embed_device("cuda:0") == "cuda:0"
+
+
+@pytest.mark.parametrize("bogus", ["gpu", "cuda:x", "vulkan", "cuda:-1"])
+def test_invalid_device_falls_back_to_cpu(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, bogus: str
+) -> None:
+    _fake_hardware(monkeypatch, cuda_devices=1)
+    with caplog.at_level("WARNING", logger=embedder_module.__name__):
+        assert resolve_embed_device(bogus) == "cpu"
+    assert any("invalid embedder device" in r.getMessage() for r in caplog.records)
+
+
+def test_auto_prefers_cuda_then_mps_then_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_hardware(monkeypatch, cuda_devices=1, mps=True)
+    assert resolve_embed_device("auto") == "cuda"
+    _fake_hardware(monkeypatch, cuda_devices=0, mps=True)
+    assert resolve_embed_device("auto") == "mps"
+    _fake_hardware(monkeypatch, cuda_devices=0, mps=False)
+    assert resolve_embed_device("auto") == "cpu"
+
+
+def test_accelerator_probe_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    # torch assente: il probe deve dire "non disponibile", non sollevare.
+    monkeypatch.setitem(sys.modules, "torch", None)
+    assert embedder_module._accelerator_available("cuda") is False
+    assert embedder_module._accelerator_available("mps") is False
+    assert resolve_embed_device("auto") == "cpu"
+    assert resolve_embed_device("cuda") == "cpu"
+
+
+def test_shared_embedder_on_a_gpu_less_machine_with_cuda_configured(
+    monkeypatch: pytest.MonkeyPatch, fake_st_module
+) -> None:
+    _fake_hardware(monkeypatch, cuda_devices=0)
+    monkeypatch.setenv(EMBEDDER_ENV_VAR, "e5")
+    monkeypatch.setenv(EMBED_DEVICE_ENV_VAR, "cuda")
+    embedder = embedder_from_env()
+    assert len(embedder.embed_query("funziona lo stesso")) == 768
+    assert embedder.device == "cpu"
+    assert _FakeSentenceTransformer.instances[0].device == "cpu"

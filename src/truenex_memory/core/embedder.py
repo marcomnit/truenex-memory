@@ -339,28 +339,75 @@ class SentenceTransformerEmbedder:
             self.unload()
 
 
-def _cuda_if_available() -> str:
-    """Pick "cuda" when a GPU is visible to torch, else "cpu"."""
+_DEVICE_RE = re.compile(r"^(cpu|cuda|mps)(?::(\d+))?$")
+_WARNED_DEVICES: set[str] = set()
+
+
+def _accelerator_available(kind: str, index: int | None = None) -> bool:
+    """True when torch can really use ``kind`` (and GPU ``index``, if given).
+
+    Never raises: no torch, a CPU-only torch build or a broken driver all
+    read as "not available".
+    """
 
     try:
         import torch
 
-        return "cuda" if torch.cuda.is_available() else "cpu"
-    except ImportError:
-        return "cpu"
+        if kind == "cuda":
+            if not torch.cuda.is_available():
+                return False
+            return index is None or index < torch.cuda.device_count()
+        if kind == "mps":
+            backend = getattr(torch.backends, "mps", None)
+            return bool(backend is not None and backend.is_available()) and not index
+    except Exception:
+        return False
+    return False
+
+
+def _warn_device_once(raw: str, message: str) -> None:
+    # resolve_embed_device gira a ogni tool call MCP: un avviso per valore
+    # basta, non uno per ricerca.
+    if raw not in _WARNED_DEVICES:
+        _WARNED_DEVICES.add(raw)
+        logger.warning(message)
 
 
 def resolve_embed_device(device: str | None = None) -> str:
-    """Resolve an explicit device or ``TRUENEX_EMBED_DEVICE`` to a torch device.
+    """Resolve an explicit device or ``TRUENEX_EMBED_DEVICE`` to a usable device.
 
-    ``None`` reads the env var (default ``cpu``); ``auto`` becomes ``cuda``
-    when torch sees a GPU, else ``cpu``; anything else is passed to torch as is.
+    ``None`` reads the env var (default ``cpu``). ``auto`` picks ``cuda``,
+    then ``mps`` (Apple), then ``cpu``. An explicit ``cuda``/``cuda:N``/``mps``
+    that this machine cannot use (no GPU, CPU-only torch, missing index), or
+    an unrecognised value, falls back to ``cpu`` with a single warning: a
+    configuration copied from a GPU workstation to a plain laptop must keep
+    working, not break every semantic search.
     """
 
     raw = device if device is not None else os.environ.get(EMBED_DEVICE_ENV_VAR, "")
     choice = raw.strip().lower() or DEFAULT_EMBED_DEVICE
+    if choice == "cpu":
+        return "cpu"
     if choice == "auto":
-        return _cuda_if_available()
+        if _accelerator_available("cuda"):
+            return "cuda"
+        if _accelerator_available("mps"):
+            return "mps"
+        return "cpu"
+    match = _DEVICE_RE.match(choice)
+    if match is None:
+        _warn_device_once(
+            choice,
+            f"invalid embedder device {raw!r} (expected cpu, auto, cuda, cuda:N or mps); "
+            "using cpu",
+        )
+        return "cpu"
+    kind, index = match.group(1), match.group(2)
+    if kind == "cpu":
+        return "cpu"
+    if not _accelerator_available(kind, int(index) if index is not None else None):
+        _warn_device_once(choice, f"embedder device {choice!r} not available here; using cpu")
+        return "cpu"
     return choice
 
 
